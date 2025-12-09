@@ -1,2 +1,19 @@
+# Dependencies
+node_modules/
 .node_modules/
+
+# Environment variables (IMPORTANT: never commit .env with real credentials!)
+.env
+
+# Build
 dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
