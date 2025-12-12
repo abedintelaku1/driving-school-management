@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, TrendingUpIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -6,25 +6,123 @@ import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../hooks/useAuth';
-import { mockAppointments, mockCandidates, getCandidateById, getCarById, getCandidatesByInstructor, getAppointmentsByInstructor } from '../../utils/mockData';
+import { api } from '../../utils/api';
+
+type Appointment = {
+  _id?: string;
+  id?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  hours?: number;
+  status: string;
+  candidate?: any;
+  candidateId?: string;
+  carId?: any;
+};
+
+type Candidate = {
+  _id?: string;
+  id?: string;
+  firstName: string;
+  lastName: string;
+  status?: string;
+};
+
 export function InstructorDashboard() {
-  const {
-    user
-  } = useAuth();
-  const instructorId = user?.id || '2'; // Default to John Smith for demo
-  const myAppointments = getAppointmentsByInstructor(instructorId);
-  const myCandidates = getCandidatesByInstructor(instructorId);
+  const { user } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [appointmentsRes, candidatesRes] = await Promise.all([
+          api.listAppointments(),
+          api.listCandidates()
+        ]);
+
+        if (appointmentsRes.ok && appointmentsRes.data) {
+          setAppointments(appointmentsRes.data);
+        }
+        if (candidatesRes.ok && candidatesRes.data) {
+          setCandidates(candidatesRes.data);
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard data', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = myAppointments.filter(a => a.date === today && a.status === 'scheduled');
-  const upcomingAppointments = myAppointments.filter(a => a.date >= today && a.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)).slice(0, 5);
-  const completedThisMonth = myAppointments.filter(a => {
-    const appointmentMonth = a.date.substring(0, 7);
+  
+  const todayAppointments = useMemo(() => {
+    return appointments.filter(a => {
+      const aptDate = a.date?.split('T')[0] || a.date;
+      return aptDate === today && a.status === 'scheduled';
+    });
+  }, [appointments, today]);
+
+  const upcomingAppointments = useMemo(() => {
+    return appointments
+      .filter(a => {
+        const aptDate = a.date?.split('T')[0] || a.date;
+        return aptDate >= today && a.status === 'scheduled';
+      })
+      .sort((a, b) => {
+        const dateA = a.date?.split('T')[0] || a.date;
+        const dateB = b.date?.split('T')[0] || b.date;
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      })
+      .slice(0, 5);
+  }, [appointments, today]);
+
+  const completedThisMonth = useMemo(() => {
     const currentMonth = new Date().toISOString().substring(0, 7);
-    return appointmentMonth === currentMonth && a.status === 'completed';
-  });
-  const hoursThisMonth = completedThisMonth.reduce((sum, a) => sum + a.hours, 0);
-  const activeCandidates = myCandidates.filter(c => c.status === 'active');
-  return <div className="space-y-6">
+    return appointments.filter(a => {
+      const aptDate = a.date?.split('T')[0] || a.date;
+      const appointmentMonth = aptDate?.substring(0, 7);
+      return appointmentMonth === currentMonth && a.status === 'completed';
+    });
+  }, [appointments]);
+
+  const hoursThisMonth = useMemo(() => {
+    return completedThisMonth.reduce((sum, a) => sum + (a.hours || 0), 0);
+  }, [completedThisMonth]);
+
+  const activeCandidates = useMemo(() => {
+    return candidates.filter(c => !c.status || c.status === 'active');
+  }, [candidates]);
+
+  const getCandidateById = (id: string) => {
+    return candidates.find(c => (c._id || c.id) === id);
+  };
+
+  const getCarById = (id: string) => {
+    // Cars are populated in appointments, so we can get it from there
+    const appointment = appointments.find(a => {
+      const carId = a.carId?._id || a.carId?.id || a.carId;
+      return carId === id;
+    });
+    return appointment?.carId;
+  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -111,31 +209,42 @@ export function InstructorDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {todayAppointments.length > 0 ? <div className="space-y-3">
+            {todayAppointments.length > 0 ? (
+              <div className="space-y-3">
                 {todayAppointments.map(appointment => {
-              const candidate = getCandidateById(appointment.candidateId);
-              const car = getCarById(appointment.carId);
-              return <div key={appointment.id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl">
+                  const candidateId = appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId;
+                  const candidate = getCandidateById(candidateId || '');
+                  const carId = appointment.carId?._id || appointment.carId?.id || appointment.carId;
+                  const car = carId ? getCarById(carId) : null;
+                  const aptId = appointment._id || appointment.id || '';
+                  
+                  return (
+                    <div key={aptId} className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl">
                       <div className="text-center min-w-[60px]">
                         <p className="text-lg font-bold text-blue-600">
                           {appointment.startTime}
                         </p>
                         <p className="text-xs text-blue-500">
-                          {appointment.hours}h
+                          {appointment.hours || 0}h
                         </p>
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">
                           {candidate?.firstName} {candidate?.lastName}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          {car?.model} • {car?.licensePlate}
-                        </p>
+                        {car && (
+                          <p className="text-sm text-gray-500">
+                            {car.model} • {car.licensePlate}
+                          </p>
+                        )}
                       </div>
                       <Badge variant="info">Scheduled</Badge>
-                    </div>;
-            })}
-              </div> : <div className="text-center py-8">
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
                 <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500">No lessons scheduled for today</p>
                 <Link to="/instructor/appointments">
@@ -143,7 +252,8 @@ export function InstructorDashboard() {
                     Schedule a Lesson
                   </Button>
                 </Link>
-              </div>}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -158,11 +268,17 @@ export function InstructorDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {upcomingAppointments.length > 0 ? <div className="space-y-3">
+            {upcomingAppointments.length > 0 ? (
+              <div className="space-y-3">
                 {upcomingAppointments.map(appointment => {
-              const candidate = getCandidateById(appointment.candidateId);
-              return <div key={appointment.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                      <Avatar name={`${candidate?.firstName} ${candidate?.lastName}`} size="sm" />
+                  const candidateId = appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId;
+                  const candidate = getCandidateById(candidateId || '');
+                  const aptId = appointment._id || appointment.id || '';
+                  const aptDate = appointment.date?.split('T')[0] || appointment.date;
+                  
+                  return (
+                    <div key={aptId} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                      <Avatar name={`${candidate?.firstName || ''} ${candidate?.lastName || ''}`} size="sm" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">
                           {candidate?.firstName} {candidate?.lastName}
@@ -173,17 +289,21 @@ export function InstructorDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">
-                          {appointment.date}
+                          {aptDate}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {appointment.hours}h
+                          {appointment.hours || 0}h
                         </p>
                       </div>
-                    </div>;
-            })}
-              </div> : <p className="text-center text-gray-500 py-8">
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-8">
                 No upcoming appointments
-              </p>}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -199,24 +319,40 @@ export function InstructorDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeCandidates.slice(0, 6).map(candidate => {
-            const appointments = mockAppointments.filter(a => a.candidateId === candidate.id);
-            const completedHours = appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.hours, 0);
-            return <div key={candidate.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                  <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">
-                      {candidate.firstName} {candidate.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {completedHours}h completed
-                    </p>
+          {activeCandidates.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeCandidates.slice(0, 6).map(candidate => {
+                const candidateId = candidate._id || candidate.id || '';
+                const candidateAppointments = appointments.filter(a => {
+                  const aptCandidateId = a.candidate?._id || a.candidate?.id || a.candidateId;
+                  return aptCandidateId === candidateId;
+                });
+                const completedHours = candidateAppointments
+                  .filter(a => a.status === 'completed')
+                  .reduce((sum, a) => sum + (a.hours || 0), 0);
+                
+                return (
+                  <div key={candidateId} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                    <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {candidate.firstName} {candidate.lastName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {completedHours}h completed
+                      </p>
+                    </div>
                   </div>
-                </div>;
-          })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">
+              No active students
+            </p>
+          )}
         </CardContent>
       </Card>
-    </div>;
+    </div>
+  );
 }

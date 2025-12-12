@@ -1,45 +1,148 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeftIcon, EditIcon, MailIcon, PhoneIcon, MapPinIcon, CalendarIcon, CreditCardIcon, FileTextIcon, CheckCircleIcon, ClockIcon, XCircleIcon, UserIcon, CarIcon, PackageIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeftIcon, EditIcon, MailIcon, PhoneIcon, MapPinIcon, CalendarIcon, CreditCardIcon, ClockIcon, UserIcon, PackageIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
-import { Badge, StatusBadge, DocumentStatusBadge } from '../../components/ui/Badge';
+import { Card } from '../../components/ui/Card';
+import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Tabs, TabList, Tab, TabPanel } from '../../components/ui/Tabs';
 import { DataTable } from '../../components/ui/DataTable';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { getCandidateById, getPackageById, getInstructorById, getCarById, getPaymentsByCandidate, getAppointmentsByCandidate } from '../../utils/mockData';
-import type { Payment, Appointment } from '../../types';
+import { api } from '../../utils/api';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Modal } from '../../components/ui/Modal';
+import type { Appointment } from '../../types';
+
+type Candidate = {
+  _id?: string;
+  id?: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  address?: string;
+  status?: string;
+  uniqueClientNumber?: string;
+  instructor?: any;
+  instructorId?: string;
+  carId?: string;
+  packageId?: string;
+  personalNumber?: string;
+};
+
+type AppointmentEx = Appointment & {
+  _id?: string;
+  candidate?: any;
+  instructor?: any;
+  candidateId?: string;
+  instructorId?: string;
+};
+
 export function CandidateDetailPage() {
-  const {
-    id
-  } = useParams<{
-    id: string;
-  }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const candidate = id ? getCandidateById(id) : null;
-  if (!candidate) {
-    return <div className="flex items-center justify-center min-h-[400px]">
-        <EmptyState title="Candidate not found" description="The candidate you're looking for doesn't exist or has been removed." action={{
-        label: 'Back to Candidates',
-        onClick: () => navigate('/admin/candidates')
-      }} />
-      </div>;
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentEx[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+
+  const loadData = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const [candRes, aptRes, instRes] = await Promise.all([
+        api.getCandidate(id),
+        api.listAppointments(),
+        api.listInstructors()
+      ]);
+
+      if (candRes.ok && candRes.data) {
+        setCandidate(candRes.data as Candidate);
+      }
+
+      if (aptRes.ok && aptRes.data) {
+        const list = (aptRes.data as AppointmentEx[]).filter(a => {
+          const candId = a.candidate?._id || a.candidate?.id || a.candidateId;
+          return candId === id;
+        }).map(a => ({
+          ...a,
+          id: a._id || a.id,
+          candidateId: a.candidate?._id || a.candidate?.id || a.candidateId
+        }));
+        setAppointments(list);
+      }
+
+      if (instRes?.ok && instRes.data) {
+        const mapped = (instRes.data as any[]).map(inst => ({
+          id: inst._id || inst.id,
+          name: `${inst.user?.firstName || ''} ${inst.user?.lastName || ''}`.trim()
+        }));
+        setInstructors(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to load candidate detail', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const completedHours = useMemo(
+    () => appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + (a.hours || 0), 0),
+    [appointments]
+  );
+
+  const instructorName = useMemo(() => {
+    if (candidate?.instructor?.user) {
+      return `${candidate.instructor.user.firstName || ''} ${candidate.instructor.user.lastName || ''}`.trim();
+    }
+    const aptWithInstructor = appointments.find(a => a.instructor?.user);
+    if (aptWithInstructor?.instructor?.user) {
+      return `${aptWithInstructor.instructor.user.firstName || ''} ${aptWithInstructor.instructor.user.lastName || ''}`.trim();
+    }
+    return 'Not assigned';
+  }, [candidate?.instructor, appointments]);
+
+  const balanceText = '0'; // Placeholder until payments API exists
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <p className="text-gray-500">Loading candidate...</p>
+      </div>
+    );
   }
-  const pkg = candidate.packageId ? getPackageById(candidate.packageId) : null;
-  const instructor = candidate.instructorId ? getInstructorById(candidate.instructorId) : null;
-  const car = candidate.carId ? getCarById(candidate.carId) : null;
-  const payments = getPaymentsByCandidate(candidate.id);
-  const appointments = getAppointmentsByCandidate(candidate.id);
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const packagePrice = pkg?.price || 0;
-  const remainingBalance = packagePrice - totalPaid;
-  const completedHours = appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.hours, 0);
-  const totalHours = pkg?.numberOfHours || 0;
-  return <div className="space-y-6">
+
+  if (!candidate) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <EmptyState
+          title="Candidate not found"
+          description="The candidate you're looking for doesn't exist or has been removed."
+          action={{
+            label: 'Back to Candidates',
+            onClick: () => navigate('/admin/candidates')
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/admin/candidates')} icon={<ArrowLeftIcon className="w-4 h-4" />}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/admin/candidates')}
+          icon={<ArrowLeftIcon className="w-4 h-4" />}
+        >
           Back
         </Button>
       </div>
@@ -49,16 +152,16 @@ export function CandidateDetailPage() {
         <div className="flex flex-col md:flex-row md:items-start gap-6">
           <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="xl" />
           <div className="flex-1">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {candidate.firstName} {candidate.lastName}
                 </h1>
-                <p className="text-gray-500">{candidate.uniqueClientNumber}</p>
+                {candidate.uniqueClientNumber && <p className="text-gray-500">{candidate.uniqueClientNumber}</p>}
               </div>
               <div className="flex items-center gap-3">
-                <StatusBadge status={candidate.status} />
-                <Button variant="outline" icon={<EditIcon className="w-4 h-4" />}>
+                <StatusBadge status={(candidate.status as 'active' | 'inactive') || 'active'} />
+                <Button variant="outline" icon={<EditIcon className="w-4 h-4" />} onClick={() => setEditOpen(true)}>
                   Edit
                 </Button>
               </div>
@@ -67,19 +170,19 @@ export function CandidateDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
               <div className="flex items-center gap-3 text-gray-600">
                 <MailIcon className="w-5 h-5 text-gray-400" />
-                <span>{candidate.email}</span>
+                <span>{candidate.email || '-'}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <PhoneIcon className="w-5 h-5 text-gray-400" />
-                <span>{candidate.phone}</span>
+                <span>{candidate.phone || '-'}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />
-                <span>DOB: {candidate.dateOfBirth}</span>
+                <span>DOB: {candidate.dateOfBirth || '-'}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600 md:col-span-3">
                 <MapPinIcon className="w-5 h-5 text-gray-400" />
-                <span>{candidate.address}</span>
+                <span>{candidate.address || '-'}</span>
               </div>
             </div>
           </div>
@@ -95,9 +198,7 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Package</p>
-              <p className="font-semibold text-gray-900">
-                {pkg?.name || 'Not assigned'}
-              </p>
+              <p className="font-semibold text-gray-900">Not assigned</p>
             </div>
           </div>
         </Card>
@@ -109,7 +210,7 @@ export function CandidateDetailPage() {
             <div>
               <p className="text-sm text-gray-500">Instructor</p>
               <p className="font-semibold text-gray-900">
-                {instructor ? `${instructor.firstName} ${instructor.lastName}` : 'Not assigned'}
+                {instructorName}
               </p>
             </div>
           </div>
@@ -121,9 +222,7 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Hours Completed</p>
-              <p className="font-semibold text-gray-900">
-                {completedHours} / {totalHours}
-              </p>
+              <p className="font-semibold text-gray-900">{completedHours}h</p>
             </div>
           </div>
         </Card>
@@ -134,169 +233,233 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Balance</p>
-              <p className={`font-semibold ${remainingBalance > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                ${remainingBalance > 0 ? remainingBalance : 0}
-              </p>
+              <p className="font-semibold text-gray-900">${balanceText}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultTab="documents">
+      <Tabs defaultTab="appointments">
         <TabList>
-          <Tab value="documents">Documents</Tab>
-          <Tab value="payments">Payments</Tab>
           <Tab value="appointments">Appointments</Tab>
+          <Tab value="payments">Payments</Tab>
+          <Tab value="package">Package</Tab>
         </TabList>
-
-        <TabPanel value="documents">
-          <DocumentsTab documents={candidate.documents} />
-        </TabPanel>
-
-        <TabPanel value="payments">
-          <PaymentsTab payments={payments} packagePrice={packagePrice} />
-        </TabPanel>
 
         <TabPanel value="appointments">
           <AppointmentsTab appointments={appointments} />
         </TabPanel>
-      </Tabs>
-    </div>;
-}
-function DocumentsTab({
-  documents
-}: {
-  documents: (typeof mockCandidates)[0]['documents'];
-}) {
-  const statusIcons = {
-    pending: <ClockIcon className="w-5 h-5 text-gray-400" />,
-    submitted: <FileTextIcon className="w-5 h-5 text-blue-500" />,
-    approved: <CheckCircleIcon className="w-5 h-5 text-green-500" />,
-    rejected: <XCircleIcon className="w-5 h-5 text-red-500" />
-  };
-  return <Card>
-      <CardHeader>
-        <CardTitle>Required Documents</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {documents.map(doc => <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                {statusIcons[doc.status]}
-                <div>
-                  <p className="font-medium text-gray-900">{doc.name}</p>
-                  {doc.submittedAt && <p className="text-sm text-gray-500">
-                      Submitted: {doc.submittedAt}
-                    </p>}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <DocumentStatusBadge status={doc.status} />
-                <Button variant="ghost" size="sm">
-                  {doc.status === 'pending' ? 'Upload' : 'View'}
-                </Button>
-              </div>
-            </div>)}
-        </div>
-      </CardContent>
-    </Card>;
-}
-function PaymentsTab({
-  payments,
-  packagePrice
-}: {
-  payments: Payment[];
-  packagePrice: number;
-}) {
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const columns = [{
-    key: 'date',
-    label: 'Date',
-    sortable: true
-  }, {
-    key: 'amount',
-    label: 'Amount',
-    render: (value: unknown) => <span className="font-semibold text-gray-900">${value as number}</span>
-  }, {
-    key: 'method',
-    label: 'Method',
-    render: (value: unknown) => <Badge variant="outline">
-          {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
-        </Badge>
-  }, {
-    key: 'notes',
-    label: 'Notes',
-    render: (value: unknown) => <span className="text-gray-500">{value as string || '-'}</span>
-  }];
-  return <div className="space-y-4">
-      {/* Summary */}
-      <Card className="bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">Total Paid</p>
-            <p className="text-2xl font-bold text-gray-900">${totalPaid}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Package Price</p>
-            <p className="text-2xl font-bold text-gray-900">${packagePrice}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Remaining</p>
-            <p className={`text-2xl font-bold ${packagePrice - totalPaid > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-              ${Math.max(0, packagePrice - totalPaid)}
-            </p>
-          </div>
-          <Button>Record Payment</Button>
-        </div>
-      </Card>
 
-      {/* Payments Table */}
-      <Card padding="none">
-        <DataTable data={payments} columns={columns} keyExtractor={p => p.id} searchable={false} pagination={false} emptyMessage="No payments recorded" />
-      </Card>
-    </div>;
+        <TabPanel value="payments">
+          <PaymentsTab />
+        </TabPanel>
+
+        <TabPanel value="package">
+          <PackageTab />
+        </TabPanel>
+      </Tabs>
+
+      {candidate && (
+        <EditCandidateModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          candidate={candidate}
+          instructors={instructors}
+          onSaved={loadData}
+        />
+      )}
+    </div>
+  );
 }
-function AppointmentsTab({
-  appointments
-}: {
-  appointments: Appointment[];
-}) {
-  const columns = [{
-    key: 'date',
-    label: 'Date',
-    sortable: true
-  }, {
-    key: 'time',
-    label: 'Time',
-    render: (_: unknown, appointment: Appointment) => <span>
+
+function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
+  const columns = [
+    {
+      key: 'date',
+      label: 'Date',
+      sortable: true
+    },
+    {
+      key: 'time',
+      label: 'Time',
+      render: (_: unknown, appointment: AppointmentEx) => (
+        <span>
           {appointment.startTime} - {appointment.endTime}
         </span>
-  }, {
-    key: 'hours',
-    label: 'Hours'
-  }, {
-    key: 'status',
-    label: 'Status',
-    render: (value: unknown) => {
-      const status = value as string;
-      const variants: Record<string, 'success' | 'warning' | 'danger'> = {
-        completed: 'success',
-        scheduled: 'warning',
-        cancelled: 'danger'
-      };
-      return <Badge variant={variants[status]} dot>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Badge>;
+      )
+    },
+    {
+      key: 'hours',
+      label: 'Hours'
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (value: unknown) => {
+        const status = value as string;
+        const variants: Record<string, 'success' | 'warning' | 'danger'> = {
+          completed: 'success',
+          scheduled: 'warning',
+          cancelled: 'danger'
+        };
+        return (
+          <Badge variant={variants[status] || 'outline'} dot>
+            {status?.charAt(0).toUpperCase() + status?.slice(1)}
+          </Badge>
+        );
+      }
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      render: (value: unknown) => <span className="text-gray-500">{(value as string) || '-'}</span>
     }
-  }, {
-    key: 'notes',
-    label: 'Notes',
-    render: (value: unknown) => <span className="text-gray-500">{value as string || '-'}</span>
-  }];
-  return <Card padding="none">
-      <DataTable data={appointments} columns={columns} keyExtractor={a => a.id} searchable={false} emptyMessage="No appointments scheduled" />
-    </Card>;
+  ];
+  return (
+    <Card padding="none">
+      <DataTable
+        data={appointments}
+        columns={columns}
+        keyExtractor={a => a._id || a.id || ''}
+        searchable={false}
+        emptyMessage="No appointments scheduled"
+      />
+    </Card>
+  );
 }
-// Import mock data for type reference
-import { mockCandidates } from '../../utils/mockData';
+
+type EditModalProps = {
+  open: boolean;
+  onClose: () => void;
+  candidate: Candidate;
+  instructors: { id: string; name: string }[];
+  onSaved: () => void;
+};
+
+function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: EditModalProps) {
+  const [form, setForm] = useState({
+    firstName: candidate.firstName || '',
+    lastName: candidate.lastName || '',
+    email: candidate.email || '',
+    phone: candidate.phone || '',
+    dateOfBirth: candidate.dateOfBirth || '',
+    personalNumber: candidate.personalNumber || '',
+    address: candidate.address || '',
+    instructorId: candidate.instructorId || candidate.instructor?._id || candidate.instructor?.id || '',
+    status: (candidate.status as 'active' | 'inactive') || 'active'
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      firstName: candidate.firstName || '',
+      lastName: candidate.lastName || '',
+      email: candidate.email || '',
+      phone: candidate.phone || '',
+      dateOfBirth: candidate.dateOfBirth || '',
+      personalNumber: candidate.personalNumber || '',
+      address: candidate.address || '',
+      instructorId: candidate.instructorId || candidate.instructor?._id || candidate.instructor?.id || '',
+      status: (candidate.status as 'active' | 'inactive') || 'active'
+    });
+  }, [candidate]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      const resp = await api.updateCandidate(candidate._id || candidate.id!, payload as any);
+      if (!resp.ok) {
+        alert((resp.data as any)?.message || 'Failed to update candidate');
+        return;
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      alert('Failed to update candidate');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title="Edit Candidate"
+      description="Update candidate information."
+      size="lg"
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={saving} fullWidth className="sm:w-auto">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} loading={saving} fullWidth className="sm:w-auto">
+            Save Changes
+          </Button>
+        </div>
+      }
+    >
+      <form
+        className="space-y-4 sm:space-y-6"
+        onSubmit={e => {
+          e.preventDefault();
+          handleSave();
+        }}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+          <Input label="Last Name" required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Email" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+          <Input label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Date of Birth" type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} />
+          <Input label="Personal Number" value={form.personalNumber || ''} onChange={e => setForm({ ...form, personalNumber: e.target.value })} />
+        </div>
+        <Input label="Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Instructor"
+            value={form.instructorId}
+            onChange={e => setForm({ ...form, instructorId: e.target.value })}
+            options={[
+              { value: '', label: 'Not assigned' },
+              ...instructors.map(i => ({ value: i.id, label: i.name || 'Instructor' }))
+            ]}
+          />
+          <Select
+            label="Status"
+            value={form.status}
+            onChange={e => setForm({ ...form, status: e.target.value as 'active' | 'inactive' })}
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' }
+            ]}
+          />
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function PaymentsTab() {
+  return (
+    <Card>
+      <div className="p-4 sm:p-6 text-gray-600">
+        Payments integration not available yet. Balance is shown as $0 for now.
+      </div>
+    </Card>
+  );
+}
+
+function PackageTab() {
+  return (
+    <Card>
+      <div className="p-4 sm:p-6 text-gray-600">No package assigned.</div>
+    </Card>
+  );
+}

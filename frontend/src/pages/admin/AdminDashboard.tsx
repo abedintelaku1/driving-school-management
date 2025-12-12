@@ -1,23 +1,135 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UsersIcon, CarIcon, GraduationCapIcon, CreditCardIcon, CalendarIcon, AlertCircleIcon, ArrowRightIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { StatCard } from '../../components/ui/StatCard';
-import { mockCandidates, mockCars, mockInstructors, mockPayments, mockAppointments, getPackageById, getInstructorById } from '../../utils/mockData';
+import { api } from '../../utils/api';
+
+type Candidate = {
+  _id?: string;
+  id?: string;
+  firstName: string;
+  lastName: string;
+  status?: string;
+  uniqueClientNumber?: string;
+  createdAt?: string;
+};
+
+type Instructor = {
+  _id?: string;
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+  status?: string;
+};
+
+type Car = {
+  _id?: string;
+  id?: string;
+  model: string;
+  licensePlate: string;
+  status?: string;
+  nextInspection?: string;
+};
+
+type Appointment = {
+  _id?: string;
+  id?: string;
+  status?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  candidate?: Candidate;
+  candidateId?: string;
+  instructor?: { user?: { firstName?: string; lastName?: string } };
+  instructorId?: string;
+};
+
 export function AdminDashboard() {
-  const activeCandidates = mockCandidates.filter(c => c.status === 'active').length;
-  const activeCars = mockCars.filter(c => c.status === 'active').length;
-  const activeInstructors = mockInstructors.filter(i => i.status === 'active').length;
-  const totalRevenue = mockPayments.reduce((sum, p) => sum + p.amount, 0);
-  const recentCandidates = [...mockCandidates].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
-  const upcomingAppointments = mockAppointments.filter(a => a.status === 'scheduled').slice(0, 5);
-  const carsNeedingAttention = mockCars.filter(car => {
-    const nextInspection = new Date(car.nextInspection);
-    const daysUntilInspection = Math.ceil((nextInspection.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return daysUntilInspection <= 30;
-  });
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [candRes, carRes, instRes, aptRes] = await Promise.all([
+          api.listCandidates(),
+          api.listCars(),
+          api.listInstructors(),
+          api.listAppointments()
+        ]);
+
+        if (candRes.ok && candRes.data) setCandidates(candRes.data);
+        if (carRes.ok && carRes.data) setCars(carRes.data);
+        if (instRes.ok && instRes.data) setInstructors(instRes.data);
+        if (aptRes.ok && aptRes.data) setAppointments(aptRes.data);
+      } catch (err) {
+        console.error('Failed to load dashboard', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const activeCandidates = useMemo(
+    () => candidates.filter(c => !c.status || c.status === 'active').length,
+    [candidates]
+  );
+  const activeCars = useMemo(
+    () => cars.filter(c => !c.status || c.status === 'active').length,
+    [cars]
+  );
+  const activeInstructors = useMemo(
+    () => instructors.filter(i => !i.status || i.status === 'active').length,
+    [instructors]
+  );
+
+  const recentCandidates = useMemo(() => {
+    return [...candidates]
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      .slice(0, 5);
+  }, [candidates]);
+
+  const upcomingAppointments = useMemo(() => {
+    return appointments
+      .filter(a => a.status === 'scheduled')
+      .sort((a, b) => {
+        const da = a.date?.split('T')[0] || a.date;
+        const db = b.date?.split('T')[0] || b.date;
+        if (da !== db) return da.localeCompare(db);
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      })
+      .slice(0, 5);
+  }, [appointments]);
+
+  const carsNeedingAttention = useMemo(() => {
+    return cars.filter(car => {
+      if (!car.nextInspection) return false;
+      const nextInspection = new Date(car.nextInspection);
+      const daysUntilInspection = Math.ceil((nextInspection.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      return daysUntilInspection <= 30;
+    });
+  }, [cars]);
+
+  // Placeholder revenue until payments API exists
+  const totalRevenue = 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Loading dashboard...</p>
+      </div>
+    );
+  }
+
   return <div className="space-y-4 lg:space-y-6">
       {/* Page Header */}
       <div>
@@ -52,27 +164,37 @@ export function AdminDashboard() {
           <CardContent>
             <div className="space-y-3 lg:space-y-4">
               {recentCandidates.map(candidate => {
-              const pkg = candidate.packageId ? getPackageById(candidate.packageId) : null;
-              return <Link key={candidate.id} to={`/admin/candidates/${candidate.id}`} className="flex items-center gap-3 lg:gap-4 p-3 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                const id = candidate._id || candidate.id || '';
+                return (
+                  <Link
+                    key={id}
+                    to={`/admin/candidates/${id}`}
+                    className="flex items-center gap-3 lg:gap-4 p-3 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  >
                     <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="md" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm lg:text-base text-gray-900 truncate">
                         {candidate.firstName} {candidate.lastName}
                       </p>
-                      <p className="text-xs lg:text-sm text-gray-500">
-                        {candidate.uniqueClientNumber}
-                      </p>
+                      {candidate.uniqueClientNumber && (
+                        <p className="text-xs lg:text-sm text-gray-500">
+                          {candidate.uniqueClientNumber}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      {pkg && <p className="text-xs lg:text-sm font-medium text-gray-700 hidden sm:block">
-                          {pkg.name}
-                        </p>}
-                      <Badge variant={candidate.status === 'active' ? 'success' : 'danger'} dot>
-                        {candidate.status}
+                      <Badge variant={!candidate.status || candidate.status === 'active' ? 'success' : 'danger'} dot>
+                        {candidate.status || 'active'}
                       </Badge>
                     </div>
-                  </Link>;
-            })}
+                  </Link>
+                );
+              })}
+              {recentCandidates.length === 0 && (
+                <p className="text-center text-sm text-gray-500 py-4">
+                  No candidates found
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -90,9 +212,14 @@ export function AdminDashboard() {
           <CardContent>
             <div className="space-y-3 lg:space-y-4">
               {upcomingAppointments.map(appointment => {
-              const instructor = getInstructorById(appointment.instructorId);
-              const candidate = mockCandidates.find(c => c.id === appointment.candidateId);
-              return <div key={appointment.id} className="flex items-center gap-3 lg:gap-4 p-3 rounded-lg bg-gray-50">
+                const candidateId = appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId;
+                const candidate = candidates.find(c => (c._id || c.id) === candidateId);
+                const instructorUser = appointment.instructor?.user;
+                const aptId = appointment._id || appointment.id || '';
+                const aptDate = appointment.date?.split('T')[0] || appointment.date;
+
+                return (
+                  <div key={aptId} className="flex items-center gap-3 lg:gap-4 p-3 rounded-lg bg-gray-50">
                     <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
                       <CalendarIcon className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600" />
                     </div>
@@ -101,29 +228,33 @@ export function AdminDashboard() {
                         {candidate?.firstName} {candidate?.lastName}
                       </p>
                       <p className="text-xs lg:text-sm text-gray-500 truncate">
-                        with {instructor?.firstName} {instructor?.lastName}
+                        with {instructorUser?.firstName} {instructorUser?.lastName}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs lg:text-sm font-medium text-gray-900">
-                        {appointment.date}
+                        {aptDate}
                       </p>
                       <p className="text-xs text-gray-500">
                         {appointment.startTime} - {appointment.endTime}
                       </p>
                     </div>
-                  </div>;
-            })}
-              {upcomingAppointments.length === 0 && <p className="text-center text-sm text-gray-500 py-4">
+                  </div>
+                );
+              })}
+              {upcomingAppointments.length === 0 && (
+                <p className="text-center text-sm text-gray-500 py-4">
                   No upcoming appointments
-                </p>}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Alerts Section */}
-      {carsNeedingAttention.length > 0 && <Card className="border-amber-200 bg-amber-50">
+      {carsNeedingAttention.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
               <AlertCircleIcon className="w-5 h-5 lg:w-6 lg:h-6 text-amber-600" />
@@ -133,18 +264,26 @@ export function AdminDashboard() {
                 Attention Required
               </h3>
               <p className="text-xs lg:text-sm text-amber-700 mt-1">
-                {carsNeedingAttention.length} car(s) need inspection within the
-                next 30 days.
+                {carsNeedingAttention.length} car(s) need inspection within the next 30 days.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                {carsNeedingAttention.map(car => <Link key={car.id} to="/admin/cars" className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg text-xs lg:text-sm font-medium text-amber-800 hover:bg-amber-100 active:bg-amber-200 transition-colors">
-                    <CarIcon className="w-3 h-3 lg:w-4 lg:h-4" />
-                    <span className="hidden sm:inline">{car.model} </span>(
-                    {car.licensePlate})
-                  </Link>)}
+                {carsNeedingAttention.map(car => {
+                  const id = car._id || car.id || '';
+                  return (
+                    <Link
+                      key={id}
+                      to="/admin/cars"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg text-xs lg:text-sm font-medium text-amber-800 hover:bg-amber-100 active:bg-amber-200 transition-colors"
+                    >
+                      <CarIcon className="w-3 h-3 lg:w-4 lg:h-4" />
+                      <span className="hidden sm:inline">{car.model} </span>({car.licensePlate})
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </Card>}
+        </Card>
+      )}
     </div>;
 }
