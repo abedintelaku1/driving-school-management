@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlusIcon, EditIcon, EyeIcon, AlertTriangleIcon } from 'lucide-react';
+import { PlusIcon, EditIcon, AlertTriangleIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
@@ -7,22 +7,65 @@ import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
-import { mockCars, addCar, updateCar } from '../../utils/mockData';
-import type { Car } from '../../types';
+import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
+
+type Car = {
+  _id?: string;
+  id?: string;
+  model: string;
+  licensePlate: string;
+  transmission?: string;
+  fuelType?: string;
+  status?: 'active' | 'inactive';
+  yearOfManufacture?: number;
+  chassisNumber?: string;
+  ownership?: string;
+  registrationExpiry?: string;
+  lastInspection?: string;
+  nextInspection?: string;
+  totalHours?: number;
+};
+
 export function CarsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCar, setEditingCar] = useState<Car | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [transmissionFilter, setTransmissionFilter] = useState<string>('');
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      setLoading(true);
+      try {
+        const res = await api.listCars();
+        if (res.ok && res.data) {
+          setCars(res.data);
+        } else {
+          toast('error', 'Failed to load cars');
+        }
+      } catch (error) {
+        console.error('Failed to fetch cars', error);
+        toast('error', 'Failed to load cars');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCars();
+  }, []);
+
   const filteredCars = useMemo(() => {
-    return mockCars.filter(car => {
+    return cars.filter(car => {
       if (statusFilter && car.status !== statusFilter) return false;
       if (transmissionFilter && car.transmission !== transmissionFilter) return false;
       return true;
-    });
-  }, [statusFilter, transmissionFilter]);
+    }).map(car => ({
+      ...car,
+      id: car._id || car.id
+    }));
+  }, [cars, statusFilter, transmissionFilter]);
   const getDaysUntilInspection = (date: string) => {
     const inspection = new Date(date);
     const today = new Date();
@@ -32,10 +75,14 @@ export function CarsPage() {
     key: 'model',
     label: 'Vehicle',
     sortable: true,
-    render: (_: unknown, car: Car) => <div>
-          <p className="font-medium text-gray-900">{car.model}</p>
+    render: (_: unknown, car: Car) => (
+      <div>
+        <p className="font-medium text-gray-900">{car.model}</p>
+        {car.yearOfManufacture && (
           <p className="text-sm text-gray-500">{car.yearOfManufacture}</p>
-        </div>
+        )}
+      </div>
+    )
   }, {
     key: 'licensePlate',
     label: 'License Plate',
@@ -44,9 +91,13 @@ export function CarsPage() {
   }, {
     key: 'transmission',
     label: 'Transmission',
-    render: (value: unknown) => <Badge variant="outline">
-          {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
-        </Badge>
+    render: (value: unknown) => {
+      if (!value || typeof value !== 'string') {
+        return <span className="text-gray-400">-</span>;
+      }
+      const text = value.charAt(0).toUpperCase() + value.slice(1);
+      return <Badge variant="outline">{text}</Badge>;
+    }
   }, {
     key: 'fuelType',
     label: 'Fuel',
@@ -55,20 +106,27 @@ export function CarsPage() {
     key: 'totalHours',
     label: 'Total Hours',
     sortable: true,
-    render: (value: unknown) => <span className="font-semibold text-gray-900">{value as number}h</span>
+    render: (value: unknown) => (
+      <span className="font-semibold text-gray-900">
+        {value ? `${value}h` : '0h'}
+      </span>
+    )
   }, {
     key: 'nextInspection',
     label: 'Next Inspection',
     sortable: true,
     render: (value: unknown) => {
+      if (!value) return <span className="text-gray-400">-</span>;
       const days = getDaysUntilInspection(value as string);
       const isUrgent = days <= 30;
-      return <div className="flex items-center gap-2">
-            {isUrgent && <AlertTriangleIcon className="w-4 h-4 text-amber-500" />}
-            <span className={isUrgent ? 'text-amber-600 font-medium' : 'text-gray-700'}>
-              {value as string}
-            </span>
-          </div>;
+      return (
+        <div className="flex items-center gap-2">
+          {isUrgent && <AlertTriangleIcon className="w-4 h-4 text-amber-500" />}
+          <span className={isUrgent ? 'text-amber-600 font-medium' : 'text-gray-700'}>
+            {value as string}
+          </span>
+        </div>
+      );
     }
   }, {
     key: 'status',
@@ -76,12 +134,21 @@ export function CarsPage() {
     sortable: true,
     render: (value: unknown) => <StatusBadge status={value as 'active' | 'inactive'} />
   }];
-  const actions = (car: Car) => <div className="flex items-center gap-2">
-      <Button variant="ghost" size="sm" onClick={() => setEditingCar(car)} icon={<EditIcon className="w-4 h-4" />}>
+  const actions = (car: Car) => (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setEditingCar(car)}
+        icon={<EditIcon className="w-4 h-4" />}
+      >
         Edit
       </Button>
-    </div>;
-  return <div className="space-y-6">
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -127,26 +194,51 @@ export function CarsPage() {
 
       {/* Table */}
       <Card padding="none">
-        <DataTable data={filteredCars} columns={columns} keyExtractor={car => car.id} searchable searchPlaceholder="Search cars..." searchKeys={['model', 'licensePlate', 'chassisNumber']} actions={actions} emptyMessage="No cars found" />
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-gray-500">Loading cars...</p>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredCars}
+            columns={columns}
+            keyExtractor={car => car._id || car.id || ''}
+            searchable
+            searchPlaceholder="Search cars..."
+            searchKeys={['model', 'licensePlate']}
+            actions={actions}
+            emptyMessage="No cars found"
+          />
+        )}
       </Card>
 
       {/* Add/Edit Modal */}
-      <AddCarModal isOpen={showAddModal || !!editingCar} onClose={() => {
-      setShowAddModal(false);
-      setEditingCar(null);
-    }} car={editingCar} onSuccess={() => {
-      setRefreshKey(prev => prev + 1);
-      toast('success', editingCar ? 'Car updated successfully' : 'Car added successfully');
-      setShowAddModal(false);
-      setEditingCar(null);
-    }} />
-    </div>;
+      <AddCarModal
+        isOpen={showAddModal || !!editingCar}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingCar(null);
+        }}
+        car={editingCar}
+        onSuccess={async () => {
+          // Refresh cars list
+          const res = await api.listCars();
+          if (res.ok && res.data) {
+            setCars(res.data);
+          }
+          toast('success', editingCar ? 'Car updated successfully' : 'Car added successfully');
+          setShowAddModal(false);
+          setEditingCar(null);
+        }}
+      />
+    </div>
+  );
 }
 type AddCarModalProps = {
   isOpen: boolean;
   onClose: () => void;
   car?: Car | null;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 };
 function AddCarModal({
   isOpen,
@@ -171,17 +263,17 @@ function AddCarModal({
   useEffect(() => {
     if (car) {
       setFormData({
-        model: car.model,
-        yearOfManufacture: car.yearOfManufacture.toString(),
-        chassisNumber: car.chassisNumber,
-        transmission: car.transmission,
-        fuelType: car.fuelType,
-        licensePlate: car.licensePlate,
-        ownership: car.ownership,
-        registrationExpiry: car.registrationExpiry,
-        lastInspection: car.lastInspection,
-        nextInspection: car.nextInspection,
-        status: car.status
+        model: car.model || '',
+        yearOfManufacture: car.yearOfManufacture?.toString() || '',
+        chassisNumber: car.chassisNumber || '',
+        transmission: car.transmission || '',
+        fuelType: car.fuelType || '',
+        licensePlate: car.licensePlate || '',
+        ownership: car.ownership || '',
+        registrationExpiry: car.registrationExpiry || '',
+        lastInspection: car.lastInspection || '',
+        nextInspection: car.nextInspection || '',
+        status: car.status || 'active'
       });
     } else {
       setFormData({
@@ -199,38 +291,90 @@ function AddCarModal({
       });
     }
   }, [car]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const carData = {
-        ...formData,
-        yearOfManufacture: parseInt(formData.yearOfManufacture),
-        transmission: formData.transmission as 'manual' | 'automatic',
-        fuelType: formData.fuelType as 'petrol' | 'diesel' | 'electric' | 'hybrid',
-        ownership: formData.ownership as 'owned' | 'leased' | 'rented'
+      // Prepare car data - only send fields that backend accepts
+      const carData: any = {
+        model: formData.model,
+        licensePlate: formData.licensePlate,
+        transmission: formData.transmission || undefined,
+        fuelType: formData.fuelType || undefined,
+        status: formData.status
       };
-      if (car) {
-        updateCar(car.id, carData);
-      } else {
-        addCar(carData);
+
+      // Add optional fields if they exist
+      if (formData.yearOfManufacture) {
+        carData.yearOfManufacture = parseInt(formData.yearOfManufacture);
       }
-      onSuccess();
+      if (formData.chassisNumber) {
+        carData.chassisNumber = formData.chassisNumber;
+      }
+      if (formData.ownership) {
+        carData.ownership = formData.ownership;
+      }
+      if (formData.registrationExpiry) {
+        carData.registrationExpiry = formData.registrationExpiry;
+      }
+      if (formData.lastInspection) {
+        carData.lastInspection = formData.lastInspection;
+      }
+      if (formData.nextInspection) {
+        carData.nextInspection = formData.nextInspection;
+      }
+
+      let res;
+      if (car) {
+        const carId = car._id || car.id;
+        if (!carId) {
+          toast('error', 'Invalid car ID');
+          setLoading(false);
+          return;
+        }
+        res = await api.updateCar(carId, carData);
+      } else {
+        res = await api.createCar(carData);
+      }
+
+      if (res.ok) {
+        onSuccess();
+      } else {
+        toast('error', res.data?.message || 'Failed to save car');
+      }
     } catch (error) {
+      console.error('Failed to save car', error);
       toast('error', 'Failed to save car');
     } finally {
       setLoading(false);
     }
   };
-  return <Modal isOpen={isOpen} onClose={onClose} title={car ? 'Edit Car' : 'Add New Car'} description="Enter the vehicle information to register it in the system." size="lg" footer={<div className="flex justify-end gap-3">
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={car ? 'Edit Car' : 'Add New Car'}
+      description="Enter the vehicle information to register it in the system."
+      size="lg"
+      footer={
+        <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} loading={loading}>
+          <Button
+            onClick={(e) => {
+              e.preventDefault();
+              handleSubmit(e as unknown as React.FormEvent);
+            }}
+            loading={loading}
+          >
             {car ? 'Save Changes' : 'Add Car'}
           </Button>
-        </div>}>
-      <form className="space-y-6">
+        </div>
+      }
+    >
+      <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Model" required value={formData.model} onChange={e => setFormData({
           ...formData,
@@ -310,5 +454,6 @@ function AddCarModal({
         })} />
         </div>
       </form>
-    </Modal>;
+    </Modal>
+  );
 }

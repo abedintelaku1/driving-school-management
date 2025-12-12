@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlusIcon, EditIcon, EyeIcon } from 'lucide-react';
+import { PlusIcon, EditIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
@@ -9,27 +9,87 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Checkbox } from '../../components/ui/Checkbox';
-import { mockInstructors, mockCars, licenseCategories, addInstructor, updateInstructor } from '../../utils/mockData';
+import { mockCars, licenseCategories, addInstructor, updateInstructor } from '../../utils/mockData';
 import type { Instructor } from '../../types';
 import { toast } from '../../hooks/useToast';
+import { api } from '../../utils/api';
+
+type InstructorRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  dateOfBirth?: string;
+  personalNumber?: string;
+  address?: string;
+  status: 'active' | 'inactive';
+  categories: string[];
+  totalHours?: number;
+  assignedCarIds: string[];
+};
 export function InstructorsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
+  const [editingInstructor, setEditingInstructor] = useState<InstructorRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [rows, setRows] = useState<InstructorRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      setLoading(true);
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch(`${API_URL}/api/instructors`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.message || 'Failed to load instructors');
+        }
+        const mapped: InstructorRow[] = (data || []).map((item: any) => ({
+          id: item._id,
+          firstName: item.user?.firstName || '',
+          lastName: item.user?.lastName || '',
+          email: item.user?.email || '',
+          phone: item.phone || '',
+          dateOfBirth: item.dateOfBirth || '',
+          personalNumber: item.personalNumber || '',
+          address: item.address || '',
+          status: 'active',
+          categories: item.specialties || [],
+          totalHours: item.totalHours || 0,
+          assignedCarIds: item.assignedCarIds || []
+        }));
+        setRows(mapped);
+      } catch (err) {
+        console.error('Failed to fetch instructors', err);
+        toast('error', 'Failed to load instructors');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInstructors();
+  }, [refreshKey]);
+
   const filteredInstructors = useMemo(() => {
-    return mockInstructors.filter(instructor => {
+    return rows.filter(instructor => {
       if (statusFilter && instructor.status !== statusFilter) return false;
       if (categoryFilter && !instructor.categories.includes(categoryFilter)) return false;
       return true;
     });
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, categoryFilter, rows]);
   const columns = [{
     key: 'name',
     label: 'Instructor',
     sortable: true,
-    render: (_: unknown, instructor: Instructor) => <div className="flex items-center gap-3">
+    render: (_: unknown, instructor: InstructorRow) => <div className="flex items-center gap-3">
           <Avatar name={`${instructor.firstName} ${instructor.lastName}`} size="sm" />
           <div>
             <p className="font-medium text-gray-900">
@@ -129,7 +189,6 @@ export function InstructorsPage() {
       setEditingInstructor(null);
     }} instructor={editingInstructor} onSuccess={() => {
       setRefreshKey(prev => prev + 1);
-      toast('success', editingInstructor ? 'Instructor updated successfully' : 'Instructor added successfully');
       setShowAddModal(false);
       setEditingInstructor(null);
     }} />
@@ -151,6 +210,7 @@ function AddInstructorModal({
     firstName: '',
     lastName: '',
     email: '',
+    password: '',
     phone: '',
     dateOfBirth: '',
     personalNumber: '',
@@ -167,8 +227,8 @@ function AddInstructorModal({
         lastName: instructor.lastName,
         email: instructor.email,
         phone: instructor.phone,
-        dateOfBirth: instructor.dateOfBirth,
-        personalNumber: instructor.personalNumber,
+        dateOfBirth: instructor.dateOfBirth || '',
+        personalNumber: instructor.personalNumber || '',
         address: instructor.address,
         categories: instructor.categories,
         assignedCarIds: instructor.assignedCarIds,
@@ -179,6 +239,7 @@ function AddInstructorModal({
         firstName: '',
         lastName: '',
         email: '',
+        password: '',
         phone: '',
         dateOfBirth: '',
         personalNumber: '',
@@ -199,12 +260,79 @@ function AddInstructorModal({
     e.preventDefault();
     setLoading(true);
     try {
-      if (instructor) {
-        updateInstructor(instructor.id, formData);
-      } else {
-        addInstructor(formData);
+        if (instructor) {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+          const token = localStorage.getItem('auth_token');
+
+          const res = await fetch(`${API_URL}/api/instructors/${instructor.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              phone: formData.phone,
+              address: formData.address,
+              dateOfBirth: formData.dateOfBirth,
+              personalNumber: formData.personalNumber,
+              categories: formData.categories,
+              assignedCarIds: formData.assignedCarIds,
+              status: formData.status
+            })
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            toast('error', data.message || 'Failed to update instructor');
+            setLoading(false);
+            return;
+          }
+
+          toast('success', 'Instructor updated successfully');
+          onSuccess();
+        } else {
+        // Create new instructor via backend
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const token = localStorage.getItem('auth_token');
+        
+        if (!formData.password || formData.password.length < 6) {
+          toast('error', 'Password must be at least 6 characters');
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/api/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            password: formData.password,
+            role: 'instructor',
+            phone: formData.phone,
+            address: formData.address,
+            dateOfBirth: formData.dateOfBirth,
+            personalNumber: formData.personalNumber,
+            categories: formData.categories,
+            assignedCarIds: formData.assignedCarIds
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast('error', data.message || 'Failed to create instructor');
+          setLoading(false);
+          return;
+        }
+
+        toast('success', 'Instructor created successfully! They can now login with their email and password.');
+        onSuccess();
       }
-      onSuccess();
     } catch (error) {
       toast('error', 'Failed to save instructor');
     } finally {
@@ -241,6 +369,24 @@ function AddInstructorModal({
           phone: e.target.value
         })} />
         </div>
+        <Input label="Address" required value={formData.address} onChange={e => setFormData({
+        ...formData,
+        address: e.target.value
+      })} />
+
+        {!instructor && (
+          <Input 
+            label="Password" 
+            type="password" 
+            required 
+            value={formData.password} 
+            onChange={e => setFormData({
+              ...formData,
+              password: e.target.value
+            })} 
+            hint="Minimum 6 characters. Instructor will use this to login."
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <Input label="Date of Birth" type="date" required value={formData.dateOfBirth} onChange={e => setFormData({
@@ -252,11 +398,6 @@ function AddInstructorModal({
           personalNumber: e.target.value
         })} />
         </div>
-
-        <Input label="Address" required value={formData.address} onChange={e => setFormData({
-        ...formData,
-        address: e.target.value
-      })} />
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">

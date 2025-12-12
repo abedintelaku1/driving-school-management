@@ -6,7 +6,8 @@ import { useAuth } from '../hooks/useAuth';
 export function LoginPage() {
   const navigate = useNavigate();
   const {
-    login
+    login,
+    user
   } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,19 +19,30 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const success = await login(email, password);
-      if (success) {
-        // Determine role from email for demo
+      const result = await login(email, password);
+      console.log('Login result:', result);
+      if (result.success && result.user) {
+        // Navigate based on user role from API response
+        if (result.user.role === 'admin') {
+          navigate('/admin');
+        } else if (result.user.role === 'instructor') {
+          navigate('/instructor');
+        } else {
+          // Fallback: determine from email for demo
         if (email.includes('admin')) {
           navigate('/admin');
         } else {
           navigate('/instructor');
+          }
         }
       } else {
-        setError('Invalid email or password. Try admin@drivershub.com or john.instructor@drivershub.com');
+        const errorMessage = result.message || 'Invalid email or password. Please check your credentials.';
+        setError(errorMessage);
+        console.error('Login failed:', result);
       }
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (err) {
+      console.error('Login exception:', err);
+      setError('An error occurred. Please check if the backend server is running.');
     } finally {
       setLoading(false);
     }
@@ -117,6 +129,7 @@ export function LoginPage() {
               </Button>
             </div>
           </div>
+
         </div>
 
         {/* Footer */}

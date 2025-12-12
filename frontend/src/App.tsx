@@ -32,14 +32,27 @@ function ProtectedRoute({
 }) {
   const {
     user,
-    isAuthenticated
+    isAuthenticated,
+    loading
   } = useContext(AuthContext)!;
+  
+  // Wait for auth check to complete before redirecting
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+  
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  
   if (allowedRole && user?.role !== allowedRole) {
     return <Navigate to={user?.role === 'admin' ? '/admin' : '/instructor'} replace />;
   }
+  
   return <>{children}</>;
 }
 function AppContent() {
