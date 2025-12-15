@@ -6,7 +6,8 @@ import { useAuth } from '../hooks/useAuth';
 export function LoginPage() {
   const navigate = useNavigate();
   const {
-    login
+    login,
+    user
   } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,27 +19,46 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const success = await login(email, password);
-      if (success) {
-        // Determine role from email for demo
-        if (email.includes('admin')) {
-          navigate('/admin');
+      const result = await login(email, password);
+
+      if (result.success && result.user) {
+        // Navigate based on user role from API response
+        // Accept both numbers (0, 1) and strings ('admin', 'instructor')
+        const userRole = result.user.role;
+        
+        // Check for admin (0, '0', or 'admin')
+        if (userRole === 0 || userRole === '0' || userRole === 'admin' || String(userRole).toLowerCase() === 'admin') {
+          navigate('/admin', { replace: true });
+          return;
+        } 
+        // Check for instructor (1, '1', or 'instructor')
+        if (userRole === 1 || userRole === '1' || userRole === 'instructor' || String(userRole).toLowerCase() === 'instructor') {
+          navigate('/instructor', { replace: true });
+          return;
+        } 
+        
+        // Fallback: determine from email
+        if (email.toLowerCase().includes('admin')) {
+          navigate('/admin', { replace: true });
         } else {
-          navigate('/instructor');
+          navigate('/instructor', { replace: true });
         }
       } else {
-        setError('Invalid email or password. Try admin@drivershub.com or john.instructor@drivershub.com');
+        const errorMessage = result.message || 'Invalid email or password. Please check your credentials.';
+        setError(errorMessage);
+        console.error('Login failed:', result);
       }
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (err) {
+      console.error('Login exception:', err);
+      setError('An error occurred. Please check if the backend server is running.');
     } finally {
       setLoading(false);
     }
   };
-  const handleDemoLogin = (role: 'admin' | 'instructor') => {
-    if (role === 'admin') {
+  const handleDemoLogin = (role: 0 | 1) => {
+    if (role === 0) { // admin
       setEmail('admin@drivershub.com');
-    } else {
+    } else { // instructor
       setEmail('john.instructor@drivershub.com');
     }
     setPassword('demo123');
@@ -109,14 +129,15 @@ export function LoginPage() {
               Quick demo access:
             </p>
             <div className="flex gap-3">
-              <Button variant="outline" fullWidth onClick={() => handleDemoLogin('admin')}>
+              <Button variant="outline" fullWidth onClick={() => handleDemoLogin(0)}>
                 Admin Demo
               </Button>
-              <Button variant="outline" fullWidth onClick={() => handleDemoLogin('instructor')}>
+              <Button variant="outline" fullWidth onClick={() => handleDemoLogin(1)}>
                 Instructor Demo
               </Button>
             </div>
           </div>
+
         </div>
 
         {/* Footer */}

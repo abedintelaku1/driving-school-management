@@ -28,18 +28,31 @@ function ProtectedRoute({
   allowedRole
 }: {
   children: React.ReactNode;
-  allowedRole?: 'admin' | 'instructor';
+  allowedRole?: 0 | 1; // 0 = Admin, 1 = Instructor
 }) {
   const {
     user,
-    isAuthenticated
+    isAuthenticated,
+    loading
   } = useContext(AuthContext)!;
+  
+  // Wait for auth check to complete before redirecting
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+  
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  if (allowedRole && user?.role !== allowedRole) {
-    return <Navigate to={user?.role === 'admin' ? '/admin' : '/instructor'} replace />;
+  
+  if (allowedRole !== undefined && user?.role !== allowedRole) {
+    return <Navigate to={user?.role === 0 ? '/admin' : '/instructor'} replace />;
   }
+  
   return <>{children}</>;
 }
 function AppContent() {
@@ -55,7 +68,7 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
 
           {/* Admin Routes */}
-          <Route path="/admin" element={<ProtectedRoute allowedRole="admin">
+          <Route path="/admin" element={<ProtectedRoute allowedRole={0}>
                 <AdminLayout title="Admin Panel" />
               </ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
@@ -69,7 +82,7 @@ function AppContent() {
           </Route>
 
           {/* Instructor Routes */}
-          <Route path="/instructor" element={<ProtectedRoute allowedRole="instructor">
+          <Route path="/instructor" element={<ProtectedRoute allowedRole={1}>
                 <InstructorLayout title="Instructor Panel" />
               </ProtectedRoute>}>
             <Route index element={<InstructorDashboard />} />

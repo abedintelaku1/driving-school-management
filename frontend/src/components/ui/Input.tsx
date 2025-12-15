@@ -3,7 +3,7 @@ type InputProps = {
   label?: string;
   error?: string;
   hint?: string;
-  type?: 'text' | 'email' | 'password' | 'tel' | 'number' | 'date';
+  type?: 'text' | 'email' | 'password' | 'tel' | 'number' | 'date' | 'time';
   placeholder?: string;
   value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;

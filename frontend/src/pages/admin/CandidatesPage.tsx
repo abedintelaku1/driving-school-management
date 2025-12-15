@@ -11,9 +11,10 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { SearchBar } from '../../components/ui/SearchBar';
-import { mockCandidates, mockPackages, mockInstructors, mockCars, getPackageById, getInstructorById, addCandidate, updateCandidate } from '../../utils/mockData';
+import { mockPackages, mockCars, getPackageById } from '../../utils/mockData';
 import type { Candidate } from '../../types';
 import { toast } from '../../hooks/useToast';
+import { api } from '../../utils/api';
 export function CandidatesPage() {
   const navigate = useNavigate();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -22,8 +23,62 @@ export function CandidatesPage() {
   const [packageFilter, setPackageFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch(`${API_URL}/api/instructors`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || 'Failed to load instructors');
+        const opts = (data || []).map((ins: any) => ({
+          id: ins._id,
+          name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
+        }));
+        setInstructors(opts);
+      } catch (err) {
+        console.error(err);
+        toast('error', 'Failed to load instructors');
+      }
+    };
+    fetchInstructors();
+  }, []);
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      const { ok, data } = await api.listCandidates();
+      if (ok && data) {
+        const mapped = (data as any[]).map(item => ({
+          id: item._id || item.id,
+          firstName: item.firstName,
+          lastName: item.lastName,
+          email: item.email,
+          phone: item.phone,
+          dateOfBirth: item.dateOfBirth,
+          personalNumber: item.personalNumber,
+          address: item.address,
+          packageId: item.packageId || '',
+          carId: item.carId || '',
+          paymentFrequency: item.paymentFrequency || '',
+          status: item.status || 'active',
+          instructorId: item.instructor?._id || item.instructor || item.instructorId || '',
+          uniqueClientNumber: item.uniqueClientNumber || ''
+        }));
+        setCandidates(mapped as Candidate[]);
+      }
+    };
+    fetchCandidates();
+  }, [refreshKey]);
+
   const filteredCandidates = useMemo(() => {
-    return mockCandidates.filter(candidate => {
+    return candidates.filter(candidate => {
       if (statusFilter && candidate.status !== statusFilter) return false;
       if (packageFilter && candidate.packageId !== packageFilter) return false;
       if (searchQuery) {
@@ -32,7 +87,7 @@ export function CandidatesPage() {
       }
       return true;
     });
-  }, [statusFilter, packageFilter, searchQuery, refreshKey]);
+  }, [statusFilter, packageFilter, searchQuery, refreshKey, candidates]);
   const handleAddSuccess = () => {
     setRefreshKey(prev => prev + 1);
     toast('success', 'Candidate added successfully');
@@ -42,7 +97,34 @@ export function CandidatesPage() {
     toast('success', 'Candidate updated successfully');
   };
   const handleExport = () => {
-    toast('info', 'Export functionality coming soon');
+    if (!filteredCandidates.length) {
+      toast('info', 'No candidates to export');
+      return;
+    }
+
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Status'];
+    const rows = filteredCandidates.map(c => [
+      c.firstName || '',
+      c.lastName || '',
+      c.email || '',
+      c.phone || '',
+      c.status || ''
+    ]);
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'candidates.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast('success', 'Exported candidates to CSV');
   };
   const clearFilters = () => {
     setStatusFilter('');
@@ -93,9 +175,9 @@ export function CandidatesPage() {
     label: 'Instructor',
     hideOnMobile: true,
     render: (value: unknown) => {
-      const instructor = value ? getInstructorById(value as string) : null;
+      const instructor = instructors.find(i => i.id === value);
       return instructor ? <span className="text-sm text-gray-700">
-            {instructor.firstName} {instructor.lastName}
+            {instructor.name}
           </span> : <span className="text-sm text-gray-400">Not assigned</span>;
     }
   }, {
@@ -170,7 +252,7 @@ export function CandidatesPage() {
       </Card>
 
       {/* Add/Edit Modal */}
-      <AddCandidateModal isOpen={showAddModal || !!editingCandidate} onClose={() => {
+      <AddCandidateModal instructors={instructors} isOpen={showAddModal || !!editingCandidate} onClose={() => {
       setShowAddModal(false);
       setEditingCandidate(null);
     }} candidate={editingCandidate} onSuccess={() => {
@@ -189,12 +271,14 @@ type AddCandidateModalProps = {
   onClose: () => void;
   candidate?: Candidate | null;
   onSuccess: () => void;
+  instructors: { id: string; name: string }[];
 };
 function AddCandidateModal({
   isOpen,
   onClose,
   candidate,
-  onSuccess
+  onSuccess,
+  instructors
 }: AddCandidateModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -248,10 +332,14 @@ function AddCandidateModal({
     e.preventDefault();
     setLoading(true);
     try {
-      if (candidate) {
-        updateCandidate(candidate.id, formData);
-      } else {
-        addCandidate(formData);
+      const payload = {
+        ...formData,
+        instructorId: formData.instructorId || undefined
+      };
+      const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
+      if (!resp.ok) {
+        toast('error', (resp.data as any)?.message || 'Failed to save candidate');
+        return;
       }
       onSuccess();
     } catch (error) {
@@ -318,9 +406,9 @@ function AddCandidateModal({
           <Select label="Instructor" value={formData.instructorId} onChange={e => setFormData({
           ...formData,
           instructorId: e.target.value
-        })} options={mockInstructors.filter(i => i.status === 'active').map(instructor => ({
+        })} options={instructors.map(instructor => ({
           value: instructor.id,
-          label: `${instructor.firstName} ${instructor.lastName}`
+          label: instructor.name
         }))} />
         </div>
 
@@ -346,6 +434,23 @@ function AddCandidateModal({
           label: 'Installments'
         }]} />
         </div>
+
+        {candidate && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select 
+              label="Status" 
+              value={formData.status} 
+              onChange={e => setFormData({
+                ...formData,
+                status: e.target.value as 'active' | 'inactive'
+              })} 
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' }
+              ]} 
+            />
+          </div>
+        )}
       </form>
     </Modal>;
 }
