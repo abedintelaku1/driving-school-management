@@ -71,7 +71,7 @@ export function Sidebar({
   mobileOpen,
   onMobileClose
 }: SidebarProps) {
-  const navItems = role === 'admin' ? adminNavItems : instructorNavItems;
+  const navItems = role === 0 ? adminNavItems : instructorNavItems; // 0 = admin, 1 = instructor
   return <>
       {/* Mobile Overlay */}
       {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onMobileClose} />}

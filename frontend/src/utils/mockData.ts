@@ -7,19 +7,19 @@ const generateId = () => Math.random().toString(36).substring(2, 11);
 export const mockUsers: User[] = [{
   id: '1',
   email: 'admin@drivershub.com',
-  role: 'admin',
+  role: 0, // 0 = admin
   firstName: 'Admin',
   lastName: 'User'
 }, {
   id: '2',
   email: 'john.instructor@drivershub.com',
-  role: 'instructor',
+  role: 1, // 1 = instructor
   firstName: 'John',
   lastName: 'Smith'
 }, {
   id: '3',
   email: 'maria.instructor@drivershub.com',
-  role: 'instructor',
+  role: 1, // 1 = instructor
   firstName: 'Maria',
   lastName: 'Garcia'
 }];
