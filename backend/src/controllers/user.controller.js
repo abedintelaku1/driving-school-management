@@ -76,10 +76,10 @@ const create = async (req, res, next) => {
                 user: user._id,
                 phone,
                 address,
-                dateOfBirth,
+                dateOfBirth: new Date(dateOfBirth),
                 personalNumber,
-                specialties: categories,
-                assignedCarIds
+                specialties: categories || [],
+                assignedCarIds: assignedCarIds || []
             });
         }
         

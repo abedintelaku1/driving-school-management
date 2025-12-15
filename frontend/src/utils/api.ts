@@ -220,6 +220,60 @@ export const api = {
     } catch {
       return { ok: false, status: 500 };
     }
+  },
+
+  async getInstructor(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/${id}`, {
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async createInstructor(payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const result = await handle(res);
+      if (!result.ok) {
+        console.error('Create instructor error:', result.data);
+      }
+      return result;
+    } catch (error) {
+      console.error('Network error creating instructor:', error);
+      return { ok: false, status: 500, data: { message: 'Network error. Please check your connection.' } };
+    }
+  },
+
+  async updateInstructor(id: string, payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async deleteInstructor(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
   }
 };
 
