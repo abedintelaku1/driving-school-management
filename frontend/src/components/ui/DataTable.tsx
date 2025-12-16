@@ -131,7 +131,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       {column.sortable && sortKey === column.key && (sortDirection === 'asc' ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />)}
                     </div>
                   </th>)}
-                {actions && <th className="px-4 lg:px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                {actions && <th className="px-4 lg:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Actions
                   </th>}
               </tr>

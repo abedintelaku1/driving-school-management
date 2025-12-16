@@ -3,9 +3,8 @@ const mongoose = require('mongoose');
 const CandidateSchema = new mongoose.Schema({
     uniqueClientNumber: {
         type: String,
-        required: true,
         unique: true,
-        trim: true
+        sparse: true
     },
     firstName: {
         type: String,
@@ -13,6 +12,18 @@ const CandidateSchema = new mongoose.Schema({
         trim: true
     },
     lastName: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    email: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true,
+        unique: true
+    },
+    phone: {
         type: String,
         required: true,
         trim: true
@@ -32,26 +43,9 @@ const CandidateSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    phone: {
-        type: String,
-        required: true,
-        trim: true
-    },
-    email: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true,
-        match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
-    },
-    status: {
-        type: String,
-        enum: ['active', 'inactive'],
-        default: 'active'
-    },
     packageId: {
         type: String,
-        default: null
+        default: ''
     },
     instructorId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -60,20 +54,32 @@ const CandidateSchema = new mongoose.Schema({
     },
     carId: {
         type: String,
-        default: null
+        default: ''
     },
     paymentFrequency: {
         type: String,
-        enum: ['one-time', 'installments', 'deposit'],
-        default: null
+        enum: ['deposit', 'one-time', 'installments'],
+        default: ''
     },
-    documents: [{
-        id: String,
-        name: String,
+    status: {
         type: String,
-        uploadedAt: Date,
-        approvedAt: Date
-    }],
+        enum: ['active', 'inactive'],
+        default: 'active'
+    },
+    documents: {
+        type: [{
+            name: String,
+            status: {
+                type: String,
+                enum: ['pending', 'submitted', 'approved', 'rejected'],
+                default: 'pending'
+            },
+            submittedAt: Date,
+            approvedAt: Date,
+            notes: String
+        }],
+        default: []
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -84,8 +90,16 @@ const CandidateSchema = new mongoose.Schema({
     }
 });
 
-CandidateSchema.pre('save', function(next) {
+// Generate unique client number before saving
+CandidateSchema.pre('save', async function(next) {
     this.updatedAt = Date.now();
+    
+    // Generate unique client number if not provided
+    if (!this.uniqueClientNumber) {
+        const count = await mongoose.model('Candidate').countDocuments();
+        this.uniqueClientNumber = `CLI-${String(count + 1).padStart(6, '0')}`;
+    }
+    
     next();
 });
 
