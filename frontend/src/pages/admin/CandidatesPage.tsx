@@ -55,22 +55,35 @@ export function CandidatesPage() {
     const fetchCandidates = async () => {
       const { ok, data } = await api.listCandidates();
       if (ok && data) {
-        const mapped = (data as any[]).map(item => ({
-          id: item._id || item.id,
-          firstName: item.firstName,
-          lastName: item.lastName,
-          email: item.email,
-          phone: item.phone,
-          dateOfBirth: item.dateOfBirth,
-          personalNumber: item.personalNumber,
-          address: item.address,
-          packageId: item.packageId || '',
-          carId: item.carId || '',
-          paymentFrequency: item.paymentFrequency || '',
-          status: item.status || 'active',
-          instructorId: item.instructor?._id || item.instructor || item.instructorId || '',
-          uniqueClientNumber: item.uniqueClientNumber || ''
-        }));
+        const mapped = (data as any[]).map(item => {
+          // Format dateOfBirth if it's a Date object
+          let dateOfBirth = item.dateOfBirth;
+          if (dateOfBirth instanceof Date) {
+            dateOfBirth = dateOfBirth.toISOString().split('T')[0];
+          } else if (typeof dateOfBirth === 'string' && dateOfBirth.includes('T')) {
+            dateOfBirth = dateOfBirth.split('T')[0];
+          }
+          
+          return {
+            id: item._id || item.id,
+            firstName: item.firstName,
+            lastName: item.lastName,
+            email: item.email,
+            phone: item.phone,
+            dateOfBirth: dateOfBirth || '',
+            personalNumber: item.personalNumber,
+            address: item.address,
+            packageId: item.packageId?._id || item.packageId || '',
+            carId: item.carId || '',
+            paymentFrequency: item.paymentFrequency || '',
+            status: item.status || 'active',
+            instructorId: item.instructorId?._id || item.instructorId || item.instructor?._id || item.instructor || '',
+            uniqueClientNumber: item.uniqueClientNumber || '',
+            documents: item.documents || [],
+            createdAt: item.createdAt ? (item.createdAt instanceof Date ? item.createdAt.toISOString().split('T')[0] : item.createdAt.split('T')[0]) : '',
+            updatedAt: item.updatedAt ? (item.updatedAt instanceof Date ? item.updatedAt.toISOString().split('T')[0] : item.updatedAt.split('T')[0]) : ''
+          };
+        });
         setCandidates(mapped as Candidate[]);
       }
     };
@@ -131,7 +144,7 @@ export function CandidatesPage() {
     setPackageFilter('');
     setSearchQuery('');
   };
-  const hasActiveFilters = statusFilter || packageFilter || searchQuery;
+  const hasActiveFilters = !!(statusFilter || packageFilter || searchQuery);
   const columns = [{
     key: 'name',
     label: 'Candidate',
@@ -332,10 +345,42 @@ function AddCandidateModal({
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        instructorId: formData.instructorId || undefined
+      // Helper function to check if string is a valid MongoDB ObjectId (24 hex characters)
+      const isValidObjectId = (id: string | undefined): boolean => {
+        if (!id || id.trim() === '') return false;
+        // MongoDB ObjectId is 24 hex characters
+        return /^[0-9a-fA-F]{24}$/.test(id);
       };
+      
+      const payload: any = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        personalNumber: formData.personalNumber,
+        address: formData.address,
+        status: formData.status
+      };
+      
+      // packageId is stored as string for mock data
+      if (formData.packageId) {
+        payload.packageId = formData.packageId;
+      }
+      
+      // Only include instructorId if it's a valid ObjectId
+      if (isValidObjectId(formData.instructorId)) {
+        payload.instructorId = formData.instructorId;
+      }
+      
+      if (formData.carId) {
+        payload.carId = formData.carId;
+      }
+      
+      if (formData.paymentFrequency) {
+        payload.paymentFrequency = formData.paymentFrequency;
+      }
+      
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
         toast('error', (resp.data as any)?.message || 'Failed to save candidate');
@@ -348,15 +393,15 @@ function AddCandidateModal({
       setLoading(false);
     }
   };
-  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Edit Candidate' : 'Add New Candidate'} description="Enter the candidate's information to register them in the system." size="lg" footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Edit Candidate' : 'Add New Candidate'} description="Enter the candidate's information to register them in the system." size="lg"       footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading} fullWidth className="sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} loading={loading} fullWidth className="sm:w-auto">
+          <Button onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)} loading={loading} fullWidth className="sm:w-auto">
             {candidate ? 'Save Changes' : 'Create Candidate'}
           </Button>
         </div>}>
-      <form className="space-y-4 sm:space-y-6">
+      <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="First Name" required value={formData.firstName} onChange={e => setFormData({
           ...formData,

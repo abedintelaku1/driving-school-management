@@ -53,26 +53,27 @@ export function CandidateDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [candRes, aptRes, instRes] = await Promise.all([
+      const [candRes,instRes] = await Promise.all([
         api.getCandidate(id),
-        api.listAppointments(),
         api.listInstructors()
       ]);
 
       if (candRes.ok && candRes.data) {
-        setCandidate(candRes.data as Candidate);
-      }
-
-      if (aptRes.ok && aptRes.data) {
-        const list = (aptRes.data as AppointmentEx[]).filter(a => {
-          const candId = a.candidate?._id || a.candidate?.id || a.candidateId;
-          return candId === id;
-        }).map(a => ({
-          ...a,
-          id: a._id || a.id,
-          candidateId: a.candidate?._id || a.candidate?.id || a.candidateId
-        }));
-        setAppointments(list);
+        const data = candRes.data as any;
+        // Format dateOfBirth if it's a Date object
+        let dateOfBirth = data.dateOfBirth;
+        if (dateOfBirth instanceof Date) {
+          dateOfBirth = dateOfBirth.toISOString().split('T')[0];
+        } else if (typeof dateOfBirth === 'string' && dateOfBirth.includes('T')) {
+          dateOfBirth = dateOfBirth.split('T')[0];
+        }
+        
+        setCandidate({
+          ...data,
+          id: data._id || data.id,
+          dateOfBirth: dateOfBirth || data.dateOfBirth,
+          instructorId: data.instructorId?._id || data.instructorId || data.instructor?._id || data.instructor || ''
+        } as Candidate);
       }
 
       if (instRes?.ok && instRes.data) {

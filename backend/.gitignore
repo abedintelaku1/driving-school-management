@@ -3,11 +3,11 @@ node_modules/
 .node_modules/
 
 # Environment variables (IMPORTANT: never commit .env with real credentials!)
-.env
-
+.env/
 # Build
 dist/
 
+.vs/
 # Logs
 *.log
 npm-debug.log*
