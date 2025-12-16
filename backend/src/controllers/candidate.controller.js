@@ -1,18 +1,10 @@
 const Candidate = require('../models/Candidate');
 
-const list = async (req, res, next) => {
+const list = async (_req, res, next) => {
     try {
-        const { status, instructorId, packageId } = req.query;
-        const filter = {};
-        
-        if (status) filter.status = status;
-        if (instructorId) filter.instructorId = instructorId;
-        if (packageId) filter.packageId = packageId;
-        
-        const candidates = await Candidate.find(filter)
-            .populate('instructorId', 'phone address personalNumber')
+        const candidates = await Candidate.find()
+            .populate('instructorId', 'phone address dateOfBirth personalNumber')
             .sort({ createdAt: -1 });
-        
         res.json(candidates);
     } catch (err) {
         next(err);
@@ -22,12 +14,10 @@ const list = async (req, res, next) => {
 const getById = async (req, res, next) => {
     try {
         const candidate = await Candidate.findById(req.params.id)
-            .populate('instructorId', 'phone address personalNumber');
-        
+            .populate('instructorId', 'phone address dateOfBirth personalNumber');
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
-        
         res.json(candidate);
     } catch (err) {
         next(err);
@@ -36,78 +26,98 @@ const getById = async (req, res, next) => {
 
 const create = async (req, res, next) => {
     try {
-        const {
-            uniqueClientNumber,
-            firstName,
-            lastName,
-            dateOfBirth,
-            personalNumber,
+        const { 
+            firstName, 
+            lastName, 
+            email, 
+            phone, 
+            dateOfBirth, 
+            personalNumber, 
             address,
-            phone,
-            email,
-            status,
             packageId,
             instructorId,
             carId,
             paymentFrequency,
-            documents
+            status
         } = req.body;
         
-        if (!firstName || !lastName || !dateOfBirth || 
-            !personalNumber || !address || !phone || !email) {
-            return res.status(400).json({ message: 'All required fields must be provided' });
+        // Validate required fields
+        if (!firstName || !lastName || !email || !phone || !dateOfBirth || !personalNumber || !address) {
+            return res.status(400).json({ 
+                message: 'All required fields must be provided' 
+            });
         }
         
+        // Validate email format
         const emailRegex = /^\S+@\S+\.\S+$/;
         const normalizedEmail = email.toLowerCase().trim();
         if (!emailRegex.test(normalizedEmail)) {
-            return res.status(400).json({ message: 'Invalid email format' });
-        }
-        
-        // Generate uniqueClientNumber if not provided
-        let clientNumber = uniqueClientNumber;
-        if (!clientNumber) {
-            const year = new Date().getFullYear();
-            const count = await Candidate.countDocuments({ 
-                uniqueClientNumber: new RegExp(`^DH-${year}-`) 
+            return res.status(400).json({ 
+                message: 'Invalid email format' 
             });
-            clientNumber = `DH-${year}-${String(count + 1).padStart(3, '0')}`;
         }
         
-        // Validate and convert ObjectIds
-        const mongoose = require('mongoose');
-        let validInstructorId = null;
-        
-        if (instructorId && mongoose.Types.ObjectId.isValid(instructorId) && instructorId.length === 24) {
-            validInstructorId = instructorId;
+        // Check if email already exists
+        const existingEmail = await Candidate.findOne({ email: normalizedEmail });
+        if (existingEmail) {
+            return res.status(400).json({ 
+                message: 'Email already in use' 
+            });
         }
         
+        // Check if personal number already exists
+        const existingPersonalNumber = await Candidate.findOne({ personalNumber: personalNumber.trim() });
+        if (existingPersonalNumber) {
+            return res.status(400).json({ 
+                message: 'Personal number already in use' 
+            });
+        }
+        
+        // Validate date of birth
+        const birthDate = new Date(dateOfBirth);
+        const today = new Date();
+        if (birthDate >= today) {
+            return res.status(400).json({ 
+                message: 'Date of birth must be in the past' 
+            });
+        }
+        
+        // Create candidate
         const candidate = await Candidate.create({
-            uniqueClientNumber: clientNumber,
-            firstName,
-            lastName,
-            dateOfBirth: new Date(dateOfBirth),
-            personalNumber,
-            address,
-            phone,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             email: normalizedEmail,
-            status: status || 'active',
-            packageId: packageId || null, // Store as string for mock data
-            instructorId: validInstructorId,
-            carId: carId || null,
-            paymentFrequency: paymentFrequency || null,
-            documents: documents || []
+            phone: phone.trim(),
+            dateOfBirth: birthDate,
+            personalNumber: personalNumber.trim(),
+            address: address.trim(),
+            packageId: packageId || '',
+            instructorId: instructorId || null,
+            carId: carId || '',
+            paymentFrequency: paymentFrequency || '',
+            status: status || 'active'
         });
         
         const populated = await Candidate.findById(candidate._id)
-            .populate('instructorId', 'phone address personalNumber');
+            .populate('instructorId', 'phone address dateOfBirth personalNumber');
         
         res.status(201).json(populated);
     } catch (err) {
+        console.error('Error creating candidate:', err);
         if (err.code === 11000) {
-            const field = Object.keys(err.keyPattern)[0];
+            // Duplicate key error
+            if (err.keyPattern?.email) {
+                return res.status(400).json({ 
+                    message: 'Email already in use' 
+                });
+            }
+            if (err.keyPattern?.personalNumber) {
+                return res.status(400).json({ 
+                    message: 'Personal number already in use' 
+                });
+            }
             return res.status(400).json({ 
-                message: `${field === 'uniqueClientNumber' ? 'Client number' : field === 'personalNumber' ? 'Personal number' : 'Email'} already in use` 
+                message: 'Email or personal number already in use' 
             });
         }
         next(err);
@@ -116,72 +126,94 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
+        const { 
+            firstName, 
+            lastName, 
+            email, 
+            phone, 
+            dateOfBirth, 
+            personalNumber, 
+            address,
+            packageId,
+            instructorId,
+            carId,
+            paymentFrequency,
+            status
+        } = req.body;
+        
         const candidate = await Candidate.findById(req.params.id);
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
         
-        const {
-            uniqueClientNumber,
-            firstName,
-            lastName,
-            dateOfBirth,
-            personalNumber,
-            address,
-            phone,
-            email,
-            status,
-            packageId,
-            instructorId,
-            carId,
-            paymentFrequency,
-            documents
-        } = req.body;
-        
-        if (uniqueClientNumber !== undefined) candidate.uniqueClientNumber = uniqueClientNumber;
-        if (firstName !== undefined) candidate.firstName = firstName;
-        if (lastName !== undefined) candidate.lastName = lastName;
-        if (dateOfBirth !== undefined) candidate.dateOfBirth = new Date(dateOfBirth);
-        if (personalNumber !== undefined) candidate.personalNumber = personalNumber;
-        if (address !== undefined) candidate.address = address;
-        if (phone !== undefined) candidate.phone = phone;
-        if (email !== undefined) {
-            const emailRegex = /^\S+@\S+\.\S+$/;
+        // Check email uniqueness if changed
+        if (email && email.toLowerCase().trim() !== candidate.email) {
             const normalizedEmail = email.toLowerCase().trim();
+            const emailRegex = /^\S+@\S+\.\S+$/;
             if (!emailRegex.test(normalizedEmail)) {
-                return res.status(400).json({ message: 'Invalid email format' });
+                return res.status(400).json({ 
+                    message: 'Invalid email format' 
+                });
+            }
+            const existingEmail = await Candidate.findOne({ 
+                email: normalizedEmail,
+                _id: { $ne: req.params.id }
+            });
+            if (existingEmail) {
+                return res.status(400).json({ 
+                    message: 'Email already in use' 
+                });
             }
             candidate.email = normalizedEmail;
         }
-        if (status !== undefined) candidate.status = status;
         
-        // Validate and convert ObjectIds
-        const mongoose = require('mongoose');
-        if (packageId !== undefined) {
-            candidate.packageId = packageId || null; // Store as string for mock data
-        }
-        if (instructorId !== undefined) {
-            if (instructorId && mongoose.Types.ObjectId.isValid(instructorId) && instructorId.length === 24) {
-                candidate.instructorId = instructorId;
-            } else {
-                candidate.instructorId = null;
+        // Check personal number uniqueness if changed
+        if (personalNumber && personalNumber.trim() !== candidate.personalNumber) {
+            const existingPersonalNumber = await Candidate.findOne({ 
+                personalNumber: personalNumber.trim(),
+                _id: { $ne: req.params.id }
+            });
+            if (existingPersonalNumber) {
+                return res.status(400).json({ 
+                    message: 'Personal number already in use' 
+                });
             }
+            candidate.personalNumber = personalNumber.trim();
         }
-        if (carId !== undefined) candidate.carId = carId || null;
-        if (paymentFrequency !== undefined) candidate.paymentFrequency = paymentFrequency || null;
-        if (documents !== undefined) candidate.documents = documents;
+        
+        // Update fields
+        if (firstName !== undefined) candidate.firstName = firstName.trim();
+        if (lastName !== undefined) candidate.lastName = lastName.trim();
+        if (phone !== undefined) candidate.phone = phone.trim();
+        if (dateOfBirth !== undefined) candidate.dateOfBirth = new Date(dateOfBirth);
+        if (address !== undefined) candidate.address = address.trim();
+        if (packageId !== undefined) candidate.packageId = packageId;
+        if (instructorId !== undefined) candidate.instructorId = instructorId || null;
+        if (carId !== undefined) candidate.carId = carId;
+        if (paymentFrequency !== undefined) candidate.paymentFrequency = paymentFrequency;
+        if (status !== undefined) candidate.status = status;
         
         await candidate.save();
         
         const populated = await Candidate.findById(candidate._id)
-            .populate('instructorId', 'phone address personalNumber');
+            .populate('instructorId', 'phone address dateOfBirth personalNumber');
         
         res.json(populated);
     } catch (err) {
+        console.error('Error updating candidate:', err);
         if (err.code === 11000) {
-            const field = Object.keys(err.keyPattern)[0];
+            if (err.keyPattern?.email) {
+                return res.status(400).json({ 
+                    message: 'Email already in use' 
+                });
+            }
+            if (err.keyPattern?.personalNumber) {
+                return res.status(400).json({ 
+                    message: 'Personal number already in use' 
+                });
+            }
             return res.status(400).json({ 
-                message: `${field === 'uniqueClientNumber' ? 'Client number' : field === 'personalNumber' ? 'Personal number' : 'Email'} already in use` 
+                message: 'Email or personal number already in use' 
             });
         }
         next(err);
@@ -190,10 +222,12 @@ const update = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
     try {
-        const candidate = await Candidate.findByIdAndDelete(req.params.id);
+        const candidate = await Candidate.findById(req.params.id);
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
+        
+        await Candidate.findByIdAndDelete(req.params.id);
         
         res.json({ message: 'Candidate deleted successfully' });
     } catch (err) {
@@ -208,4 +242,3 @@ module.exports = {
     update,
     remove
 };
-
