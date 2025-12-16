@@ -199,6 +199,16 @@ export const api = {
       return { ok: false, status: 500 };
     }
   },
+  async getCar(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/cars/${id}`, {
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
 
   async listInstructors(): Promise<ApiResponse<any[]>> {
     try {
