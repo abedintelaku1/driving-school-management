@@ -9,9 +9,10 @@ import { Modal, ConfirmModal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Checkbox } from '../../components/ui/Checkbox';
-import { mockCars, licenseCategories } from '../../utils/mockData';
+import { licenseCategories } from '../../utils/mockData';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
+import type { Car } from '../../types';
 
 type InstructorRow = {
   id: string;
@@ -37,6 +38,7 @@ export function InstructorsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [rows, setRows] = useState<InstructorRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cars, setCars] = useState<Car[]>([]);
 
   useEffect(() => {
     const fetchInstructors = async () => {
@@ -89,6 +91,51 @@ export function InstructorsPage() {
     fetchInstructors();
   }, [refreshKey]);
 
+  // Fetch cars from API
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const { ok, data } = await api.listCars();
+        if (ok && data) {
+          // Transform MongoDB data to frontend format
+          const mapped = (data as any[]).map((item) => ({
+            id: item._id || item.id,
+            model: item.model || '',
+            yearOfManufacture: item.yearOfManufacture || 0,
+            chassisNumber: item.chassisNumber || '',
+            transmission: item.transmission || 'manual',
+            fuelType: item.fuelType || 'petrol',
+            licensePlate: item.licensePlate || '',
+            ownership: item.ownership || 'owned',
+            registrationExpiry: item.registrationExpiry
+              ? new Date(item.registrationExpiry).toISOString().split('T')[0]
+              : '',
+            lastInspection: item.lastInspection
+              ? new Date(item.lastInspection).toISOString().split('T')[0]
+              : '',
+            nextInspection: item.nextInspection
+              ? new Date(item.nextInspection).toISOString().split('T')[0]
+              : '',
+            totalHours: item.totalHours || 0,
+            status: item.status || 'active',
+            createdAt: item.createdAt
+              ? new Date(item.createdAt).toISOString().split('T')[0]
+              : '',
+            updatedAt: item.updatedAt
+              ? new Date(item.updatedAt).toISOString().split('T')[0]
+              : '',
+          }));
+          setCars(mapped as Car[]);
+        }
+      } catch (error) {
+        console.error('Error fetching cars:', error);
+        // Don't show toast error here as it's not critical for the page
+      }
+    };
+
+    fetchCars();
+  }, [refreshKey]);
+
   const filteredInstructors = useMemo(() => {
     return rows.filter(instructor => {
       if (statusFilter && instructor.status !== statusFilter) return false;
@@ -96,7 +143,8 @@ export function InstructorsPage() {
       return true;
     });
   }, [statusFilter, categoryFilter, rows]);
-  const columns = [{
+
+  const columns = useMemo(() => [{
     key: 'name',
     label: 'Instructor',
     sortable: true,
@@ -128,11 +176,11 @@ export function InstructorsPage() {
   }, {
     key: 'assignedCarIds',
     label: 'Assigned Cars',
-    render: (value: unknown) => {
+    render: (value: unknown, instructor: InstructorRow) => {
       const carIds = value as string[];
-      const cars = carIds.map(id => mockCars.find(c => c.id === id)).filter(Boolean);
-      return cars.length > 0 ? <div className="flex flex-wrap gap-1">
-            {cars.map(car => <Badge key={car!.id} variant="outline" size="sm">
+      const assignedCars = carIds.map(id => cars.find(c => c.id === id)).filter(Boolean);
+      return assignedCars.length > 0 ? <div className="flex flex-wrap gap-1">
+            {assignedCars.map(car => <Badge key={car!.id} variant="outline" size="sm">
                 {car!.licensePlate}
               </Badge>)}
           </div> : <span className="text-gray-400">None</span>;
@@ -142,7 +190,7 @@ export function InstructorsPage() {
     label: 'Status',
     sortable: true,
     render: (value: unknown) => <StatusBadge status={value as 'active' | 'inactive'} />
-  }];
+  }], [cars]);
   const handleDeleteClick = (instructor: InstructorRow) => {
     setInstructorToDelete(instructor);
   };
@@ -282,7 +330,59 @@ function AddInstructorModal({
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cars, setCars] = useState<Car[]>([]);
+  const [loadingCars, setLoadingCars] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Fetch cars when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const fetchCars = async () => {
+        setLoadingCars(true);
+        try {
+          const { ok, data } = await api.listCars();
+          if (ok && data) {
+            // Transform MongoDB data to frontend format
+            const mapped = (data as any[]).map((item) => ({
+              id: item._id || item.id,
+              model: item.model || '',
+              yearOfManufacture: item.yearOfManufacture || 0,
+              chassisNumber: item.chassisNumber || '',
+              transmission: item.transmission || 'manual',
+              fuelType: item.fuelType || 'petrol',
+              licensePlate: item.licensePlate || '',
+              ownership: item.ownership || 'owned',
+              registrationExpiry: item.registrationExpiry
+                ? new Date(item.registrationExpiry).toISOString().split('T')[0]
+                : '',
+              lastInspection: item.lastInspection
+                ? new Date(item.lastInspection).toISOString().split('T')[0]
+                : '',
+              nextInspection: item.nextInspection
+                ? new Date(item.nextInspection).toISOString().split('T')[0]
+                : '',
+              totalHours: item.totalHours || 0,
+              status: item.status || 'active',
+              createdAt: item.createdAt
+                ? new Date(item.createdAt).toISOString().split('T')[0]
+                : '',
+              updatedAt: item.updatedAt
+                ? new Date(item.updatedAt).toISOString().split('T')[0]
+                : '',
+            }));
+            setCars(mapped as Car[]);
+          }
+        } catch (error) {
+          console.error('Error fetching cars:', error);
+          toast('error', 'Failed to load cars');
+        } finally {
+          setLoadingCars(false);
+        }
+      };
+
+      fetchCars();
+    }
+  }, [isOpen]);
   
   // Validation function
   const validateForm = (): boolean => {
@@ -640,35 +740,60 @@ function AddInstructorModal({
           </div>
         </div>
 
-        <Select label="Assign Cars" value="" onChange={e => {
-        if (e.target.value && !formData.assignedCarIds.includes(e.target.value)) {
-          setFormData(prev => ({
-            ...prev,
-            assignedCarIds: [...prev.assignedCarIds, e.target.value]
-          }));
-        }
-      }} options={mockCars.filter(c => c.status === 'active').map(car => ({
-        value: car.id,
-        label: `${car.model} (${car.licensePlate})`,
-        disabled: formData.assignedCarIds.includes(car.id)
-      }))} placeholder="Select cars to assign" />
-        {formData.assignedCarIds.length > 0 && <div className="flex flex-wrap gap-2">
-            {formData.assignedCarIds.map(carId => {
-          const car = mockCars.find(c => c.id === carId);
-          return car ? <button
-            key={carId}
-            type="button"
-            onClick={() => setFormData(prev => ({
-              ...prev,
-              assignedCarIds: prev.assignedCarIds.filter(id => id !== carId)
-            }))}
-            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
-          >
-            <Badge variant="info">{car.licensePlate}</Badge>
-            <span>×</span>
-          </button> : null;
-        })}
-          </div>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Assign Cars
+          </label>
+          {loadingCars ? (
+            <div className="text-sm text-gray-500">Loading cars...</div>
+          ) : (
+            <>
+              <Select
+                label=""
+                value=""
+                onChange={(e) => {
+                  if (e.target.value && !formData.assignedCarIds.includes(e.target.value)) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      assignedCarIds: [...prev.assignedCarIds, e.target.value],
+                    }));
+                  }
+                }}
+                options={cars
+                  .filter((c) => c.status === 'active')
+                  .map((car) => ({
+                    value: car.id,
+                    label: `${car.model} (${car.licensePlate})`,
+                    disabled: formData.assignedCarIds.includes(car.id),
+                  }))}
+                placeholder="Select cars to assign"
+              />
+              {formData.assignedCarIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.assignedCarIds.map((carId) => {
+                    const car = cars.find((c) => c.id === carId);
+                    return car ? (
+                      <button
+                        key={carId}
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            assignedCarIds: prev.assignedCarIds.filter((id) => id !== carId),
+                          }))
+                        }
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
+                      >
+                        <Badge variant="info">{car.licensePlate}</Badge>
+                        <span>×</span>
+                      </button>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </form>
     </Modal>;
 }
