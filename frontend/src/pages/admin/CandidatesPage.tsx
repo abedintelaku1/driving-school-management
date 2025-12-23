@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusIcon, EyeIcon, EditIcon, DownloadIcon, MailIcon, PhoneIcon } from 'lucide-react';
+import { PlusIcon, EyeIcon, EditIcon, DownloadIcon, MailIcon, PhoneIcon, TrashIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
-import { Modal } from '../../components/ui/Modal';
+import { Modal, ConfirmModal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
@@ -19,6 +19,8 @@ export function CandidatesPage() {
   const navigate = useNavigate();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const [deletingCandidate, setDeletingCandidate] = useState<Candidate | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [packageFilter, setPackageFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,22 +57,35 @@ export function CandidatesPage() {
     const fetchCandidates = async () => {
       const { ok, data } = await api.listCandidates();
       if (ok && data) {
-        const mapped = (data as any[]).map(item => ({
-          id: item._id || item.id,
-          firstName: item.firstName,
-          lastName: item.lastName,
-          email: item.email,
-          phone: item.phone,
-          dateOfBirth: item.dateOfBirth,
-          personalNumber: item.personalNumber,
-          address: item.address,
-          packageId: item.packageId || '',
-          carId: item.carId || '',
-          paymentFrequency: item.paymentFrequency || '',
-          status: item.status || 'active',
-          instructorId: item.instructor?._id || item.instructor || item.instructorId || '',
-          uniqueClientNumber: item.uniqueClientNumber || ''
-        }));
+        const mapped = (data as any[]).map(item => {
+          // Format dateOfBirth if it's a Date object
+          let dateOfBirth = item.dateOfBirth;
+          if (dateOfBirth instanceof Date) {
+            dateOfBirth = dateOfBirth.toISOString().split('T')[0];
+          } else if (typeof dateOfBirth === 'string' && dateOfBirth.includes('T')) {
+            dateOfBirth = dateOfBirth.split('T')[0];
+          }
+          
+          return {
+            id: item._id || item.id,
+            firstName: item.firstName,
+            lastName: item.lastName,
+            email: item.email,
+            phone: item.phone,
+            dateOfBirth: dateOfBirth || '',
+            personalNumber: item.personalNumber,
+            address: item.address,
+            packageId: item.packageId?._id || item.packageId || '',
+            carId: item.carId || '',
+            paymentFrequency: item.paymentFrequency || '',
+            status: item.status || 'active',
+            instructorId: item.instructorId?._id || item.instructorId || item.instructor?._id || item.instructor || '',
+            uniqueClientNumber: item.uniqueClientNumber || '',
+            documents: item.documents || [],
+            createdAt: item.createdAt ? (item.createdAt instanceof Date ? item.createdAt.toISOString().split('T')[0] : item.createdAt.split('T')[0]) : '',
+            updatedAt: item.updatedAt ? (item.updatedAt instanceof Date ? item.updatedAt.toISOString().split('T')[0] : item.updatedAt.split('T')[0]) : ''
+          };
+        });
         setCandidates(mapped as Candidate[]);
       }
     };
@@ -90,11 +105,32 @@ export function CandidatesPage() {
   }, [statusFilter, packageFilter, searchQuery, refreshKey, candidates]);
   const handleAddSuccess = () => {
     setRefreshKey(prev => prev + 1);
-    toast('success', 'Candidate added successfully');
+    // Toast message is already shown in handleSubmit
   };
   const handleEditSuccess = () => {
     setRefreshKey(prev => prev + 1);
-    toast('success', 'Candidate updated successfully');
+    // Toast message is already shown in handleSubmit
+  };
+  const handleDelete = async () => {
+    if (!deletingCandidate) return;
+    
+    setIsDeleting(true);
+    try {
+      const resp = await api.deleteCandidate(deletingCandidate.id);
+      if (!resp.ok) {
+        const errorMessage = (resp.data as any)?.message || 'Failed to delete candidate';
+        toast('error', errorMessage);
+        return;
+      }
+      toast('success', 'Candidate deleted successfully');
+      setRefreshKey(prev => prev + 1);
+      setDeletingCandidate(null);
+    } catch (error) {
+      console.error('Error deleting candidate:', error);
+      toast('error', 'An error occurred. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
   const handleExport = () => {
     if (!filteredCandidates.length) {
@@ -131,7 +167,7 @@ export function CandidatesPage() {
     setPackageFilter('');
     setSearchQuery('');
   };
-  const hasActiveFilters = statusFilter || packageFilter || searchQuery;
+  const hasActiveFilters = !!(statusFilter || packageFilter || searchQuery);
   const columns = [{
     key: 'name',
     label: 'Candidate',
@@ -195,6 +231,15 @@ export function CandidatesPage() {
       </Button>
       <Button variant="ghost" size="sm" onClick={() => setEditingCandidate(candidate)} icon={<EditIcon className="w-4 h-4" />}>
         <span className="hidden sm:inline">Edit</span>
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => setDeletingCandidate(candidate)} 
+        icon={<TrashIcon className="w-4 h-4" />}
+        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+      >
+        <span className="hidden sm:inline">Delete</span>
       </Button>
     </div>;
   return <div className="space-y-4 lg:space-y-6">
@@ -264,6 +309,19 @@ export function CandidatesPage() {
       setShowAddModal(false);
       setEditingCandidate(null);
     }} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingCandidate}
+        onClose={() => setDeletingCandidate(null)}
+        onConfirm={handleDelete}
+        title="Delete Candidate"
+        message={deletingCandidate ? `Are you sure you want to delete ${deletingCandidate.firstName} ${deletingCandidate.lastName}? This action cannot be undone.` : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeleting}
+      />
     </div>;
 }
 type AddCandidateModalProps = {
@@ -295,6 +353,109 @@ function AddCandidateModal({
     status: 'active' as 'active' | 'inactive'
   });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Validation function - returns errors object
+  const validateForm = (): Record<string, string> => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+    
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        newErrors.email = 'Please enter a valid email address';
+      }
+    }
+    
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else {
+      // Basic phone validation (at least 6 digits)
+      const phoneRegex = /^[\d\s\-\+\(\)]{6,}$/;
+      if (!phoneRegex.test(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
+      }
+    }
+    
+    if (!formData.address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+    
+    if (!formData.dateOfBirth) {
+      newErrors.dateOfBirth = 'Date of birth is required';
+    } else {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      if (birthDate >= today) {
+        newErrors.dateOfBirth = 'Date of birth must be in the past';
+      }
+      // Check if age is reasonable (at least 16 years old for driving school)
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      if (actualAge < 16) {
+        newErrors.dateOfBirth = 'Candidate must be at least 16 years old';
+      }
+    }
+    
+    if (!formData.personalNumber.trim()) {
+      newErrors.personalNumber = 'Personal number is required';
+    } else if (formData.personalNumber.trim().length < 6) {
+      newErrors.personalNumber = 'Personal number must be at least 6 characters';
+    }
+    
+    setErrors(newErrors);
+    return newErrors;
+  };
+
+  const getFirstErrorMessage = (validationErrors: Record<string, string>): string => {
+    const errorKeys = Object.keys(validationErrors);
+    if (errorKeys.length === 0) return '';
+    
+    // Order of fields in the form (top to bottom)
+    const fieldOrder = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'personalNumber', 'address'];
+    
+    // Find the first error according to form order
+    for (const field of fieldOrder) {
+      if (validationErrors[field]) {
+        const fieldLabels: Record<string, string> = {
+          firstName: 'First name',
+          lastName: 'Last name',
+          email: 'Email',
+          phone: 'Phone number',
+          address: 'Address',
+          dateOfBirth: 'Date of birth',
+          personalNumber: 'Personal number'
+        };
+        const fieldLabel = fieldLabels[field] || field;
+        return `${fieldLabel}: ${validationErrors[field]}`;
+      }
+    }
+    
+    // Fallback to first error if not in order
+    const firstKey = errorKeys[0];
+    const fieldLabels: Record<string, string> = {
+      firstName: 'First name',
+      lastName: 'Last name',
+      email: 'Email',
+      phone: 'Phone number',
+      address: 'Address',
+      dateOfBirth: 'Date of birth',
+      personalNumber: 'Personal number'
+    };
+    return `${fieldLabels[firstKey] || firstKey}: ${validationErrors[firstKey]}`;
+  };
+
   useEffect(() => {
     if (candidate) {
       setFormData({
@@ -327,73 +488,183 @@ function AddCandidateModal({
         status: 'active'
       });
     }
+    // Clear errors when form data changes
+    setErrors({});
   }, [candidate]);
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    
+    // Validate form before submitting
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      const errorMessage = getFirstErrorMessage(validationErrors);
+      if (errorMessage) {
+        toast('error', errorMessage);
+      } else {
+        toast('error', 'Please fix the errors in the form');
+      }
+      return;
+    }
+    
     setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        instructorId: formData.instructorId || undefined
+      // Helper function to check if string is a valid MongoDB ObjectId (24 hex characters)
+      const isValidObjectId = (id: string | undefined): boolean => {
+        if (!id || id.trim() === '') return false;
+        // MongoDB ObjectId is 24 hex characters
+        return /^[0-9a-fA-F]{24}$/.test(id);
       };
+      
+      const payload: any = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        personalNumber: formData.personalNumber,
+        address: formData.address,
+        status: formData.status
+      };
+      
+      // packageId is stored as string for mock data
+      if (formData.packageId) {
+        payload.packageId = formData.packageId;
+      }
+      
+      // Only include instructorId if it's a valid ObjectId
+      if (isValidObjectId(formData.instructorId)) {
+        payload.instructorId = formData.instructorId;
+      }
+      
+      if (formData.carId) {
+        payload.carId = formData.carId;
+      }
+      
+      if (formData.paymentFrequency) {
+        payload.paymentFrequency = formData.paymentFrequency;
+      }
+      
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
-        toast('error', (resp.data as any)?.message || 'Failed to save candidate');
+        const errorMessage = (resp.data as any)?.message || 'Failed to save candidate';
+        toast('error', errorMessage);
         return;
       }
+      toast('success', candidate ? 'Candidate updated successfully' : 'Candidate added successfully');
       onSuccess();
     } catch (error) {
-      toast('error', 'Failed to save candidate');
+      console.error('Error saving candidate:', error);
+      toast('error', 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Edit Candidate' : 'Add New Candidate'} description="Enter the candidate's information to register them in the system." size="lg" footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Edit Candidate' : 'Add New Candidate'} description="Enter the candidate's information to register them in the system." size="lg"       footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading} fullWidth className="sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} loading={loading} fullWidth className="sm:w-auto">
+          <Button onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)} loading={loading} fullWidth className="sm:w-auto">
             {candidate ? 'Save Changes' : 'Create Candidate'}
           </Button>
         </div>}>
-      <form className="space-y-4 sm:space-y-6">
+      <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="First Name" required value={formData.firstName} onChange={e => setFormData({
-          ...formData,
-          firstName: e.target.value
-        })} />
-          <Input label="Last Name" required value={formData.lastName} onChange={e => setFormData({
-          ...formData,
-          lastName: e.target.value
-        })} />
+          <Input 
+            label="First Name" 
+            required 
+            value={formData.firstName} 
+            error={errors.firstName}
+            onChange={e => {
+              setFormData({ ...formData, firstName: e.target.value });
+              if (errors.firstName) {
+                setErrors({ ...errors, firstName: '' });
+              }
+            }} 
+          />
+          <Input 
+            label="Last Name" 
+            required 
+            value={formData.lastName} 
+            error={errors.lastName}
+            onChange={e => {
+              setFormData({ ...formData, lastName: e.target.value });
+              if (errors.lastName) {
+                setErrors({ ...errors, lastName: '' });
+              }
+            }} 
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Email" type="email" required value={formData.email} onChange={e => setFormData({
-          ...formData,
-          email: e.target.value
-        })} />
-          <Input label="Phone" type="tel" required value={formData.phone} onChange={e => setFormData({
-          ...formData,
-          phone: e.target.value
-        })} />
+          <Input 
+            label="Email" 
+            type="email" 
+            required 
+            value={formData.email} 
+            error={errors.email}
+            onChange={e => {
+              setFormData({ ...formData, email: e.target.value });
+              if (errors.email) {
+                setErrors({ ...errors, email: '' });
+              }
+            }} 
+          />
+          <Input 
+            label="Phone" 
+            type="tel" 
+            required 
+            value={formData.phone} 
+            error={errors.phone}
+            onChange={e => {
+              setFormData({ ...formData, phone: e.target.value });
+              if (errors.phone) {
+                setErrors({ ...errors, phone: '' });
+              }
+            }} 
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Date of Birth" type="date" required value={formData.dateOfBirth} onChange={e => setFormData({
-          ...formData,
-          dateOfBirth: e.target.value
-        })} />
-          <Input label="Personal Number" required value={formData.personalNumber} onChange={e => setFormData({
-          ...formData,
-          personalNumber: e.target.value
-        })} />
+          <Input 
+            label="Date of Birth" 
+            type="date" 
+            required 
+            value={formData.dateOfBirth} 
+            error={errors.dateOfBirth}
+            onChange={e => {
+              setFormData({ ...formData, dateOfBirth: e.target.value });
+              if (errors.dateOfBirth) {
+                setErrors({ ...errors, dateOfBirth: '' });
+              }
+            }} 
+          />
+          <Input 
+            label="Personal Number" 
+            required 
+            value={formData.personalNumber} 
+            error={errors.personalNumber}
+            onChange={e => {
+              setFormData({ ...formData, personalNumber: e.target.value });
+              if (errors.personalNumber) {
+                setErrors({ ...errors, personalNumber: '' });
+              }
+            }} 
+          />
         </div>
 
-        <Input label="Address" required value={formData.address} onChange={e => setFormData({
-        ...formData,
-        address: e.target.value
-      })} />
+        <Input 
+          label="Address" 
+          required 
+          value={formData.address} 
+          error={errors.address}
+          onChange={e => {
+            setFormData({ ...formData, address: e.target.value });
+            if (errors.address) {
+              setErrors({ ...errors, address: '' });
+            }
+          }} 
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select label="Package" value={formData.packageId} onChange={e => setFormData({
