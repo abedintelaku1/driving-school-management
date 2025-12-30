@@ -95,9 +95,28 @@ CandidateSchema.pre('save', async function(next) {
     this.updatedAt = Date.now();
     
     // Generate unique client number if not provided
-    if (!this.uniqueClientNumber) {
-        const count = await mongoose.model('Candidate').countDocuments();
-        this.uniqueClientNumber = `CLI-${String(count + 1).padStart(6, '0')}`;
+    if (!this.uniqueClientNumber || this.uniqueClientNumber.trim() === '') {
+        let uniqueNumber;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        // Try to generate a unique client number
+        do {
+            const count = await mongoose.model('Candidate').countDocuments();
+            uniqueNumber = `CLI-${String(count + 1 + attempts).padStart(6, '0')}`;
+            const exists = await mongoose.model('Candidate').findOne({ uniqueClientNumber: uniqueNumber });
+            if (!exists) {
+                break;
+            }
+            attempts++;
+        } while (attempts < maxAttempts);
+        
+        // If still not unique, use timestamp-based approach
+        if (attempts >= maxAttempts) {
+            uniqueNumber = `CLI-${Date.now().toString().slice(-6)}`;
+        }
+        
+        this.uniqueClientNumber = uniqueNumber;
     }
     
     next();
