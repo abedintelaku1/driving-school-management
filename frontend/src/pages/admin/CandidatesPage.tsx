@@ -11,7 +11,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { SearchBar } from '../../components/ui/SearchBar';
-import { mockPackages, mockCars, getPackageById } from '../../utils/mockData';
+import { mockCars } from '../../utils/mockData';
+import type { Package } from '../../types';
 import type { Candidate } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
@@ -26,6 +27,7 @@ export function CandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
 
   useEffect(() => {
@@ -53,6 +55,32 @@ export function CandidatesPage() {
     };
     fetchInstructors();
   }, []);
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const { ok, data } = await api.listPackages();
+        if (ok && data) {
+          const mapped = (data as any[]).map(item => ({
+            id: item._id || item.id,
+            name: item.name,
+            category: item.category,
+            numberOfHours: item.numberOfHours,
+            price: item.price,
+            description: item.description || '',
+            status: item.status || 'active',
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString()
+          }));
+          setPackages(mapped as Package[]);
+        }
+      } catch (error) {
+        console.error('Failed to load packages:', error);
+        toast('error', 'Failed to load packages');
+      }
+    };
+    fetchPackages();
+  }, []);
   useEffect(() => {
     const fetchCandidates = async () => {
       const { ok, data } = await api.listCandidates();
@@ -67,18 +95,18 @@ export function CandidatesPage() {
           }
           
           return {
-            id: item._id || item.id,
-            firstName: item.firstName,
-            lastName: item.lastName,
-            email: item.email,
-            phone: item.phone,
+          id: item._id || item.id,
+          firstName: item.firstName,
+          lastName: item.lastName,
+          email: item.email,
+          phone: item.phone,
             dateOfBirth: dateOfBirth || '',
-            personalNumber: item.personalNumber,
-            address: item.address,
+          personalNumber: item.personalNumber,
+          address: item.address,
             packageId: item.packageId?._id || item.packageId || '',
-            carId: item.carId || '',
-            paymentFrequency: item.paymentFrequency || '',
-            status: item.status || 'active',
+          carId: item.carId || '',
+          paymentFrequency: item.paymentFrequency || '',
+          status: item.status || 'active',
             instructorId: item.instructorId?._id || item.instructorId || item.instructor?._id || item.instructor || '',
             uniqueClientNumber: item.uniqueClientNumber || '',
             documents: item.documents || [],
@@ -91,6 +119,10 @@ export function CandidatesPage() {
     };
     fetchCandidates();
   }, [refreshKey]);
+
+  const getPackageById = (id: string): Package | null => {
+    return packages.find(p => p.id === id) || null;
+  };
 
   const filteredCandidates = useMemo(() => {
     return candidates.filter(candidate => {
@@ -284,7 +316,7 @@ export function CandidatesPage() {
           <Select placeholder="All Packages" value={packageFilter} onChange={e => setPackageFilter(e.target.value)} options={[{
           value: '',
           label: 'All Packages'
-        }, ...mockPackages.map(pkg => ({
+        }, ...packages.map(pkg => ({
           value: pkg.id,
           label: pkg.name
         }))]} />
@@ -297,7 +329,7 @@ export function CandidatesPage() {
       </Card>
 
       {/* Add/Edit Modal */}
-      <AddCandidateModal instructors={instructors} isOpen={showAddModal || !!editingCandidate} onClose={() => {
+      <AddCandidateModal instructors={instructors} packages={packages} isOpen={showAddModal || !!editingCandidate} onClose={() => {
       setShowAddModal(false);
       setEditingCandidate(null);
     }} candidate={editingCandidate} onSuccess={() => {
@@ -330,13 +362,15 @@ type AddCandidateModalProps = {
   candidate?: Candidate | null;
   onSuccess: () => void;
   instructors: { id: string; name: string }[];
+  packages: Package[];
 };
 function AddCandidateModal({
   isOpen,
   onClose,
   candidate,
   onSuccess,
-  instructors
+  instructors,
+  packages
 }: AddCandidateModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -517,37 +551,41 @@ function AddCandidateModal({
       };
       
       const payload: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
         dateOfBirth: formData.dateOfBirth,
-        personalNumber: formData.personalNumber,
-        address: formData.address,
+        personalNumber: formData.personalNumber.trim(),
+        address: formData.address.trim(),
         status: formData.status
       };
       
-      // packageId is stored as string for mock data
-      if (formData.packageId) {
-        payload.packageId = formData.packageId;
+      // packageId is stored as string
+      if (formData.packageId && formData.packageId.trim()) {
+        payload.packageId = formData.packageId.trim();
       }
       
       // Only include instructorId if it's a valid ObjectId
       if (isValidObjectId(formData.instructorId)) {
         payload.instructorId = formData.instructorId;
+      } else {
+        payload.instructorId = null;
       }
       
-      if (formData.carId) {
-        payload.carId = formData.carId;
+      if (formData.carId && formData.carId.trim()) {
+        payload.carId = formData.carId.trim();
       }
       
-      if (formData.paymentFrequency) {
-        payload.paymentFrequency = formData.paymentFrequency;
+      if (formData.paymentFrequency && formData.paymentFrequency.trim()) {
+        payload.paymentFrequency = formData.paymentFrequency.trim();
       }
       
+      console.log('Sending payload:', payload);
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
         const errorMessage = (resp.data as any)?.message || 'Failed to save candidate';
+        console.error('API Error Response:', resp.data);
         toast('error', errorMessage);
         return;
       }
@@ -670,9 +708,9 @@ function AddCandidateModal({
           <Select label="Package" value={formData.packageId} onChange={e => setFormData({
           ...formData,
           packageId: e.target.value
-        })} options={mockPackages.filter(p => p.status === 'active').map(pkg => ({
+        })} options={packages.filter((p: Package) => p.status === 'active').map((pkg: Package) => ({
           value: pkg.id,
-          label: `${pkg.name} - $${pkg.price}`
+          label: `${pkg.name} - €${pkg.price}`
         }))} />
           <Select label="Instructor" value={formData.instructorId} onChange={e => setFormData({
           ...formData,

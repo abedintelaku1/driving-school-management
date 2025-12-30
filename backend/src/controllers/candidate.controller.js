@@ -41,11 +41,29 @@ const create = async (req, res, next) => {
             status
         } = req.body;
         
+        console.log('Received candidate data:', { firstName, lastName, email, phone, dateOfBirth, personalNumber, address });
+        
         // Validate required fields
-        if (!firstName || !lastName || !email || !phone || !dateOfBirth || !personalNumber || !address) {
-            return res.status(400).json({ 
-                message: 'All required fields must be provided' 
-            });
+        if (!firstName || !firstName.trim()) {
+            return res.status(400).json({ message: 'First name is required' });
+        }
+        if (!lastName || !lastName.trim()) {
+            return res.status(400).json({ message: 'Last name is required' });
+        }
+        if (!email || !email.trim()) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+        if (!phone || !phone.trim()) {
+            return res.status(400).json({ message: 'Phone is required' });
+        }
+        if (!dateOfBirth) {
+            return res.status(400).json({ message: 'Date of birth is required' });
+        }
+        if (!personalNumber || !personalNumber.trim()) {
+            return res.status(400).json({ message: 'Personal number is required' });
+        }
+        if (!address || !address.trim()) {
+            return res.status(400).json({ message: 'Address is required' });
         }
         
         // Validate email format
@@ -60,14 +78,17 @@ const create = async (req, res, next) => {
         // Check if email already exists
         const existingEmail = await Candidate.findOne({ email: normalizedEmail });
         if (existingEmail) {
+            console.log('Email already exists:', normalizedEmail, 'Existing candidate:', existingEmail._id);
             return res.status(400).json({ 
                 message: 'Email already in use' 
             });
         }
         
         // Check if personal number already exists
-        const existingPersonalNumber = await Candidate.findOne({ personalNumber: personalNumber.trim() });
+        const trimmedPersonalNumber = personalNumber.trim();
+        const existingPersonalNumber = await Candidate.findOne({ personalNumber: trimmedPersonalNumber });
         if (existingPersonalNumber) {
+            console.log('Personal number already exists:', trimmedPersonalNumber, 'Existing candidate:', existingPersonalNumber._id);
             return res.status(400).json({ 
                 message: 'Personal number already in use' 
             });
@@ -104,18 +125,34 @@ const create = async (req, res, next) => {
         res.status(201).json(populated);
     } catch (err) {
         console.error('Error creating candidate:', err);
+        console.error('Error details:', {
+            code: err.code,
+            keyPattern: err.keyPattern,
+            keyValue: err.keyValue,
+            message: err.message
+        });
         if (err.code === 11000) {
             // Duplicate key error
             if (err.keyPattern?.email) {
+                console.log('Duplicate email detected:', err.keyValue?.email);
                 return res.status(400).json({ 
                     message: 'Email already in use' 
                 });
             }
             if (err.keyPattern?.personalNumber) {
+                console.log('Duplicate personal number detected:', err.keyValue?.personalNumber);
                 return res.status(400).json({ 
                     message: 'Personal number already in use' 
                 });
             }
+            if (err.keyPattern?.uniqueClientNumber) {
+                console.log('Duplicate unique client number detected:', err.keyValue?.uniqueClientNumber);
+                // This shouldn't happen as we generate it, but handle it anyway
+                return res.status(400).json({ 
+                    message: 'Client number conflict. Please try again.' 
+                });
+            }
+            console.log('Unknown duplicate key error:', err.keyPattern);
             return res.status(400).json({ 
                 message: 'Email or personal number already in use' 
             });

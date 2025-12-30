@@ -153,6 +153,17 @@ export const api = {
       return { ok: false, status: 500 };
     }
   },
+  async deleteCandidate(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/candidates/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
 
   async listCars(): Promise<ApiResponse<any[]>> {
     try {
@@ -277,6 +288,62 @@ export const api = {
   async deleteInstructor(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/instructors/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async listPackages(): Promise<ApiResponse<any[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages`, {
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async getPackage(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/${id}`, {
+        headers: getAuthHeaders()
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async createPackage(payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async updatePackage(id: string, payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async deletePackage(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
