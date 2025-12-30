@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellIcon, LogOutIcon, UserIcon, SettingsIcon, ChevronDownIcon, MenuIcon, CheckIcon } from 'lucide-react';
+import { BellIcon, LogOutIcon, UserIcon, SettingsIcon, ChevronDownIcon, MenuIcon, CheckIcon, XIcon } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { useAuth } from '../../hooks/useAuth';
 import { notificationsApi, type Notification } from '../../utils/api/notifications';
@@ -89,6 +89,25 @@ export function Header({
       setLoading(false);
     }
   }, []);
+
+  // Delete notification
+  const handleDeleteNotification = useCallback(async (notificationId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    try {
+      const result = await notificationsApi.delete(notificationId);
+      if (result.ok) {
+        // Remove from local state
+        setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        // Update unread count if it was unread
+        const deletedNotification = notifications.find(n => n._id === notificationId);
+        if (deletedNotification && !deletedNotification.read) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  }, [notifications]);
 
   // Format time ago
   const formatTimeAgo = (dateString: string): string => {
@@ -248,15 +267,24 @@ export function Header({
                           <p className="text-xs text-gray-500 mt-0.5">{item.message}</p>
                           <p className="text-xs text-gray-400 mt-1">{formatTimeAgo(item.createdAt)}</p>
                         </div>
-                        {!item.read && (
+                        <div className="flex items-center gap-1">
+                          {!item.read && (
+                            <button
+                              onClick={(e) => handleMarkAsRead(item._id, e)}
+                              className="p-1 hover:bg-gray-200 rounded transition-colors"
+                              aria-label="Mark as read"
+                            >
+                              <CheckIcon className="w-4 h-4 text-gray-400" />
+                            </button>
+                          )}
                           <button
-                            onClick={(e) => handleMarkAsRead(item._id, e)}
-                            className="p-1 hover:bg-gray-200 rounded transition-colors"
-                            aria-label="Mark as read"
+                            onClick={(e) => handleDeleteNotification(item._id, e)}
+                            className="p-1 hover:bg-red-100 rounded transition-colors"
+                            aria-label="Delete notification"
                           >
-                            <CheckIcon className="w-4 h-4 text-gray-400" />
+                            <XIcon className="w-4 h-4 text-gray-400 hover:text-red-600" />
                           </button>
-                        )}
+                        </div>
                       </div>
                     </div>
                   ))
