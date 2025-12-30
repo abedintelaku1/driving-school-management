@@ -2,6 +2,7 @@ import { authApi } from './auth';
 import { candidatesApi } from './candidates';
 import { instructorsApi } from './instructors';
 import { carsApi } from './cars';
+import { packagesApi } from './packages';
 
 
 // Main API object that exports all API modules
@@ -33,10 +34,17 @@ export const api = {
   updateCar: carsApi.update,
   deleteCar: carsApi.delete,
 
+  // Packages
+  listPackages: packagesApi.list,
+  getPackage: packagesApi.get,
+  createPackage: packagesApi.create,
+  updatePackage: packagesApi.update,
+  deletePackage: packagesApi.delete,
+
 };
 
 // Export individual APIs for direct use if needed
-export { authApi, candidatesApi, instructorsApi, carsApi };
+export { authApi, candidatesApi, instructorsApi, carsApi, packagesApi };
 
 // Export types
 export type { ApiResponse } from './config';
