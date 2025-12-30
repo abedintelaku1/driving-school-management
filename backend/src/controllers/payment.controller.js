@@ -85,6 +85,21 @@ const create = async (req, res, next) => {
       "firstName lastName uniqueClientNumber email"
     );
 
+    // Send payment confirmation email (async, don't wait for it)
+    const emailService = require('../services/email.service');
+    const notificationService = require('../services/notification.service');
+    
+    if (populated.candidateId && populated.candidateId.email) {
+      emailService.sendPaymentConfirmation(populated, populated.candidateId).catch(err => {
+        console.error('Error sending payment confirmation email:', err);
+      });
+    }
+    
+    // Create notifications (async, don't wait for it)
+    notificationService.notifyPaymentCreated(populated).catch(err => {
+      console.error('Error creating payment notifications:', err);
+    });
+
     res.status(201).json(populated);
   } catch (err) {
     console.error("Error creating payment:", err);

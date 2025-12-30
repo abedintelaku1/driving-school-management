@@ -590,6 +590,26 @@ function AddCandidateModal({
         return;
       }
       toast('success', candidate ? 'Candidate updated successfully' : 'Candidate added successfully');
+      
+      // Reset form if creating new candidate (not editing)
+      if (!candidate) {
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          dateOfBirth: '',
+          personalNumber: '',
+          address: '',
+          packageId: '',
+          instructorId: '',
+          carId: '',
+          paymentFrequency: '',
+          status: 'active'
+        });
+        setErrors({});
+      }
+      
       onSuccess();
     } catch (error) {
       console.error('Error saving candidate:', error);

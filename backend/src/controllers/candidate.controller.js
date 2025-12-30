@@ -1,4 +1,6 @@
 const Candidate = require('../models/Candidate');
+const emailService = require('../services/email.service');
+const notificationService = require('../services/notification.service');
 
 const list = async (_req, res, next) => {
     try {
@@ -122,6 +124,29 @@ const create = async (req, res, next) => {
         const populated = await Candidate.findById(candidate._id)
             .populate('instructorId', 'phone address dateOfBirth personalNumber');
         
+        // Send welcome email to candidate (async, don't wait for it)
+        emailService.sendWelcomeEmail(populated).catch(err => {
+            console.error('❌ Failed to send welcome email to', populated.email, ':', err.message);
+            // Don't throw - email failure shouldn't block candidate creation
+        });
+        
+        // Send email to instructor if candidate is assigned to one
+        if (populated.instructorId) {
+            const Instructor = require('../models/Instructor');
+            const instructor = await Instructor.findById(populated.instructorId).populate('user');
+            if (instructor && instructor.user && instructor.user.email) {
+                emailService.sendCandidateAssignedEmail(instructor, populated).catch(err => {
+                    console.error('❌ Failed to send candidate assignment email to instructor', instructor.user.email, ':', err.message);
+                    // Don't throw - email failure shouldn't block candidate creation
+                });
+            }
+        }
+        
+        // Create notifications (async, don't wait for it)
+        notificationService.notifyCandidateCreated(populated, req.user.id).catch(err => {
+            console.error('Error creating notifications:', err);
+        });
+        
         res.status(201).json(populated);
     } catch (err) {
         console.error('Error creating candidate:', err);
@@ -183,6 +208,9 @@ const update = async (req, res, next) => {
             return res.status(404).json({ message: 'Candidate not found' });
         }
         
+        // Store old instructor ID to check if it changed
+        const oldInstructorId = candidate.instructorId ? candidate.instructorId.toString() : null;
+        
         // Check email uniqueness if changed
         if (email && email.toLowerCase().trim() !== candidate.email) {
             const normalizedEmail = email.toLowerCase().trim();
@@ -234,6 +262,30 @@ const update = async (req, res, next) => {
         
         const populated = await Candidate.findById(candidate._id)
             .populate('instructorId', 'phone address dateOfBirth personalNumber');
+        
+        // Send email to instructor if candidate is newly assigned to one (instructorId changed)
+        const newInstructorId = candidate.instructorId ? candidate.instructorId.toString() : null;
+        if (newInstructorId && newInstructorId !== oldInstructorId) {
+            const Instructor = require('../models/Instructor');
+            const instructor = await Instructor.findById(newInstructorId).populate('user');
+            if (instructor && instructor.user && instructor.user.email) {
+                emailService.sendCandidateAssignedEmail(instructor, populated).catch(err => {
+                    console.error('❌ Failed to send candidate assignment email to instructor', instructor.user.email, ':', err.message);
+                });
+                
+                // Also create notification for the instructor
+                notificationService.createNotification({
+                    userId: instructor.user._id || instructor.user,
+                    title: 'Kandidat i ri u caktua',
+                    message: `${populated.firstName} ${populated.lastName} u caktua për ju`,
+                    type: 'success',
+                    relatedEntity: 'candidate',
+                    relatedEntityId: populated._id
+                }).catch(err => {
+                    console.error('Error creating notification for instructor:', err);
+                });
+            }
+        }
         
         res.json(populated);
     } catch (err) {
