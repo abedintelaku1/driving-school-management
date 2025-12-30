@@ -163,8 +163,8 @@ export const api = {
   async deleteCandidate(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/candidates/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+        method: "DELETE",
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -310,7 +310,7 @@ export const api = {
   async listPackages(): Promise<ApiResponse<any[]>> {
     try {
       const res = await fetch(`${API_URL}/api/packages`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -320,7 +320,7 @@ export const api = {
   async getPackage(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/packages/${id}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -330,9 +330,15 @@ export const api = {
   async createPackage(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/packages`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
   async createPayment(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/payments`, {
@@ -348,10 +354,15 @@ export const api = {
   async updatePackage(id: string, payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/packages/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
-
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
   async updatePayment(id: string, payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/payments/${id}`, {
@@ -367,15 +378,14 @@ export const api = {
   async deletePackage(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/packages/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+        method: "DELETE",
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
       return { ok: false, status: 500 };
     }
-  }
-};
+  },
 
   async deletePayment(id: string): Promise<ApiResponse<any>> {
     try {
