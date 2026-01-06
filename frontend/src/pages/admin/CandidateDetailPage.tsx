@@ -370,6 +370,10 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
     setSaving(true);
     try {
       const payload = { ...form };
+      // Convert empty string to null for instructorId
+      if (payload.instructorId === '') {
+        payload.instructorId = null;
+      }
       const resp = await api.updateCandidate(candidate._id || candidate.id!, payload as any);
       if (!resp.ok) {
         alert((resp.data as any)?.message || 'Failed to update candidate');

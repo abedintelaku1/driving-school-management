@@ -4,13 +4,17 @@ const controller = require("../controllers/car.controller");
 
 const router = express.Router();
 
-// All car routes require authentication and admin role
-router.use(authenticate, authorize(0)); // 0 = admin
+// Instructor-specific route (must be before /:id route)
+router.get("/me", authenticate, authorize(1), controller.getMyCars);
 
-router.get("/", controller.list);
-router.get("/:id", controller.getById);
-router.post("/", controller.create);
-router.put("/:id", controller.update);
-router.delete("/:id", controller.remove);
+// All other routes require authentication
+router.use(authenticate);
+
+// Admin-only routes
+router.get("/", authorize(0), controller.list);
+router.get("/:id", authorize(0), controller.getById);
+router.post("/", authorize(0), controller.create);
+router.put("/:id", authorize(0), controller.update);
+router.delete("/:id", authorize(0), controller.remove);
 
 module.exports = router;
