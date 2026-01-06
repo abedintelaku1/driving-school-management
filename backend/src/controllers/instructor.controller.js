@@ -1,5 +1,7 @@
 const Instructor = require('../models/Instructor');
 const User = require('../models/User');
+const notificationService = require('../services/notification.service');
+const emailService = require('../services/email.service');
 
 const list = async (_req, res, next) => {
     try {
@@ -91,6 +93,16 @@ const create = async (req, res, next) => {
         // Populate and return
         const populated = await Instructor.findById(instructor._id)
             .populate('user', 'firstName lastName email role');
+        
+        // Send welcome email to instructor (async, don't wait for it)
+        emailService.sendInstructorWelcomeEmail(populated).catch(err => {
+            console.error('❌ Failed to send welcome email to instructor', populated.user?.email, ':', err.message);
+        });
+        
+        // Create notifications for admin users (async, don't wait for it)
+        notificationService.notifyInstructorCreated(populated, req.user.id).catch(err => {
+            console.error('Error creating notifications for instructor:', err);
+        });
         
         console.log('Instructor created successfully:', populated._id);
         res.status(201).json(populated);
