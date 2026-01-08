@@ -11,7 +11,6 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { SearchBar } from '../../components/ui/SearchBar';
-import { mockCars } from '../../utils/mockData';
 import type { Package } from '../../types';
 import type { Candidate } from '../../types';
 import { toast } from '../../hooks/useToast';
@@ -29,6 +28,7 @@ export function CandidatesPage() {
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [cars, setCars] = useState<{ id: string; model: string; licensePlate: string; status?: string }[]>([]);
 
   useEffect(() => {
     const fetchInstructors = async () => {
@@ -80,6 +80,27 @@ export function CandidatesPage() {
       }
     };
     fetchPackages();
+  }, []);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const { ok, data } = await api.listCars();
+        if (ok && data) {
+          const mapped = (data as any[]).map((car: any) => ({
+            id: car._id || car.id,
+            model: car.model,
+            licensePlate: car.licensePlate,
+            status: car.status || 'active'
+          }));
+          setCars(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to load cars:', error);
+        toast('error', 'Failed to load cars');
+      }
+    };
+    fetchCars();
   }, []);
   useEffect(() => {
     const fetchCandidates = async () => {
@@ -341,7 +362,7 @@ export function CandidatesPage() {
       </Card>
 
       {/* Add/Edit Modal */}
-      <AddCandidateModal instructors={instructors} packages={packages} isOpen={showAddModal || !!editingCandidate} onClose={() => {
+      <AddCandidateModal instructors={instructors} packages={packages} cars={cars} isOpen={showAddModal || !!editingCandidate} onClose={() => {
       setShowAddModal(false);
       setEditingCandidate(null);
     }} candidate={editingCandidate} onSuccess={() => {
@@ -375,6 +396,7 @@ type AddCandidateModalProps = {
   onSuccess: () => void;
   instructors: { id: string; name: string }[];
   packages: Package[];
+  cars: { id: string; model: string; licensePlate: string; status?: string }[];
 };
 function AddCandidateModal({
   isOpen,
@@ -382,7 +404,8 @@ function AddCandidateModal({
   candidate,
   onSuccess,
   instructors,
-  packages
+  packages,
+  cars
 }: AddCandidateModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -760,7 +783,7 @@ function AddCandidateModal({
           <Select label="Car" value={formData.carId} onChange={e => setFormData({
           ...formData,
           carId: e.target.value
-        })} options={mockCars.filter(c => c.status === 'active').map(car => ({
+        })} options={cars.filter(c => !c.status || c.status === 'active').map(car => ({
           value: car.id,
           label: `${car.model} (${car.licensePlate})`
         }))} />

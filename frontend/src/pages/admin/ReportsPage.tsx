@@ -79,6 +79,21 @@ type Appointment = {
   hours?: number;
 };
 
+// Helper function to format hours: show as integer if whole number, otherwise 2 decimals
+const formatHours = (hours: number): string => {
+  if (hours % 1 === 0) {
+    return hours.toString();
+  }
+  return hours.toFixed(2);
+};
+
+// Helper function to format currency for CSV export: no thousand separators (Excel will format it), always 2 decimals
+const formatCurrency = (amount: number): string => {
+  // Don't use thousand separators in CSV - Excel will interpret commas as column separators
+  // Just format with 2 decimal places, Excel will format it correctly when opened
+  return amount.toFixed(2);
+};
+
 export function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -187,12 +202,47 @@ export function ReportsPage() {
       return true;
     });
   }, [normalizedAppointments, dateFrom, dateTo]);
+<<<<<<< Updated upstream
 
   // Calculate stats
   const totalCandidates = candidates.length;
   const activeCandidates = candidates.filter(
     (c) => !c.status || c.status === "active"
   ).length;
+=======
+  
+  // Calculate stats based on filtered data
+  // If date filter is active, only count candidates/cars with activity in that range
+  const candidatesInRange = useMemo(() => {
+    if (!dateFrom && !dateTo) {
+      // No date filter - show all candidates
+      return candidates;
+    }
+    // With date filter - only candidates with appointments or payments in range
+    const candidateIdsWithActivity = new Set<string>();
+    
+    // Add candidates from appointments in range
+    filteredAppointments.forEach(a => {
+      const candidateId = typeof a.candidateId === 'string' ? a.candidateId : '';
+      if (candidateId) candidateIdsWithActivity.add(candidateId);
+    });
+    
+    // Add candidates from payments in range
+    filteredPayments.forEach(p => {
+      const candidateId = typeof p.candidateId === 'string' ? p.candidateId : '';
+      if (candidateId) candidateIdsWithActivity.add(candidateId);
+    });
+    
+    return candidates.filter(c => {
+      const candidateId = c._id || c.id || '';
+      return candidateIdsWithActivity.has(candidateId);
+    });
+  }, [candidates, filteredAppointments, filteredPayments, dateFrom, dateTo]);
+  
+  const totalCandidates = candidatesInRange.length;
+  const activeCandidates = candidatesInRange.filter(c => !c.status || c.status === 'active').length;
+  
+>>>>>>> Stashed changes
   const totalRevenue = filteredPayments.reduce((sum, p) => {
     const amount =
       typeof p.amount === "number"
@@ -200,9 +250,28 @@ export function ReportsPage() {
         : parseFloat(p.amount as any) || 0;
     return sum + amount;
   }, 0);
+  
   const totalHours = filteredAppointments
     .filter((a) => a.status === "completed")
     .reduce((sum, a) => sum + (a.hours || 0), 0);
+
+  // For cars, if there's a date filter, only count cars that have appointments in that range
+  const activeCarsCount = useMemo(() => {
+    if (!dateFrom && !dateTo) {
+      // No date filter - show all active cars
+      return cars.filter(c => !c.status || c.status === 'active').length;
+    }
+    // With date filter - only count cars that have appointments in the date range
+    const carsWithAppointmentsInRange = new Set(
+      filteredAppointments
+        .map(a => typeof a.carId === 'string' ? a.carId : '')
+        .filter(id => id !== '')
+    );
+    return cars.filter(c => {
+      const carId = c._id || c.id || '';
+      return (!c.status || c.status === 'active') && carsWithAppointmentsInRange.has(carId);
+    }).length;
+  }, [cars, filteredAppointments, dateFrom, dateTo]);
 
   // Export all reports to CSV
   const handleExportAll = () => {
@@ -218,6 +287,7 @@ export function ReportsPage() {
       const timestamp = new Date().toISOString().split("T")[0];
       const filename = `reports_all_${dateRange}_${timestamp}.csv`;
 
+<<<<<<< Updated upstream
       let csvContent = "Driving School Management - Complete Reports Export\n";
       csvContent += `Generated: ${new Date().toLocaleString()}\n`;
       if (dateFrom || dateTo) {
@@ -453,6 +523,184 @@ export function ReportsPage() {
       console.error("Error exporting reports:", error);
       toast("error", "Failed to export reports");
     }
+=======
+    // 1. Summary Stats
+    csvContent += '=== SUMMARY STATISTICS ===\n';
+    csvContent += `Total Candidates,${totalCandidates}\n`;
+    csvContent += `Active Candidates,${activeCandidates}\n`;
+    csvContent += `Total Revenue,€${formatCurrency(totalRevenue)}\n`;
+    csvContent += `Total Hours Taught,${formatHours(totalHours)}\n`;
+     csvContent += `Active Cars,${activeCarsCount}\n`;
+    csvContent += `Total Cars,${cars.length}\n`;
+    csvContent += '\n';
+
+    // 2. Instructor Performance
+    csvContent += '=== INSTRUCTOR PERFORMANCE ===\n';
+    const instructorStats = instructors
+      .filter(instructor => instructor != null)
+      .map(instructor => {
+        const instructorId = instructor._id || instructor.id || '';
+        const appointments = filteredAppointments.filter(a => {
+          const aptInstructorId = typeof a.instructorId === 'string' ? a.instructorId : '';
+          return aptInstructorId === instructorId;
+        });
+        const completedAppointments = appointments.filter(a => a.status === 'completed');
+        const totalHours = completedAppointments.reduce((sum, a) => sum + (a.hours || 0), 0);
+        const instructorCandidates = candidates.filter(c => {
+          if (!c.instructorId) return false;
+          const candidateInstructorId = typeof c.instructorId === 'string' 
+            ? c.instructorId 
+            : (c.instructorId && typeof c.instructorId === 'object' && c.instructorId !== null
+              ? (c.instructorId._id || c.instructorId.id || '')
+              : '');
+          return candidateInstructorId === instructorId;
+        });
+        const firstName = instructor.firstName || instructor.user?.firstName || '';
+        const lastName = instructor.lastName || instructor.user?.lastName || '';
+        return {
+          name: `${firstName} ${lastName}`.trim() || 'Unknown',
+          totalHours,
+          completedLessons: completedAppointments.length,
+          activeCandidates: instructorCandidates.filter(c => !c.status || c.status === 'active').length,
+          totalCandidates: instructorCandidates.length,
+          status: instructor.status || 'active'
+        };
+      });
+    
+    csvContent += 'Instructor,Hours Taught,Completed Lessons,Active Students,Total Students,Status\n';
+    instructorStats.forEach(stat => {
+      csvContent += `"${stat.name}",${formatHours(stat.totalHours)},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
+    });
+    csvContent += '\n';
+
+    // 3. Candidate Progress
+    csvContent += '=== CANDIDATE PROGRESS ===\n';
+    const candidateStats = candidates
+      .filter(candidate => candidate != null && candidate.firstName && candidate.lastName)
+      .map(candidate => {
+        const candidateId = candidate._id || candidate.id || '';
+        const appointments = filteredAppointments.filter(a => {
+          const aptCandidateId = typeof a.candidateId === 'string' ? a.candidateId : '';
+          return aptCandidateId === candidateId;
+        });
+        const completedHours = appointments
+          .filter(a => a.status === 'completed')
+          .reduce((sum, a) => sum + (a.hours || 0), 0);
+        const payments = filteredPayments.filter(p => {
+          const payCandidateId = typeof p.candidateId === 'string' ? p.candidateId : '';
+          return payCandidateId === candidateId;
+        });
+        const totalPaid = payments.reduce((sum, p) => {
+          const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount as any) || 0;
+          return sum + amount;
+        }, 0);
+        return {
+          name: `${candidate.firstName} ${candidate.lastName}`,
+          clientNumber: candidate.uniqueClientNumber || '',
+          completedHours,
+          scheduledLessons: appointments.filter(a => a.status === 'scheduled').length,
+          totalPaid,
+          status: candidate.status || 'active'
+        };
+      });
+    
+    csvContent += 'Candidate,Client Number,Hours Completed,Scheduled Lessons,Total Paid,Status\n';
+    candidateStats.forEach(stat => {
+      csvContent += `"${stat.name}","${stat.clientNumber}",${formatHours(stat.completedHours)},${stat.scheduledLessons},€${formatCurrency(stat.totalPaid)},${stat.status}\n`;
+    });
+    csvContent += '\n';
+
+    // 4. Car Usage
+    csvContent += '=== CAR USAGE ===\n';
+    const carStats = cars
+      .filter(car => car != null && car.model && car.licensePlate)
+      .map(car => {
+        const carId = car._id || car.id || '';
+        const appointments = filteredAppointments.filter(a => {
+          const aptCarId = typeof a.carId === 'string' ? a.carId : '';
+          return aptCarId === carId;
+        });
+        const usageHours = appointments
+          .filter(a => a.status === 'completed')
+          .reduce((sum, a) => sum + (a.hours || 0), 0);
+        const nextInspectionDate = car.nextInspection 
+          ? (typeof car.nextInspection === 'string' ? car.nextInspection.split('T')[0] : String(car.nextInspection)) 
+          : '';
+        return {
+          model: car.model,
+          licensePlate: car.licensePlate,
+          totalHours: car.totalHours || 0,
+          recentUsage: usageHours,
+          nextInspection: nextInspectionDate,
+          status: car.status || 'active'
+        };
+      });
+    
+    csvContent += 'Vehicle Model,License Plate,Total Hours,Recent Usage,Next Inspection,Status\n';
+    carStats.forEach(stat => {
+      csvContent += `"${stat.model}","${stat.licensePlate}",${formatHours(stat.totalHours)},${formatHours(stat.recentUsage)},"${stat.nextInspection}",${stat.status}\n`;
+    });
+    csvContent += '\n';
+
+    // 5. Payment Summary
+    csvContent += '=== PAYMENT SUMMARY BY MONTH ===\n';
+    const paymentsByMonth: Record<string, {
+      total: number;
+      count: number;
+      bank: number;
+      cash: number;
+    }> = {};
+    filteredPayments
+      .filter(payment => payment != null && payment.date)
+      .forEach(payment => {
+        if (!payment.date) return;
+        const month = payment.date.substring(0, 7); // YYYY-MM
+        if (!paymentsByMonth[month]) {
+          paymentsByMonth[month] = {
+            total: 0,
+            count: 0,
+            bank: 0,
+            cash: 0
+          };
+        }
+        const amount = typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount as any) || 0;
+        paymentsByMonth[month].total += amount;
+        paymentsByMonth[month].count += 1;
+        if (payment.method === 'bank' || payment.method === 'Bank') {
+          paymentsByMonth[month].bank += amount;
+        } else if (payment.method === 'cash' || payment.method === 'Cash') {
+          paymentsByMonth[month].cash += amount;
+        }
+      });
+    
+    const monthlyData = Object.entries(paymentsByMonth)
+      .map(([month, data]) => ({
+        month,
+        ...data
+      }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+    
+    csvContent += 'Month,Total,Transactions,Bank,Cash\n';
+    monthlyData.forEach(data => {
+      const monthName = new Date(data.month + '-01').toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long'
+      });
+      csvContent += `"${monthName}",€${formatCurrency(data.total)},${data.count},€${formatCurrency(data.bank)},€${formatCurrency(data.cash)}\n`;
+    });
+
+    // Download CSV with UTF-8 BOM for Excel compatibility (ensures € symbol displays correctly)
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+>>>>>>> Stashed changes
   };
 
   if (loading) {
@@ -507,7 +755,7 @@ export function ReportsPage() {
             <div>
               <p className="text-sm text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${totalRevenue.toLocaleString()}
+                €{totalRevenue.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">
                 {filteredPayments.length} transactions
@@ -522,7 +770,7 @@ export function ReportsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Hours Taught</p>
-              <p className="text-2xl font-bold text-gray-900">{totalHours}h</p>
+              <p className="text-2xl font-bold text-gray-900">{formatHours(totalHours)}h</p>
               <p className="text-xs text-gray-500">
                 {
                   filteredAppointments.filter((a) => a.status === "completed")
@@ -541,7 +789,14 @@ export function ReportsPage() {
             <div>
               <p className="text-sm text-gray-500">Active Cars</p>
               <p className="text-2xl font-bold text-gray-900">
+<<<<<<< Updated upstream
                 {cars.filter((c) => !c.status || c.status === "active").length}
+=======
+                {activeCarsCount}
+              </p>
+              <p className="text-xs text-gray-500">
+                of {cars.length} total
+>>>>>>> Stashed changes
               </p>
               <p className="text-xs text-gray-500">of {cars.length} total</p>
             </div>
@@ -669,6 +924,7 @@ function InstructorPerformanceReport({
         status: instructor.status || "active",
       };
     });
+<<<<<<< Updated upstream
   const columns = [
     {
       key: "name",
@@ -703,6 +959,33 @@ function InstructorPerformanceReport({
       label: "Status",
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
+=======
+  const columns = [{
+    key: 'name',
+    label: 'Instructor',
+    sortable: true
+  }, {
+    key: 'totalHours',
+    label: 'Hours Taught',
+    sortable: true,
+    render: (value: unknown) => <span className="font-semibold">{formatHours(value as number)}h</span>
+  }, {
+    key: 'completedLessons',
+    label: 'Lessons',
+    sortable: true
+  }, {
+    key: 'activeCandidates',
+    label: 'Active Students',
+    sortable: true
+  }, {
+    key: 'totalCandidates',
+    label: 'Total Students',
+    sortable: true
+  }, {
+    key: 'status',
+    label: 'Status',
+    render: (value: unknown) => <Badge variant={value === 'active' ? 'success' : 'danger'} dot>
+>>>>>>> Stashed changes
           {value as string}
         </Badge>
       ),
@@ -777,6 +1060,7 @@ function CandidateProgressReport({
           <p className="font-medium">{item.name}</p>
           <p className="text-sm text-gray-500">{item.clientNumber}</p>
         </div>
+<<<<<<< Updated upstream
       ),
     },
     {
@@ -805,6 +1089,26 @@ function CandidateProgressReport({
       label: "Status",
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
+=======
+  }, {
+    key: 'completedHours',
+    label: 'Hours Completed',
+    sortable: true,
+    render: (value: unknown) => <span className="font-semibold">{formatHours(value as number)}h</span>
+  }, {
+    key: 'scheduledLessons',
+    label: 'Scheduled',
+    sortable: true
+  }, {
+    key: 'totalPaid',
+    label: 'Total Paid',
+    sortable: true,
+    render: (value: unknown) => <span className="font-semibold">€{value as number}</span>
+  }, {
+    key: 'status',
+    label: 'Status',
+    render: (value: unknown) => <Badge variant={value === 'active' ? 'success' : 'danger'} dot>
+>>>>>>> Stashed changes
           {value as string}
         </Badge>
       ),
@@ -866,6 +1170,7 @@ function CarUsageReport({
           <p className="font-medium">{item.model}</p>
           <p className="text-sm text-gray-500 font-mono">{item.licensePlate}</p>
         </div>
+<<<<<<< Updated upstream
       ),
     },
     {
@@ -892,6 +1197,26 @@ function CarUsageReport({
       label: "Status",
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
+=======
+  }, {
+    key: 'totalHours',
+    label: 'Total Hours',
+    sortable: true,
+    render: (value: unknown) => <span className="font-semibold">{formatHours(value as number)}h</span>
+  }, {
+    key: 'recentUsage',
+    label: 'Recent Usage',
+    sortable: true,
+    render: (value: unknown) => <span>{formatHours(value as number)}h</span>
+  }, {
+    key: 'nextInspection',
+    label: 'Next Inspection',
+    sortable: true
+  }, {
+    key: 'status',
+    label: 'Status',
+    render: (value: unknown) => <Badge variant={value === 'active' ? 'success' : 'danger'} dot>
+>>>>>>> Stashed changes
           {value as string}
         </Badge>
       ),
@@ -949,6 +1274,7 @@ function PaymentSummaryReport({
         paymentsByMonth[month].cash += amount;
       }
     });
+<<<<<<< Updated upstream
   const monthlyData = Object.entries(paymentsByMonth)
     .map(([month, data]) => ({
       id: month,
@@ -1005,3 +1331,43 @@ function PaymentSummaryReport({
     </Card>
   );
 }
+=======
+  const monthlyData = Object.entries(paymentsByMonth).map(([month, data]) => ({
+    id: month,
+    month,
+    ...data
+  })).sort((a, b) => b.month.localeCompare(a.month));
+  const columns = [{
+    key: 'month',
+    label: 'Month',
+    sortable: true,
+    render: (value: unknown) => {
+      const date = new Date((value as string) + '-01');
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long'
+      });
+    }
+  }, {
+    key: 'total',
+    label: 'Total',
+    sortable: true,
+    render: (value: unknown) => <span className="font-semibold text-green-600">€{value as number}</span>
+  }, {
+    key: 'count',
+    label: 'Transactions',
+    sortable: true
+  }, {
+    key: 'bank',
+    label: 'Bank',
+    render: (value: unknown) => <span>€{value as number}</span>
+  }, {
+    key: 'cash',
+    label: 'Cash',
+    render: (value: unknown) => <span>€{value as number}</span>
+  }];
+  return <Card padding="none">
+      <DataTable data={monthlyData} columns={columns} keyExtractor={item => item.id} searchable={false} pagination={false} />
+    </Card>;
+}
+>>>>>>> Stashed changes
