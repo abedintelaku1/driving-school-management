@@ -10,6 +10,7 @@ import { InstructorLayout } from './components/layout/InstructorLayout';
 import { LoginPage } from './pages/LoginPage';
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { AdminProfilePage } from './pages/admin/AdminProfilePage';
 import { CandidatesPage } from './pages/admin/CandidatesPage';
 import { CandidateDetailPage } from './pages/admin/CandidateDetailPage';
 import { CarsPage } from './pages/admin/CarsPage';
@@ -72,6 +73,7 @@ function AppContent() {
                 <AdminLayout title="Admin Panel" />
               </ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
+            <Route path="profile" element={<AdminProfilePage />} />
             <Route path="candidates" element={<CandidatesPage />} />
             <Route path="candidates/:id" element={<CandidateDetailPage />} />
             <Route path="cars" element={<CarsPage />} />

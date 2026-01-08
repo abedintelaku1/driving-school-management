@@ -436,4 +436,62 @@ export const api = {
       return { ok: false, status: 500 };
     }
   },
+
+  async getAdminProfile(): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/profile`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async updateAdminProfile(payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  }): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/profile`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async changeAdminPassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/change-password`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
 };
