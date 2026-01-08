@@ -255,6 +255,79 @@ export function MyReportsPage() {
     }
   ];
 
+  // Export report to CSV
+  const handleExportReport = () => {
+    try {
+      const dateRange = dateFrom && dateTo 
+        ? `${dateFrom}_to_${dateTo}` 
+        : dateFrom 
+        ? `from_${dateFrom}` 
+        : dateTo 
+        ? `to_${dateTo}` 
+        : 'all';
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `instructor_reports_${dateRange}_${timestamp}.csv`;
+
+      let csvContent = 'Instructor Reports Export\n';
+      csvContent += `Generated: ${new Date().toLocaleString()}\n`;
+      if (dateFrom || dateTo) {
+        csvContent += `Date Range: ${dateFrom || 'All'} to ${dateTo || 'All'}\n`;
+      }
+      csvContent += '\n';
+
+      // 1. Summary Statistics
+      csvContent += '=== SUMMARY STATISTICS ===\n';
+      csvContent += `Metric,Value\n`;
+      csvContent += `Total Lessons,${filteredAppointments.length}\n`;
+      csvContent += `Completed Lessons,${completedAppointments.length}\n`;
+      csvContent += `Hours Taught,${totalHours}h\n`;
+      csvContent += `Cancelled Lessons,${cancelledCount}\n`;
+      csvContent += `Total Students,${candidates.length}\n`;
+      csvContent += `Completion Rate,${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
+      csvContent += '\n';
+
+      // 2. Student Performance
+      csvContent += '=== STUDENT PERFORMANCE ===\n';
+      csvContent += 'Student Name,Client Number,Total Lessons,Completed Lessons,Hours Completed,Status\n';
+      candidateStats.forEach(stat => {
+        csvContent += `"${stat.name}","${stat.clientNumber || ''}",${stat.totalLessons},${stat.completedLessons},${stat.hours},${stat.status}\n`;
+      });
+      csvContent += '\n';
+
+      // 3. Lesson History
+      csvContent += '=== LESSON HISTORY ===\n';
+      csvContent += 'Date,Time,Student,Hours,Status\n';
+      filteredAppointments
+        .sort((a, b) => {
+          const dateA = a.date?.split('T')[0] || a.date || '';
+          const dateB = b.date?.split('T')[0] || b.date || '';
+          return dateB.localeCompare(dateA);
+        })
+        .forEach(apt => {
+          const studentName = apt.candidate 
+            ? `${apt.candidate.firstName} ${apt.candidate.lastName}`
+            : getCandidateName(apt.candidateId);
+          csvContent += `"${apt.date?.split('T')[0] || apt.date || ''}","${apt.startTime || ''} - ${apt.endTime || ''}","${studentName}",${apt.hours || 0},${apt.status}\n`;
+        });
+
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast('success', 'Report exported successfully');
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      toast('error', 'Failed to export report');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -273,7 +346,11 @@ export function MyReportsPage() {
             View your teaching statistics and performance.
           </p>
         </div>
-        <Button variant="outline" icon={<DownloadIcon className="w-4 h-4" />}>
+        <Button 
+          variant="outline" 
+          icon={<DownloadIcon className="w-4 h-4" />}
+          onClick={handleExportReport}
+        >
           Export Report
         </Button>
       </div>
