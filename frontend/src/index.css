@@ -10,3 +10,8 @@
     margin: 0 !important;
   }
 }
+
+.text-white {
+ top: -4px;
+ right: -3px;
+}
