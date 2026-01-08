@@ -44,7 +44,7 @@ type Appointment = {
   candidate?: Candidate;
   candidateId?: string;
   instructor?: { user?: { firstName?: string; lastName?: string } };
-  instructorId?: string;
+  instructorId?: string | { user?: { firstName?: string; lastName?: string } };
 };
 
 export function AdminDashboard() {
@@ -52,23 +52,26 @@ export function AdminDashboard() {
   const [cars, setCars] = useState<Car[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [candRes, carRes, instRes, aptRes] = await Promise.all([
+        const [candRes, carRes, instRes, aptRes, payRes] = await Promise.all([
           api.listCandidates(),
           api.listCars(),
           api.listInstructors(),
-          api.listAppointments()
+          api.listAppointments(),
+          api.listPayments()
         ]);
 
         if (candRes.ok && candRes.data) setCandidates(candRes.data);
         if (carRes.ok && carRes.data) setCars(carRes.data);
         if (instRes.ok && instRes.data) setInstructors(instRes.data);
         if (aptRes.ok && aptRes.data) setAppointments(aptRes.data);
+        if (payRes.ok && payRes.data) setPayments(payRes.data);
       } catch (err) {
         console.error('Failed to load dashboard', err);
       } finally {
@@ -119,8 +122,13 @@ export function AdminDashboard() {
     });
   }, [cars]);
 
-  // Placeholder revenue until payments API exists
-  const totalRevenue = 0;
+  // Calculate total revenue from payments
+  const totalRevenue = useMemo(() => {
+    return payments.reduce((sum, payment) => {
+      const amount = typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount) || 0;
+      return sum + amount;
+    }, 0);
+  }, [payments]);
 
   if (loading) {
     return (
@@ -214,7 +222,8 @@ export function AdminDashboard() {
               {upcomingAppointments.map(appointment => {
                 const candidateId = appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId;
                 const candidate = candidates.find(c => (c._id || c.id) === candidateId);
-                const instructorUser = appointment.instructor?.user;
+                // Backend returns instructorId with populated user, not instructor
+                const instructorUser = (appointment.instructorId as any)?.user || appointment.instructor?.user;
                 const aptId = appointment._id || appointment.id || '';
                 const aptDate = appointment.date?.split('T')[0] || appointment.date;
 
@@ -228,7 +237,11 @@ export function AdminDashboard() {
                         {candidate?.firstName} {candidate?.lastName}
                       </p>
                       <p className="text-xs lg:text-sm text-gray-500 truncate">
-                        with {instructorUser?.firstName} {instructorUser?.lastName}
+                        {instructorUser?.firstName && instructorUser?.lastName ? (
+                          <>with {instructorUser.firstName} {instructorUser.lastName}</>
+                        ) : (
+                          <span className="text-gray-400">No instructor assigned</span>
+                        )}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
