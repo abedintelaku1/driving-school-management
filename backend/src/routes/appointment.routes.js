@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // Instructor route to get their own appointments (must be before /:id)
+router.get('/me', authorize(1), controller.getMyAppointments);
 router.get('/instructor/:instructorId', authorize(1), controller.getByInstructor);
 
 // Admin-only routes

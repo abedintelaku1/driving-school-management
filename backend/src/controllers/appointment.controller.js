@@ -110,6 +110,7 @@ const create = async (req, res, next) => {
         }
 
         // Calculate hours if not provided
+        // Note: 1 lesson hour = 45 minutes
         let calculatedHours = hours;
         if (!calculatedHours || calculatedHours === 0) {
             const parseTime = (timeString) => {
@@ -124,7 +125,8 @@ const create = async (req, res, next) => {
             if (diffMs < 0) {
                 diffMs = (24 * 60 * 60 * 1000) + diffMs;
             }
-            calculatedHours = Math.round((diffMs / (60 * 60 * 1000)) * 100) / 100;
+            // Convert to lesson hours (45 minutes = 1 hour)
+            calculatedHours = Math.round((diffMs / (45 * 60 * 1000)) * 100) / 100;
         }
 
         // Validate hours
@@ -254,6 +256,7 @@ const update = async (req, res, next) => {
         }
 
         // Recalculate hours if startTime or endTime changed
+        // Note: 1 lesson hour = 45 minutes
         if ((startTime !== undefined || endTime !== undefined) && (!hours || hours === 0)) {
             const parseTime = (timeString) => {
                 const [h, m] = timeString.split(':').map(Number);
@@ -267,7 +270,8 @@ const update = async (req, res, next) => {
             if (diffMs < 0) {
                 diffMs = (24 * 60 * 60 * 1000) + diffMs;
             }
-            appointment.hours = Math.round((diffMs / (60 * 60 * 1000)) * 100) / 100;
+            // Convert to lesson hours (45 minutes = 1 hour)
+            appointment.hours = Math.round((diffMs / (45 * 60 * 1000)) * 100) / 100;
         } else if (hours !== undefined) {
             if (hours <= 0 || hours > 24) {
                 return res.status(400).json({ message: 'Hours must be between 0 and 24' });
@@ -363,6 +367,29 @@ const getByCandidate = async (req, res, next) => {
     }
 };
 
+// Get appointments for the logged-in instructor
+const getMyAppointments = async (req, res, next) => {
+    try {
+        // Get the instructor document for this user
+        const instructor = await Instructor.findOne({ user: req.user._id });
+        
+        if (!instructor) {
+            // Instructor profile not found, return empty array
+            return res.json([]);
+        }
+        
+        // Get appointments for this instructor
+        const appointments = await Appointment.find({ instructorId: instructor._id })
+            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('carId', 'model licensePlate transmission')
+            .sort({ date: -1, startTime: -1 });
+        
+        res.json(appointments);
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     list,
     getById,
@@ -370,6 +397,7 @@ module.exports = {
     update,
     remove,
     getByInstructor,
-    getByCandidate
+    getByCandidate,
+    getMyAppointments
 };
 

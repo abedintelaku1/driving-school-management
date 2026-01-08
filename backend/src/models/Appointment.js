@@ -73,6 +73,7 @@ AppointmentSchema.pre("save", function (next) {
 });
 
 // Calculate hours automatically from startTime and endTime if not provided
+// Note: 1 lesson hour = 45 minutes
 AppointmentSchema.pre("save", function (next) {
   if (this.startTime && this.endTime && (!this.hours || this.hours === 0)) {
     const parseTime = (timeString) => {
@@ -91,7 +92,8 @@ AppointmentSchema.pre("save", function (next) {
       if (diffMs < 0) {
         diffMs = 24 * 60 * 60 * 1000 + diffMs;
       }
-      const calculatedHours = diffMs / (60 * 60 * 1000);
+      // Convert to lesson hours (45 minutes = 1 hour)
+      const calculatedHours = diffMs / (45 * 60 * 1000);
       this.hours = Math.round(calculatedHours * 100) / 100; // Round to 2 decimal places
     }
   }

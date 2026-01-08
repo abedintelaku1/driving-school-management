@@ -507,6 +507,7 @@ function AddAppointmentModal({
   const [instructorId, setInstructorId] = useState<string | null>(null);
 
   // Calculate hours when times change
+  // Note: 1 lesson hour = 45 minutes
   const calculateHours = (start: string, end: string) => {
     if (!start || !end) return '';
     
@@ -525,8 +526,9 @@ function AddAppointmentModal({
       diffMinutes += 24 * 60;
     }
     
-    const hours = diffMinutes / 60;
-    return hours > 0 ? hours.toFixed(2) : '';
+    // Convert to lesson hours (45 minutes = 1 hour)
+    const lessonHours = diffMinutes / 45;
+    return lessonHours > 0 ? lessonHours.toFixed(2) : '';
   };
 
   useEffect(() => {
