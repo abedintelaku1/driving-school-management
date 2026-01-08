@@ -48,14 +48,17 @@ export function CandidateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [packageInfo, setPackageInfo] = useState<any>(null);
 
   const loadData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [candRes,instRes] = await Promise.all([
+      const [candRes, instRes, paymentsRes] = await Promise.all([
         api.getCandidate(id),
-        api.listInstructors()
+        api.listInstructors(),
+        api.getPaymentsByCandidate(id)
       ]);
 
       if (candRes.ok && candRes.data) {
@@ -74,6 +77,14 @@ export function CandidateDetailPage() {
           dateOfBirth: dateOfBirth || data.dateOfBirth,
           instructorId: data.instructorId?._id || data.instructorId || data.instructor?._id || data.instructor || ''
         } as Candidate);
+
+        // Fetch package if candidate has one
+        if (data.packageId) {
+          const packageRes = await api.getPackage(data.packageId);
+          if (packageRes.ok && packageRes.data) {
+            setPackageInfo(packageRes.data);
+          }
+        }
       }
 
       if (instRes?.ok && instRes.data) {
@@ -82,6 +93,17 @@ export function CandidateDetailPage() {
           name: `${inst.user?.firstName || ''} ${inst.user?.lastName || ''}`.trim()
         }));
         setInstructors(mapped);
+      }
+
+      if (paymentsRes?.ok && paymentsRes.data) {
+        const mapped = (paymentsRes.data as any[]).map((item) => ({
+          id: item._id || item.id,
+          amount: item.amount || 0,
+          method: item.method || 'cash',
+          date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
+          notes: item.notes || '',
+        }));
+        setPayments(mapped);
       }
     } catch (err) {
       console.error('Failed to load candidate detail', err);
@@ -110,7 +132,13 @@ export function CandidateDetailPage() {
     return 'Not assigned';
   }, [candidate?.instructor, appointments]);
 
-  const balanceText = '0'; // Placeholder until payments API exists
+  const totalPaid = useMemo(() => {
+    return payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  const packagePrice = packageInfo?.price || 0;
+  const balance = packagePrice - totalPaid;
+  const balanceText = packageInfo ? `€${Math.abs(balance).toLocaleString()}` : '€0';
 
   if (loading) {
     return (
@@ -199,7 +227,9 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Package</p>
-              <p className="font-semibold text-gray-900">Not assigned</p>
+              <p className="font-semibold text-gray-900">
+                {packageInfo ? packageInfo.name : 'Not assigned'}
+              </p>
             </div>
           </div>
         </Card>
@@ -234,7 +264,12 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Balance</p>
-              <p className="font-semibold text-gray-900">${balanceText}</p>
+              <p className="font-semibold text-gray-900">{balanceText}</p>
+              {packageInfo && balance > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {((totalPaid / packagePrice) * 100).toFixed(1)}% paid
+                </p>
+              )}
             </div>
           </div>
         </Card>
@@ -253,7 +288,12 @@ export function CandidateDetailPage() {
         </TabPanel>
 
         <TabPanel value="payments">
-          <PaymentsTab />
+          <PaymentsTab 
+            candidateId={candidate.id || candidate._id || ''} 
+            payments={payments}
+            packageInfo={packageInfo}
+            onPaymentAdded={loadData}
+          />
         </TabPanel>
 
         <TabPanel value="package">
@@ -451,13 +491,138 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
   );
 }
 
-function PaymentsTab() {
+function PaymentsTab({ 
+  candidateId, 
+  payments: paymentsProp, 
+  packageInfo: packageInfoProp,
+  onPaymentAdded 
+}: { 
+  candidateId: string;
+  payments: any[];
+  packageInfo: any;
+  onPaymentAdded: () => void;
+}) {
+  const totalPaid = useMemo(() => {
+    return paymentsProp.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [paymentsProp]);
+
+  const packagePrice = packageInfoProp?.price || 0;
+  const balance = packagePrice - totalPaid;
+  const isFullyPaid = balance <= 0;
+
+  const paymentColumns = [
+    {
+      key: 'date',
+      label: 'Date',
+      sortable: true,
+      render: (value: unknown) => (
+        <span>{new Date(value as string).toLocaleDateString()}</span>
+      ),
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      sortable: true,
+      render: (value: unknown) => (
+        <span className="font-semibold text-gray-900">
+          €{(value as number).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: 'method',
+      label: 'Method',
+      render: (value: unknown) => (
+        <Badge variant={value === 'bank' ? 'info' : 'default'}>
+          {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      render: (value: unknown) => (
+        <span className="text-gray-500 truncate max-w-[200px] block">
+          {(value as string) || '-'}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <Card>
-      <div className="p-4 sm:p-6 text-gray-600">
-        Payments integration not available yet. Balance is shown as $0 for now.
+    <div className="space-y-6">
+      {/* Payment Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Package Price */}
+        <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+          <div className="p-4">
+            <p className="text-blue-100 text-sm">Package Price</p>
+            <p className="text-3xl font-bold mt-1">
+              {packageInfoProp ? `€${packagePrice.toLocaleString()}` : 'No Package'}
+            </p>
+            {packageInfoProp && (
+              <p className="text-blue-100 text-xs mt-1">{packageInfoProp.name}</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Total Paid */}
+        <Card className="bg-gradient-to-r from-green-600 to-green-700 text-white">
+          <div className="p-4">
+            <p className="text-green-100 text-sm">Total Paid</p>
+            <p className="text-3xl font-bold mt-1">
+              €{totalPaid.toLocaleString()}
+            </p>
+            <p className="text-green-100 text-xs mt-1">
+              {paymentsProp.length} payment{paymentsProp.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </Card>
+
+        {/* Balance (Remaining) */}
+        <Card className={`bg-gradient-to-r text-white ${
+          isFullyPaid 
+            ? 'from-green-500 to-green-600' 
+            : balance > 0 
+            ? 'from-orange-600 to-orange-700' 
+            : 'from-red-600 to-red-700'
+        }`}>
+          <div className="p-4">
+            <p className="text-white/90 text-sm">
+              {isFullyPaid ? 'Fully Paid' : balance > 0 ? 'Remaining' : 'Overpaid'}
+            </p>
+            <p className="text-3xl font-bold mt-1">
+              €{Math.abs(balance).toLocaleString()}
+            </p>
+            {!isFullyPaid && balance > 0 && (
+              <p className="text-white/90 text-xs mt-1">
+                {((totalPaid / packagePrice) * 100).toFixed(1)}% paid
+              </p>
+            )}
+          </div>
+        </Card>
       </div>
-    </Card>
+
+      {/* Payments Table */}
+      <Card padding="none">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Payment History</h3>
+        </div>
+        {paymentsProp.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            <p>No payments recorded yet.</p>
+          </div>
+        ) : (
+          <DataTable
+            data={paymentsProp}
+            columns={paymentColumns}
+            keyExtractor={(payment) => payment.id}
+            searchable={false}
+            emptyMessage="No payments found"
+          />
+        )}
+      </Card>
+    </div>
   );
 }
 

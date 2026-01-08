@@ -6,9 +6,12 @@ const list = async (req, res, next) => {
     const payments = await Payment.find()
       .populate("candidateId", "firstName lastName uniqueClientNumber email")
       // packageId populate removed - packages are mock for now
-      .sort({ date: -1, createdAt: -1 });
+      .sort({ date: -1, createdAt: -1 })
+      .lean(); // Use lean() for better performance
+    
     res.json(payments);
   } catch (err) {
+    console.error("Error listing payments:", err);
     next(err);
   }
 };
@@ -25,6 +28,10 @@ const getById = async (req, res, next) => {
     }
     res.json(payment);
   } catch (err) {
+    console.error("Error getting payment by ID:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
     next(err);
   }
 };
@@ -112,7 +119,14 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   try {
-    const { amount, method, date, packageId, notes } = req.body;
+    const { amount, method, date, packageId, notes, candidateId } = req.body;
+
+    // Prevent changing candidateId - payment should always belong to the same candidate
+    if (candidateId !== undefined) {
+      return res.status(400).json({ 
+        message: "Cannot change the candidate associated with a payment" 
+      });
+    }
 
     const payment = await Payment.findById(req.params.id);
     if (!payment) {
@@ -170,6 +184,12 @@ const update = async (req, res, next) => {
     if (err.name === "CastError") {
       return res.status(400).json({ message: "Invalid ID format" });
     }
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors: err.errors 
+      });
+    }
     next(err);
   }
 };
@@ -182,8 +202,19 @@ const remove = async (req, res, next) => {
     }
 
     await Payment.findByIdAndDelete(req.params.id);
-    res.json({ message: "Payment deleted successfully" });
+    res.json({ 
+      message: "Payment deleted successfully",
+      deletedPayment: {
+        id: payment._id,
+        amount: payment.amount,
+        date: payment.date
+      }
+    });
   } catch (err) {
+    console.error("Error deleting payment:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
     next(err);
   }
 };
