@@ -117,11 +117,22 @@ const remove = async (req, res, next) => {
     }
 };
 
+const getLicenseCategories = async (_req, res, next) => {
+    try {
+        // Standard license categories for driving schools
+        const categories = ['AM', 'A1', 'A2', 'A', 'B1', 'B', 'C1', 'C', 'D1', 'D', 'BE', 'CE', 'DE'];
+        res.json(categories);
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     list,
     getById,
     create,
     update,
-    remove
+    remove,
+    getLicenseCategories
 };
 

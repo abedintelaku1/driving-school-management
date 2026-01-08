@@ -10,9 +10,9 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Checkbox } from "../../components/ui/Checkbox";
 import { FilterBar } from "../../components/ui/FilterBar";
-import { mockCars, licenseCategories } from "../../utils/mockData";
 import { toast } from "../../hooks/useToast";
 import { api } from "../../utils/api";
+import type { Car } from "../../types";
 
 type InstructorRow = {
   id: string;
@@ -40,6 +40,8 @@ export function InstructorsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [rows, setRows] = useState<InstructorRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [licenseCategories, setLicenseCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchInstructors = async () => {
@@ -94,6 +96,63 @@ export function InstructorsPage() {
     };
     fetchInstructors();
   }, [refreshKey]);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const { ok, data } = await api.listCars();
+        if (ok && data) {
+          const mapped = (data as any[]).map((item) => ({
+            id: item._id || item.id,
+            model: item.model || '',
+            yearOfManufacture: item.yearOfManufacture || 0,
+            chassisNumber: item.chassisNumber || '',
+            transmission: item.transmission || 'manual',
+            fuelType: item.fuelType || 'petrol',
+            licensePlate: item.licensePlate || '',
+            ownership: item.ownership || 'owned',
+            registrationExpiry: item.registrationExpiry
+              ? new Date(item.registrationExpiry).toISOString().split('T')[0]
+              : '',
+            lastInspection: item.lastInspection
+              ? new Date(item.lastInspection).toISOString().split('T')[0]
+              : '',
+            nextInspection: item.nextInspection
+              ? new Date(item.nextInspection).toISOString().split('T')[0]
+              : '',
+            totalHours: item.totalHours || 0,
+            status: item.status || 'active',
+            createdAt: item.createdAt
+              ? new Date(item.createdAt).toISOString().split('T')[0]
+              : '',
+            updatedAt: item.updatedAt
+              ? new Date(item.updatedAt).toISOString().split('T')[0]
+              : '',
+          }));
+          setCars(mapped as Car[]);
+        }
+      } catch (error) {
+        console.error('Error fetching cars:', error);
+      }
+    };
+    fetchCars();
+  }, []);
+
+  useEffect(() => {
+    const fetchLicenseCategories = async () => {
+      try {
+        const { ok, data } = await api.getLicenseCategories();
+        if (ok && data) {
+          setLicenseCategories(data);
+        }
+      } catch (error) {
+        console.error('Error fetching license categories:', error);
+        // Fallback to default categories if API fails
+        setLicenseCategories(['AM', 'A1', 'A2', 'A', 'B1', 'B', 'C1', 'C', 'D1', 'D', 'BE', 'CE', 'DE']);
+      }
+    };
+    fetchLicenseCategories();
+  }, []);
 
   const filteredInstructors = useMemo(() => {
     return rows.filter((instructor) => {
@@ -160,12 +219,12 @@ export function InstructorsPage() {
       label: "Assigned Cars",
       render: (value: unknown) => {
         const carIds = value as string[];
-        const cars = carIds
-          .map((id) => mockCars.find((c) => c.id === id))
+        const assignedCars = carIds
+          .map((id) => cars.find((c) => c.id === id))
           .filter(Boolean);
-        return cars.length > 0 ? (
+        return assignedCars.length > 0 ? (
           <div className="flex flex-wrap gap-1">
-            {cars.map((car) => (
+            {assignedCars.map((car) => (
               <Badge key={car!.id} variant="outline" size="sm">
                 {car!.licensePlate}
               </Badge>
@@ -319,6 +378,8 @@ export function InstructorsPage() {
           setEditingInstructor(null);
         }}
         instructor={editingInstructor}
+        cars={cars}
+        licenseCategories={licenseCategories}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
           setShowAddModal(false);
@@ -345,12 +406,16 @@ type AddInstructorModalProps = {
   isOpen: boolean;
   onClose: () => void;
   instructor?: InstructorRow | null;
+  cars: Car[];
+  licenseCategories: string[];
   onSuccess: () => void;
 };
 function AddInstructorModal({
   isOpen,
   onClose,
   instructor,
+  cars,
+  licenseCategories,
   onSuccess,
 }: AddInstructorModalProps) {
   const [formData, setFormData] = useState({
@@ -768,7 +833,7 @@ function AddInstructorModal({
               }));
             }
           }}
-          options={mockCars
+          options={cars
             .filter((c) => c.status === "active")
             .map((car) => ({
               value: car.id,
@@ -780,7 +845,7 @@ function AddInstructorModal({
         {formData.assignedCarIds.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {formData.assignedCarIds.map((carId) => {
-              const car = mockCars.find((c) => c.id === carId);
+              const car = cars.find((c) => c.id === carId);
               return car ? (
                 <button
                   key={carId}
