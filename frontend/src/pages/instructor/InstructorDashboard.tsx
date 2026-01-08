@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 
@@ -33,22 +34,108 @@ export function InstructorDashboard() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [cars, setCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [instructorId, setInstructorId] = useState<string | null>(null);
 
+  // Get instructor ID
+  useEffect(() => {
+    const fetchInstructorId = async () => {
+      if (user?.role === 1) {
+        try {
+          const instructorRes = await api.getInstructorMe();
+          if (instructorRes.ok && instructorRes.data) {
+            const instructor = instructorRes.data;
+            setInstructorId(instructor._id || instructor.id || null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch instructor ID:', error);
+        }
+      }
+    };
+    fetchInstructorId();
+  }, [user]);
+
+  // Fetch data from API
   useEffect(() => {
     const fetchData = async () => {
+      if (user?.role === 1 && !instructorId) {
+        return; // Wait for instructorId
+      }
+
       setLoading(true);
       try {
-        const [appointmentsRes, candidatesRes] = await Promise.all([
-          api.listAppointments(),
-          api.listCandidates()
-        ]);
+        let appointmentsRes;
+        let candidatesRes;
+        let carsRes;
+
+        if (user?.role === 1 && instructorId) {
+          // Fetch appointments for this instructor
+          const instructorAppointmentsRes = await fetch(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/appointments/instructor/${instructorId}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+            }
+          );
+          const instructorAppointmentsData = await instructorAppointmentsRes.json();
+          appointmentsRes = { ok: instructorAppointmentsRes.ok, data: instructorAppointmentsData };
+
+          // Fetch candidates assigned to this instructor
+          candidatesRes = await api.listCandidates();
+          if (candidatesRes.ok && candidatesRes.data) {
+            const filteredCandidates = candidatesRes.data.filter((c: any) => {
+              const candInstructorId = c.instructorId?._id || c.instructorId || c.instructor?._id || c.instructor?.id || c.instructorId;
+              return candInstructorId === instructorId;
+            });
+            candidatesRes.data = filteredCandidates;
+          }
+
+          // Fetch assigned cars
+          carsRes = await api.getMyCars();
+        } else {
+          appointmentsRes = { ok: false, data: [] };
+          candidatesRes = { ok: false, data: [] };
+          carsRes = { ok: false, data: [] };
+        }
 
         if (appointmentsRes.ok && appointmentsRes.data) {
-          setAppointments(appointmentsRes.data);
+          const mapped = (appointmentsRes.data as any[]).map((item) => ({
+            _id: item._id || item.id,
+            id: item._id || item.id,
+            date: item.date ? (item.date.split('T')[0] || item.date) : '',
+            startTime: item.startTime || '',
+            endTime: item.endTime || '',
+            hours: item.hours || 0,
+            status: item.status || 'scheduled',
+            candidate: item.candidateId || item.candidate,
+            candidateId: item.candidateId?._id || item.candidateId || item.candidate?._id || item.candidate?.id || '',
+            carId: item.carId || item.car,
+          }));
+          setAppointments(mapped);
         }
+
         if (candidatesRes.ok && candidatesRes.data) {
-          setCandidates(candidatesRes.data);
+          const mapped = (candidatesRes.data as any[]).map((item) => ({
+            _id: item._id || item.id,
+            id: item._id || item.id,
+            firstName: item.firstName || '',
+            lastName: item.lastName || '',
+            status: item.status || 'active',
+          }));
+          setCandidates(mapped);
+        }
+
+        if (carsRes?.ok && carsRes.data) {
+          const mapped = (carsRes.data as any[]).map((item) => ({
+            _id: item._id || item.id,
+            id: item._id || item.id,
+            model: item.model || '',
+            licensePlate: item.licensePlate || '',
+          }));
+          setCars(mapped);
         }
       } catch (error) {
         console.error('Failed to load dashboard data', error);
@@ -58,7 +145,7 @@ export function InstructorDashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [user, instructorId]);
 
   const today = new Date().toISOString().split('T')[0];
   
@@ -106,17 +193,16 @@ export function InstructorDashboard() {
   };
 
   const getCarById = (id: string) => {
-    // Cars are populated in appointments, so we can get it from there
-    const appointment = appointments.find(a => {
-      const carId = a.carId?._id || a.carId?.id || a.carId;
+    if (!id) return null;
+    return cars.find(c => {
+      const carId = c._id || c.id;
       return carId === id;
     });
-    return appointment?.carId;
   };
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Loading dashboard...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner />
       </div>
     );
   }
@@ -212,10 +298,10 @@ export function InstructorDashboard() {
             {todayAppointments.length > 0 ? (
               <div className="space-y-3">
                 {todayAppointments.map(appointment => {
-                  const candidateId = appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId;
-                  const candidate = getCandidateById(candidateId || '');
-                  const carId = appointment.carId?._id || appointment.carId?.id || appointment.carId;
-                  const car = carId ? getCarById(carId) : null;
+                  const candidateId = appointment.candidateId || appointment.candidate?._id || appointment.candidate?.id || '';
+                  const candidate = candidateId ? getCandidateById(candidateId) : appointment.candidate;
+                  const carId = appointment.carId?._id || appointment.carId?.id || appointment.carId || '';
+                  const car = carId ? getCarById(carId) : appointment.carId || appointment.car;
                   const aptId = appointment._id || appointment.id || '';
                   
                   return (
@@ -230,11 +316,11 @@ export function InstructorDashboard() {
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">
-                          {candidate?.firstName} {candidate?.lastName}
+                          {candidate?.firstName || appointment.candidate?.firstName} {candidate?.lastName || appointment.candidate?.lastName}
                         </p>
                         {car && (
                           <p className="text-sm text-gray-500">
-                            {car.model} • {car.licensePlate}
+                            {car.model || appointment.carId?.model || appointment.car?.model} • {car.licensePlate || appointment.carId?.licensePlate || appointment.car?.licensePlate}
                           </p>
                         )}
                       </div>
@@ -271,17 +357,17 @@ export function InstructorDashboard() {
             {upcomingAppointments.length > 0 ? (
               <div className="space-y-3">
                 {upcomingAppointments.map(appointment => {
-                  const candidateId = appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId;
-                  const candidate = getCandidateById(candidateId || '');
+                  const candidateId = appointment.candidateId || appointment.candidate?._id || appointment.candidate?.id || '';
+                  const candidate = candidateId ? getCandidateById(candidateId) : appointment.candidate;
                   const aptId = appointment._id || appointment.id || '';
                   const aptDate = appointment.date?.split('T')[0] || appointment.date;
                   
                   return (
                     <div key={aptId} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                      <Avatar name={`${candidate?.firstName || ''} ${candidate?.lastName || ''}`} size="sm" />
+                      <Avatar name={`${candidate?.firstName || appointment.candidate?.firstName || ''} ${candidate?.lastName || appointment.candidate?.lastName || ''}`} size="sm" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">
-                          {candidate?.firstName} {candidate?.lastName}
+                          {candidate?.firstName || appointment.candidate?.firstName} {candidate?.lastName || appointment.candidate?.lastName}
                         </p>
                         <p className="text-sm text-gray-500">
                           {appointment.startTime} - {appointment.endTime}

@@ -7,6 +7,11 @@ const router = express.Router();
 // Public route for instructor to get their own profile
 router.get('/me', authenticate, authorize(1), controller.getMe);
 
+// Instructor profile routes (instructor can access their own profile)
+router.get('/profile', authenticate, authorize(1), controller.getProfile);
+router.put('/profile', authenticate, authorize(1), controller.updateProfile);
+router.put('/change-password', authenticate, authorize(1), controller.changePassword);
+
 // Admin-only routes
 router.use(authenticate, authorize(0)); // 0 = admin
 
