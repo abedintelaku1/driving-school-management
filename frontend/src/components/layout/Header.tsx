@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellIcon, LogOutIcon, UserIcon, SettingsIcon, ChevronDownIcon, MenuIcon, CheckIcon, XIcon } from 'lucide-react';
+import { BellIcon, LogOutIcon, UserIcon, ChevronDownIcon, MenuIcon, CheckIcon, XIcon } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { useAuth } from '../../hooks/useAuth';
 import { notificationsApi, type Notification } from '../../utils/api/notifications';
@@ -329,15 +329,6 @@ export function Header({
                 >
                   <UserIcon className="w-4 h-4" />
                   Profile
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                  }} 
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <SettingsIcon className="w-4 h-4" />
-                  Settings
                 </button>
               </div>
               <div className="border-t border-gray-100 py-1">
