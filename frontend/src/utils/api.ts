@@ -339,6 +339,16 @@ export const api = {
       return { ok: false, status: 500 };
     }
   },
+  async getLicenseCategories(): Promise<ApiResponse<string[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/license-categories`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
   async getPackage(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/packages/${id}`, {

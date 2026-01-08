@@ -7,7 +7,6 @@ import { Modal, ConfirmModal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { TextArea } from '../../components/ui/TextArea';
-import { licenseCategories } from '../../utils/mockData';
 import type { Package } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
@@ -249,6 +248,8 @@ function PackageModal({
     status: 'active' as 'active' | 'inactive'
   });
   const [loading, setLoading] = useState(false);
+  const [licenseCategories, setLicenseCategories] = useState<string[]>([]);
+
   useEffect(() => {
     if (pkg) {
       setFormData({
@@ -270,6 +271,27 @@ function PackageModal({
       });
     }
   }, [pkg]);
+
+  useEffect(() => {
+    const fetchLicenseCategories = async () => {
+      try {
+        const { ok, data } = await api.getLicenseCategories();
+        if (ok && data) {
+          setLicenseCategories(data);
+        } else {
+          // Fallback to default categories if API fails
+          setLicenseCategories(['AM', 'A1', 'A2', 'A', 'B1', 'B', 'C1', 'C', 'D1', 'D', 'BE', 'CE', 'DE']);
+        }
+      } catch (error) {
+        console.error('Failed to load license categories:', error);
+        // Fallback to default categories if API fails
+        setLicenseCategories(['AM', 'A1', 'A2', 'A', 'B1', 'B', 'C1', 'C', 'D1', 'D', 'BE', 'CE', 'DE']);
+      }
+    };
+    if (isOpen) {
+      fetchLicenseCategories();
+    }
+  }, [isOpen]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
