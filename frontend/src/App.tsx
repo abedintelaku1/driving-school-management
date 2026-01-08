@@ -20,6 +20,7 @@ import { PackagesPage } from './pages/admin/PackagesPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 // Instructor Pages
 import { InstructorDashboard } from './pages/instructor/InstructorDashboard';
+import { InstructorProfilePage } from './pages/instructor/InstructorProfilePage';
 import { AppointmentsPage } from './pages/instructor/AppointmentsPage';
 import { CalendarPage } from './pages/instructor/CalendarPage';
 import { MyCandidatesPage } from './pages/instructor/MyCandidatesPage';
@@ -88,6 +89,7 @@ function AppContent() {
                 <InstructorLayout title="Instructor Panel" />
               </ProtectedRoute>}>
             <Route index element={<InstructorDashboard />} />
+            <Route path="profile" element={<InstructorProfilePage />} />
             <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="candidates" element={<MyCandidatesPage />} />

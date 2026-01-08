@@ -494,4 +494,71 @@ export const api = {
       return { ok: false, status: 500 };
     }
   },
+
+  // Instructor Profile
+  async getInstructorProfile(): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    phone?: string;
+    address?: string;
+    dateOfBirth?: string;
+    personalNumber?: string;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/profile`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async updateInstructorProfile(payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  }): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    phone?: string;
+    address?: string;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/profile`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async changeInstructorPassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/change-password`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
 };
