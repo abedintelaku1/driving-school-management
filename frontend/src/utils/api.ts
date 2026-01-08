@@ -78,6 +78,17 @@ export const api = {
     }
   },
 
+  async getMyAppointments(): Promise<ApiResponse<any[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/appointments/me`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
   async createAppointment(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/appointments`, {
