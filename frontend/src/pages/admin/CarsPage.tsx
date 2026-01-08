@@ -8,6 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { FilterBar } from '../../components/ui/FilterBar';
 import type { Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
@@ -79,6 +80,13 @@ export function CarsPage() {
       return true;
     });
   }, [cars, statusFilter, transmissionFilter]);
+
+  const clearFilters = () => {
+    setStatusFilter("");
+    setTransmissionFilter("");
+  };
+
+  const hasActiveFilters = !!(statusFilter || transmissionFilter);
 
   const getDaysUntilInspection = (date: string) => {
     const inspection = new Date(date);
@@ -222,34 +230,32 @@ export function CarsPage() {
       </div>
 
       {/* Filters */}
-      <Card padding="sm">
-        <div className="flex flex-wrap gap-4">
-          <div className="w-48">
-            <Select
-              placeholder="All Statuses"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={[
-                { value: '', label: 'All Statuses' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-              ]}
-            />
-          </div>
-          <div className="w-48">
-            <Select
-              placeholder="All Transmissions"
-              value={transmissionFilter}
-              onChange={(e) => setTransmissionFilter(e.target.value)}
-              options={[
-                { value: '', label: 'All Transmissions' },
-                { value: 'manual', label: 'Manual' },
-                { value: 'automatic', label: 'Automatic' },
-              ]}
-            />
-          </div>
+      <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
+        <div className="w-full sm:w-48">
+          <Select
+            placeholder="All Statuses"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+            ]}
+          />
         </div>
-      </Card>
+        <div className="w-full sm:w-48">
+          <Select
+            placeholder="All Transmissions"
+            value={transmissionFilter}
+            onChange={(e) => setTransmissionFilter(e.target.value)}
+            options={[
+              { value: '', label: 'All Transmissions' },
+              { value: 'manual', label: 'Manual' },
+              { value: 'automatic', label: 'Automatic' },
+            ]}
+          />
+        </div>
+      </FilterBar>
 
       {/* Table */}
       <Card padding="none">

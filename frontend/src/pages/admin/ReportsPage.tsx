@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { DownloadIcon, FilterIcon, UsersIcon, CarIcon, CreditCardIcon, CalendarIcon } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { DownloadIcon, UsersIcon, CarIcon, CreditCardIcon, CalendarIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
@@ -7,15 +7,49 @@ import { Input } from '../../components/ui/Input';
 import { Tabs, TabList, Tab, TabPanel } from '../../components/ui/Tabs';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge } from '../../components/ui/Badge';
+import { FilterBar } from '../../components/ui/FilterBar';
 import { mockCandidates, mockCars, mockInstructors, mockPayments, mockAppointments, getInstructorById, getCandidateById } from '../../utils/mockData';
 export function ReportsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  
+  const clearFilters = () => {
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  const hasActiveFilters = !!(dateFrom || dateTo);
+
+  // Filter data based on date range
+  const filteredPayments = useMemo(() => {
+    if (!dateFrom && !dateTo) return mockPayments;
+    return mockPayments.filter(p => {
+      const paymentDate = p.date; // Format: 'YYYY-MM-DD'
+      // If dateFrom is set, payment date must be >= dateFrom
+      if (dateFrom && paymentDate < dateFrom) return false;
+      // If dateTo is set, payment date must be <= dateTo
+      if (dateTo && paymentDate > dateTo) return false;
+      return true;
+    });
+  }, [dateFrom, dateTo]);
+
+  const filteredAppointments = useMemo(() => {
+    if (!dateFrom && !dateTo) return mockAppointments;
+    return mockAppointments.filter(a => {
+      const appointmentDate = a.date; // Format: 'YYYY-MM-DD'
+      // If dateFrom is set, appointment date must be >= dateFrom
+      if (dateFrom && appointmentDate < dateFrom) return false;
+      // If dateTo is set, appointment date must be <= dateTo
+      if (dateTo && appointmentDate > dateTo) return false;
+      return true;
+    });
+  }, [dateFrom, dateTo]);
+  
   // Calculate stats
   const totalCandidates = mockCandidates.length;
   const activeCandidates = mockCandidates.filter(c => c.status === 'active').length;
-  const totalRevenue = mockPayments.reduce((sum, p) => sum + p.amount, 0);
-  const totalHours = mockAppointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.hours, 0);
+  const totalRevenue = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalHours = filteredAppointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.hours, 0);
   return <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
@@ -59,7 +93,7 @@ export function ReportsPage() {
                 ${totalRevenue.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">
-                {mockPayments.length} transactions
+                {filteredPayments.length} transactions
               </p>
             </div>
           </div>
@@ -73,7 +107,7 @@ export function ReportsPage() {
               <p className="text-sm text-gray-500">Hours Taught</p>
               <p className="text-2xl font-bold text-gray-900">{totalHours}h</p>
               <p className="text-xs text-gray-500">
-                {mockAppointments.filter(a => a.status === 'completed').length}{' '}
+                {filteredAppointments.filter(a => a.status === 'completed').length}{' '}
                 lessons
               </p>
             </div>
@@ -98,19 +132,14 @@ export function ReportsPage() {
       </div>
 
       {/* Date Filter */}
-      <Card padding="sm">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="w-40">
-            <Input label="From Date" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          </div>
-          <div className="w-40">
-            <Input label="To Date" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          </div>
-          <Button variant="secondary" icon={<FilterIcon className="w-4 h-4" />}>
-            Apply Filter
-          </Button>
+      <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
+        <div className="w-full sm:w-40">
+          <Input label="From Date" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
         </div>
-      </Card>
+        <div className="w-full sm:w-40">
+          <Input label="To Date" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        </div>
+      </FilterBar>
 
       {/* Report Tabs */}
       <Tabs defaultTab="instructors">
@@ -122,26 +151,26 @@ export function ReportsPage() {
         </TabList>
 
         <TabPanel value="instructors">
-          <InstructorPerformanceReport />
+          <InstructorPerformanceReport filteredAppointments={filteredAppointments} />
         </TabPanel>
 
         <TabPanel value="candidates">
-          <CandidateProgressReport />
+          <CandidateProgressReport filteredAppointments={filteredAppointments} filteredPayments={filteredPayments} />
         </TabPanel>
 
         <TabPanel value="cars">
-          <CarUsageReport />
+          <CarUsageReport filteredAppointments={filteredAppointments} />
         </TabPanel>
 
         <TabPanel value="payments">
-          <PaymentSummaryReport />
+          <PaymentSummaryReport filteredPayments={filteredPayments} />
         </TabPanel>
       </Tabs>
     </div>;
 }
-function InstructorPerformanceReport() {
+function InstructorPerformanceReport({ filteredAppointments }: { filteredAppointments: typeof mockAppointments }) {
   const instructorStats = mockInstructors.map(instructor => {
-    const appointments = mockAppointments.filter(a => a.instructorId === instructor.id);
+    const appointments = filteredAppointments.filter(a => a.instructorId === instructor.id);
     const completedAppointments = appointments.filter(a => a.status === 'completed');
     const totalHours = completedAppointments.reduce((sum, a) => sum + a.hours, 0);
     const candidates = mockCandidates.filter(c => c.instructorId === instructor.id);
@@ -187,11 +216,11 @@ function InstructorPerformanceReport() {
       <DataTable data={instructorStats} columns={columns} keyExtractor={item => item.id} searchable={false} pagination={false} />
     </Card>;
 }
-function CandidateProgressReport() {
+function CandidateProgressReport({ filteredAppointments, filteredPayments }: { filteredAppointments: typeof mockAppointments; filteredPayments: typeof mockPayments }) {
   const candidateStats = mockCandidates.map(candidate => {
-    const appointments = mockAppointments.filter(a => a.candidateId === candidate.id);
+    const appointments = filteredAppointments.filter(a => a.candidateId === candidate.id);
     const completedHours = appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.hours, 0);
-    const payments = mockPayments.filter(p => p.candidateId === candidate.id);
+    const payments = filteredPayments.filter(p => p.candidateId === candidate.id);
     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
     return {
       id: candidate.id,
@@ -236,9 +265,9 @@ function CandidateProgressReport() {
       <DataTable data={candidateStats} columns={columns} keyExtractor={item => item.id} searchable searchPlaceholder="Search candidates..." searchKeys={['name', 'clientNumber']} />
     </Card>;
 }
-function CarUsageReport() {
+function CarUsageReport({ filteredAppointments }: { filteredAppointments: typeof mockAppointments }) {
   const carStats = mockCars.map(car => {
-    const appointments = mockAppointments.filter(a => a.carId === car.id);
+    const appointments = filteredAppointments.filter(a => a.carId === car.id);
     const usageHours = appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.hours, 0);
     return {
       id: car.id,
@@ -283,7 +312,7 @@ function CarUsageReport() {
       <DataTable data={carStats} columns={columns} keyExtractor={item => item.id} searchable={false} pagination={false} />
     </Card>;
 }
-function PaymentSummaryReport() {
+function PaymentSummaryReport({ filteredPayments }: { filteredPayments: typeof mockPayments }) {
   // Group payments by month
   const paymentsByMonth: Record<string, {
     total: number;
@@ -291,7 +320,7 @@ function PaymentSummaryReport() {
     bank: number;
     cash: number;
   }> = {};
-  mockPayments.forEach(payment => {
+  filteredPayments.forEach(payment => {
     const month = payment.date.substring(0, 7); // YYYY-MM
     if (!paymentsByMonth[month]) {
       paymentsByMonth[month] = {

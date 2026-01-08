@@ -41,6 +41,7 @@ export const api = {
   createPackage: packagesApi.create,
   updatePackage: packagesApi.update,
   deletePackage: packagesApi.delete,
+  getLicenseCategories: packagesApi.getLicenseCategories,
 
   // Notifications
   getNotifications: notificationsApi.getAll,

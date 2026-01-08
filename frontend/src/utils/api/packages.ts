@@ -59,6 +59,17 @@ export const packagesApi = {
     } catch {
       return { ok: false, status: 500 };
     }
+  },
+
+  async getLicenseCategories(): Promise<ApiResponse<string[]>> {
+    try {
+      const res = await fetch(getApiUrl('/api/packages/license-categories'), {
+        headers: getAuthHeaders()
+      });
+      return handleResponse(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
   }
 };
 
