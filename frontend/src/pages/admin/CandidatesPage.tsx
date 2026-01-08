@@ -747,10 +747,13 @@ function AddCandidateModal({
           <Select label="Instructor" value={formData.instructorId} onChange={e => setFormData({
           ...formData,
           instructorId: e.target.value
-        })} options={instructors.map(instructor => ({
-          value: instructor.id,
-          label: instructor.name
-        }))} />
+        })} options={[
+          { value: '', label: 'Not assigned' },
+          ...instructors.map(instructor => ({
+            value: instructor.id,
+            label: instructor.name
+          }))
+        ]} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -12,6 +12,7 @@ const paymentRoutes = require("./routes/payment.routes");
 const candidateRoutes = require("./routes/candidate.routes");
 const carRoutes = require("./routes/car.routes");
 const packageRoutes = require("./routes/package.routes");
+const appointmentRoutes = require("./routes/appointment.routes");
 const notificationRoutes = require("./routes/notification.routes");
 
 const app = express();
@@ -69,6 +70,7 @@ app.use("/api/candidates", candidateRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/cars", carRoutes);
 app.use("/api/packages", packageRoutes);
+app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 // 404 + errors

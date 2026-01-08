@@ -40,6 +40,7 @@ export function InstructorsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [rows, setRows] = useState<InstructorRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cars, setCars] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchInstructors = async () => {
@@ -94,6 +95,21 @@ export function InstructorsPage() {
     };
     fetchInstructors();
   }, [refreshKey]);
+
+  // Fetch cars from API
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const result = await api.listCars();
+        if (result.ok && result.data) {
+          setCars(result.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cars", err);
+      }
+    };
+    fetchCars();
+  }, []);
 
   const filteredInstructors = useMemo(() => {
     return rows.filter((instructor) => {
@@ -160,13 +176,16 @@ export function InstructorsPage() {
       label: "Assigned Cars",
       render: (value: unknown) => {
         const carIds = value as string[];
-        const cars = carIds
-          .map((id) => mockCars.find((c) => c.id === id))
+        const carsList = carIds
+          .map((id) => {
+            // Find car by _id or id
+            return cars.find((c) => (c._id || c.id) === id);
+          })
           .filter(Boolean);
-        return cars.length > 0 ? (
+        return carsList.length > 0 ? (
           <div className="flex flex-wrap gap-1">
-            {cars.map((car) => (
-              <Badge key={car!.id} variant="outline" size="sm">
+            {carsList.map((car) => (
+              <Badge key={car!._id || car!.id} variant="outline" size="sm">
                 {car!.licensePlate}
               </Badge>
             ))}
@@ -324,6 +343,7 @@ export function InstructorsPage() {
           setShowAddModal(false);
           setEditingInstructor(null);
         }}
+        cars={cars}
       />
 
       {/* Delete Confirmation Modal */}
@@ -346,12 +366,14 @@ type AddInstructorModalProps = {
   onClose: () => void;
   instructor?: InstructorRow | null;
   onSuccess: () => void;
+  cars: any[];
 };
 function AddInstructorModal({
   isOpen,
   onClose,
   instructor,
   onSuccess,
+  cars,
 }: AddInstructorModalProps) {
   const [formData, setFormData] = useState({
     firstName: "",
@@ -768,19 +790,19 @@ function AddInstructorModal({
               }));
             }
           }}
-          options={mockCars
+          options={cars
             .filter((c) => c.status === "active")
             .map((car) => ({
-              value: car.id,
+              value: car._id || car.id,
               label: `${car.model} (${car.licensePlate})`,
-              disabled: formData.assignedCarIds.includes(car.id),
+              disabled: formData.assignedCarIds.includes(car._id || car.id),
             }))}
           placeholder="Select cars to assign"
         />
         {formData.assignedCarIds.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {formData.assignedCarIds.map((carId) => {
-              const car = mockCars.find((c) => c.id === carId);
+              const car = cars.find((c) => (c._id || c.id) === carId);
               return car ? (
                 <button
                   key={carId}
