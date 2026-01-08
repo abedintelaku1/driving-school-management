@@ -2,8 +2,31 @@ const Candidate = require('../models/Candidate');
 const emailService = require('../services/email.service');
 const notificationService = require('../services/notification.service');
 
-const list = async (_req, res, next) => {
+const list = async (req, res, next) => {
     try {
+        // Check if user is an instructor (role 1 or 'instructor')
+        const userRole = typeof req.user.role === 'string' 
+            ? (req.user.role.toLowerCase() === 'instructor' ? 1 : 0)
+            : req.user.role;
+        
+        if (userRole === 1) {
+            // Get the instructor document for this user
+            const Instructor = require('../models/Instructor');
+            const instructor = await Instructor.findOne({ user: req.user._id });
+            
+            if (!instructor) {
+                // Instructor profile not found, return empty array
+                return res.json([]);
+            }
+            
+            // Return only candidates assigned to this instructor
+            const candidates = await Candidate.find({ instructorId: instructor._id })
+                .populate('instructorId', 'phone address dateOfBirth personalNumber')
+                .sort({ createdAt: -1 });
+            return res.json(candidates);
+        }
+        
+        // Admin: return all candidates
         const candidates = await Candidate.find()
             .populate('instructorId', 'phone address dateOfBirth personalNumber')
             .sort({ createdAt: -1 });
@@ -20,6 +43,22 @@ const getById = async (req, res, next) => {
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
+        
+        // Check if user is an instructor (role 1 or 'instructor')
+        const userRole = typeof req.user.role === 'string' 
+            ? (req.user.role.toLowerCase() === 'instructor' ? 1 : 0)
+            : req.user.role;
+        
+        // If user is an instructor, verify they have access to this candidate
+        if (userRole === 1) {
+            const Instructor = require('../models/Instructor');
+            const instructor = await Instructor.findOne({ user: req.user._id });
+            
+            if (!instructor || candidate.instructorId?.toString() !== instructor._id.toString()) {
+                return res.status(403).json({ message: 'Forbidden: You do not have access to this candidate' });
+            }
+        }
+        
         res.json(candidate);
     } catch (err) {
         next(err);
