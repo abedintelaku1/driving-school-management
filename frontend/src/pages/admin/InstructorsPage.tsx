@@ -9,6 +9,7 @@ import { Modal, ConfirmModal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Checkbox } from "../../components/ui/Checkbox";
+import { FilterBar } from "../../components/ui/FilterBar";
 import { mockCars, licenseCategories } from "../../utils/mockData";
 import { toast } from "../../hooks/useToast";
 import { api } from "../../utils/api";
@@ -102,6 +103,13 @@ export function InstructorsPage() {
       return true;
     });
   }, [statusFilter, categoryFilter, rows]);
+
+  const clearFilters = () => {
+    setStatusFilter("");
+    setCategoryFilter("");
+  };
+
+  const hasActiveFilters = !!(statusFilter || categoryFilter);
   const columns = [
     {
       key: "name",
@@ -248,48 +256,46 @@ export function InstructorsPage() {
       </div>
 
       {/* Filters */}
-      <Card padding="sm">
-        <div className="flex flex-wrap gap-4">
-          <div className="w-48">
-            <Select
-              placeholder="All Statuses"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={[
-                {
-                  value: "",
-                  label: "All Statuses",
-                },
-                {
-                  value: "active",
-                  label: "Active",
-                },
-                {
-                  value: "inactive",
-                  label: "Inactive",
-                },
-              ]}
-            />
-          </div>
-          <div className="w-48">
-            <Select
-              placeholder="All Categories"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              options={[
-                {
-                  value: "",
-                  label: "All Categories",
-                },
-                ...licenseCategories.map((cat) => ({
-                  value: cat,
-                  label: `Category ${cat}`,
-                })),
-              ]}
-            />
-          </div>
+      <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
+        <div className="w-full sm:w-48">
+          <Select
+            placeholder="All Statuses"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            options={[
+              {
+                value: "",
+                label: "All Statuses",
+              },
+              {
+                value: "active",
+                label: "Active",
+              },
+              {
+                value: "inactive",
+                label: "Inactive",
+              },
+            ]}
+          />
         </div>
-      </Card>
+        <div className="w-full sm:w-48">
+          <Select
+            placeholder="All Categories"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            options={[
+              {
+                value: "",
+                label: "All Categories",
+              },
+              ...licenseCategories.map((cat) => ({
+                value: cat,
+                label: `Category ${cat}`,
+              })),
+            ]}
+          />
+        </div>
+      </FilterBar>
 
       {/* Table */}
       <Card padding="none">

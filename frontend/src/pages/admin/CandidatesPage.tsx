@@ -170,14 +170,26 @@ export function CandidatesPage() {
       return;
     }
 
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Status'];
-    const rows = filteredCandidates.map(c => [
-      c.firstName || '',
-      c.lastName || '',
-      c.email || '',
-      c.phone || '',
-      c.status || ''
-    ]);
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Package', 'Instructor', 'Status'];
+    const rows = filteredCandidates.map(c => {
+      // Get package name
+      const pkg = c.packageId ? getPackageById(c.packageId) : null;
+      const packageName = pkg ? pkg.name : 'Not assigned';
+      
+      // Get instructor name
+      const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
+      const instructorName = instructor ? instructor.name : 'Not assigned';
+      
+      return [
+        c.firstName || '',
+        c.lastName || '',
+        c.email || '',
+        c.phone || '',
+        packageName,
+        instructorName,
+        c.status || ''
+      ];
+    });
 
     const csv = [headers, ...rows]
       .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
