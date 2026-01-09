@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   DownloadIcon,
   UsersIcon,
@@ -7,19 +7,27 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "../../components/ui/Card";
-import { Select } from "../../components/ui/Select";
+import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Tabs, TabList, Tab, TabPanel } from "../../components/ui/Tabs";
 import { DataTable } from "../../components/ui/DataTable";
 import { Badge } from "../../components/ui/Badge";
 import { api } from "../../utils/api";
 import { toast } from "../../hooks/useToast";
+
+// Helper function to format numbers: max 2 decimals, but if whole number, no .00
+const formatNumber = (num: number): string => {
+  if (Number.isInteger(num)) {
+    return num.toString();
+  }
+  return num.toFixed(2).replace(/\.?0+$/, "");
+};
+
+// Helper function to format currency: max 2 decimals, but if whole number, no .00
+const formatCurrency = (num: number): string => {
+  const formatted = formatNumber(num);
+  return `€${formatted}`;
+};
 
 type Candidate = {
   _id?: string;
@@ -231,8 +239,8 @@ export function ReportsPage() {
       csvContent += "=== SUMMARY STATISTICS ===\n";
       csvContent += `Total Candidates,${totalCandidates}\n`;
       csvContent += `Active Candidates,${activeCandidates}\n`;
-      csvContent += `Total Revenue,$${totalRevenue.toLocaleString()}\n`;
-      csvContent += `Total Hours Taught,${totalHours}\n`;
+      csvContent += `Total Revenue,${formatCurrency(totalRevenue)}\n`;
+      csvContent += `Total Hours Taught,${formatNumber(totalHours)}\n`;
       csvContent += `Active Cars,${
         cars.filter((c) => !c.status || c.status === "active").length
       }\n`;
@@ -288,7 +296,7 @@ export function ReportsPage() {
       csvContent +=
         "Instructor,Hours Taught,Completed Lessons,Active Students,Total Students,Status\n";
       instructorStats.forEach((stat) => {
-        csvContent += `"${stat.name}",${stat.totalHours},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
+        csvContent += `"${stat.name}",${formatNumber(stat.totalHours)},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
       });
       csvContent += "\n";
 
@@ -337,8 +345,8 @@ export function ReportsPage() {
         "Candidate,Client Number,Hours Completed,Scheduled Lessons,Total Paid,Status\n";
       candidateStats.forEach((stat) => {
         csvContent += `"${stat.name}","${stat.clientNumber}",${
-          stat.completedHours
-        },${stat.scheduledLessons},$${stat.totalPaid.toFixed(2)},${
+          formatNumber(stat.completedHours)
+        },${stat.scheduledLessons},${formatCurrency(stat.totalPaid)},${
           stat.status
         }\n`;
       });
@@ -375,7 +383,7 @@ export function ReportsPage() {
       csvContent +=
         "Vehicle Model,License Plate,Total Hours,Recent Usage,Next Inspection,Status\n";
       carStats.forEach((stat) => {
-        csvContent += `"${stat.model}","${stat.licensePlate}",${stat.totalHours},${stat.recentUsage},"${stat.nextInspection}",${stat.status}\n`;
+        csvContent += `"${stat.model}","${stat.licensePlate}",${formatNumber(stat.totalHours)},${formatNumber(stat.recentUsage)},"${stat.nextInspection}",${stat.status}\n`;
       });
       csvContent += "\n";
 
@@ -432,13 +440,15 @@ export function ReportsPage() {
             month: "long",
           }
         );
-        csvContent += `"${monthName}",$${data.total.toFixed(2)},${
+        csvContent += `"${monthName}",${formatCurrency(data.total)},${
           data.count
-        },$${data.bank.toFixed(2)},$${data.cash.toFixed(2)}\n`;
+        },${formatCurrency(data.bank)},${formatCurrency(data.cash)}\n`;
       });
 
-      // Download CSV
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      // Download CSV with UTF-8 BOM for Excel compatibility
+      // Add BOM (Byte Order Mark) so Excel recognizes UTF-8 encoding
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -507,7 +517,7 @@ export function ReportsPage() {
             <div>
               <p className="text-sm text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${totalRevenue.toLocaleString()}
+                {formatCurrency(totalRevenue)}
               </p>
               <p className="text-xs text-gray-500">
                 {filteredPayments.length} transactions
@@ -522,7 +532,7 @@ export function ReportsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Hours Taught</p>
-              <p className="text-2xl font-bold text-gray-900">{totalHours}h</p>
+              <p className="text-2xl font-bold text-gray-900">{formatNumber(totalHours)}h</p>
               <p className="text-xs text-gray-500">
                 {
                   filteredAppointments.filter((a) => a.status === "completed")
@@ -680,7 +690,7 @@ function InstructorPerformanceReport({
       label: "Hours Taught",
       sortable: true,
       render: (value: unknown) => (
-        <span className="font-semibold">{value as number}h</span>
+        <span className="font-semibold">{formatNumber(value as number)}h</span>
       ),
     },
     {
@@ -784,7 +794,7 @@ function CandidateProgressReport({
       label: "Hours Completed",
       sortable: true,
       render: (value: unknown) => (
-        <span className="font-semibold">{value as number}h</span>
+        <span className="font-semibold">{formatNumber(value as number)}h</span>
       ),
     },
     {
@@ -797,7 +807,7 @@ function CandidateProgressReport({
       label: "Total Paid",
       sortable: true,
       render: (value: unknown) => (
-        <span className="font-semibold">${value as number}</span>
+        <span className="font-semibold">{formatCurrency(value as number)}</span>
       ),
     },
     {
@@ -873,14 +883,14 @@ function CarUsageReport({
       label: "Total Hours",
       sortable: true,
       render: (value: unknown) => (
-        <span className="font-semibold">{value as number}h</span>
+        <span className="font-semibold">{formatNumber(value as number)}h</span>
       ),
     },
     {
       key: "recentUsage",
       label: "Recent Usage",
       sortable: true,
-      render: (value: unknown) => <span>{value as number}h</span>,
+      render: (value: unknown) => <span>{formatNumber(value as number)}h</span>,
     },
     {
       key: "nextInspection",
@@ -974,7 +984,7 @@ function PaymentSummaryReport({
       label: "Total",
       sortable: true,
       render: (value: unknown) => (
-        <span className="font-semibold text-green-600">${value as number}</span>
+        <span className="font-semibold text-green-600">{formatCurrency(value as number)}</span>
       ),
     },
     {
@@ -985,12 +995,12 @@ function PaymentSummaryReport({
     {
       key: "bank",
       label: "Bank",
-      render: (value: unknown) => <span>${value as number}</span>,
+      render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
     {
       key: "cash",
       label: "Cash",
-      render: (value: unknown) => <span>${value as number}</span>,
+      render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
   ];
   return (

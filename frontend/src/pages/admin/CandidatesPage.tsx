@@ -11,9 +11,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { SearchBar } from '../../components/ui/SearchBar';
-import { mockCars } from '../../utils/mockData';
 import type { Package } from '../../types';
-import type { Candidate } from '../../types';
+import type { Candidate, Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
 export function CandidatesPage() {
@@ -29,25 +28,21 @@ export function CandidatesPage() {
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
 
   useEffect(() => {
     const fetchInstructors = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`${API_URL}/api/instructors`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || 'Failed to load instructors');
-        const opts = (data || []).map((ins: any) => ({
-          id: ins._id,
-          name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
-        }));
-        setInstructors(opts);
+        const { ok, data } = await api.listInstructors();
+        if (ok && data) {
+          const opts = (data as any[]).map((ins: any) => ({
+            id: ins._id || ins.id,
+            name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
+          }));
+          setInstructors(opts);
+        } else {
+          toast('error', 'Failed to load instructors');
+        }
       } catch (err) {
         console.error(err);
         toast('error', 'Failed to load instructors');
@@ -80,6 +75,38 @@ export function CandidatesPage() {
       }
     };
     fetchPackages();
+  }, []);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const { ok, data } = await api.listCars();
+        if (ok && data) {
+          const mapped = (data as any[]).map(item => ({
+            id: item._id || item.id,
+            model: item.model,
+            yearOfManufacture: item.yearOfManufacture,
+            chassisNumber: item.chassisNumber,
+            transmission: item.transmission,
+            fuelType: item.fuelType,
+            licensePlate: item.licensePlate,
+            ownership: item.ownership,
+            registrationExpiry: item.registrationExpiry ? (item.registrationExpiry instanceof Date ? item.registrationExpiry.toISOString().split('T')[0] : item.registrationExpiry.split('T')[0]) : '',
+            lastInspection: item.lastInspection ? (item.lastInspection instanceof Date ? item.lastInspection.toISOString().split('T')[0] : item.lastInspection.split('T')[0]) : '',
+            nextInspection: item.nextInspection ? (item.nextInspection instanceof Date ? item.nextInspection.toISOString().split('T')[0] : item.nextInspection.split('T')[0]) : '',
+            totalHours: item.totalHours || 0,
+            status: item.status || 'active',
+            createdAt: item.createdAt ? (item.createdAt instanceof Date ? item.createdAt.toISOString().split('T')[0] : item.createdAt.split('T')[0]) : '',
+            updatedAt: item.updatedAt ? (item.updatedAt instanceof Date ? item.updatedAt.toISOString().split('T')[0] : item.updatedAt.split('T')[0]) : ''
+          }));
+          setCars(mapped as Car[]);
+        }
+      } catch (error) {
+        console.error('Failed to load cars:', error);
+        toast('error', 'Failed to load cars');
+      }
+    };
+    fetchCars();
   }, []);
   useEffect(() => {
     const fetchCandidates = async () => {
@@ -341,7 +368,7 @@ export function CandidatesPage() {
       </Card>
 
       {/* Add/Edit Modal */}
-      <AddCandidateModal instructors={instructors} packages={packages} isOpen={showAddModal || !!editingCandidate} onClose={() => {
+      <AddCandidateModal instructors={instructors} packages={packages} cars={cars} isOpen={showAddModal || !!editingCandidate} onClose={() => {
       setShowAddModal(false);
       setEditingCandidate(null);
     }} candidate={editingCandidate} onSuccess={() => {
@@ -375,6 +402,7 @@ type AddCandidateModalProps = {
   onSuccess: () => void;
   instructors: { id: string; name: string }[];
   packages: Package[];
+  cars: Car[];
 };
 function AddCandidateModal({
   isOpen,
@@ -382,7 +410,8 @@ function AddCandidateModal({
   candidate,
   onSuccess,
   instructors,
-  packages
+  packages,
+  cars
 }: AddCandidateModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -760,10 +789,12 @@ function AddCandidateModal({
           <Select label="Car" value={formData.carId} onChange={e => setFormData({
           ...formData,
           carId: e.target.value
-        })} options={mockCars.filter(c => c.status === 'active').map(car => ({
+        })} options={[
+          { value: '', label: 'Not assigned' },
+          ...cars.filter(c => c.status === 'active').map(car => ({
           value: car.id,
           label: `${car.model} (${car.licensePlate})`
-        }))} />
+        }))]} />
           <Select label="Payment Frequency" value={formData.paymentFrequency} onChange={e => setFormData({
           ...formData,
           paymentFrequency: e.target.value
