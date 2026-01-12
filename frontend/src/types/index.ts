@@ -57,6 +57,7 @@ export type Car = {
   nextInspection: string;
   totalHours: number;
   status: EntityStatus;
+  instructorId?: string | null; // For personal cars
   createdAt: string;
   updatedAt: string;
 };
@@ -71,6 +72,7 @@ export type Instructor = {
   email: string;
   categories: string[];
   assignedCarIds: string[];
+  personalCarIds?: string[]; // Personal cars owned by this instructor
   status: EntityStatus;
   totalHours: number;
   createdAt: string;

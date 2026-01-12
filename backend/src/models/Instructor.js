@@ -35,6 +35,10 @@ const InstructorSchema = new mongoose.Schema({
         type: [String], // Store as strings, frontend will use mock data for car details
         default: []
     },
+    personalCarIds: {
+        type: [String], // Personal cars owned by this instructor
+        default: []
+    },
     totalHours: {
         type: Number,
         default: 0

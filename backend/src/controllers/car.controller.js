@@ -9,7 +9,7 @@ const list = async (_req, res, next) => {
   }
 };
 
-// Get cars assigned to the logged-in instructor
+// Get cars assigned to the logged-in instructor (includes both assigned school cars and personal cars)
 const getMyCars = async (req, res, next) => {
   try {
     // Get the instructor document for this user
@@ -22,78 +22,93 @@ const getMyCars = async (req, res, next) => {
       return res.json([]);
     }
 
-    // Get cars assigned to this instructor
-    if (!instructor.assignedCarIds || instructor.assignedCarIds.length === 0) {
-      console.log("No assignedCarIds found for instructor:", instructor._id);
-      return res.json([]);
-    }
-
-    console.log("Instructor assignedCarIds (raw):", instructor.assignedCarIds);
-
-    // Convert string IDs to ObjectIds and find cars
     const mongoose = require("mongoose");
-    const carIds = instructor.assignedCarIds
-      .map((id) => {
-        try {
-          // Handle if id is already an ObjectId
-          if (id instanceof mongoose.Types.ObjectId) {
-            return id;
-          }
-          // Handle if id is a string
-          if (typeof id === "string") {
-            // Check if it's a valid ObjectId string (must be 24 hex characters)
-            if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
-              return new mongoose.Types.ObjectId(id);
-            } else {
-              console.log(
-                "Invalid ObjectId string (skipping):",
-                id,
-                "- length:",
-                id.length
-              );
+    const allCarIds = [];
+
+    // Add assigned school cars
+    if (instructor.assignedCarIds && instructor.assignedCarIds.length > 0) {
+      const assignedIds = instructor.assignedCarIds
+        .map((id) => {
+          try {
+            if (id instanceof mongoose.Types.ObjectId) {
+              return id;
+            }
+            if (typeof id === "string") {
+              if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
+                return new mongoose.Types.ObjectId(id);
+              }
               return null;
             }
+            if (typeof id === "object" && id !== null && id._id) {
+              const idValue =
+                id._id instanceof mongoose.Types.ObjectId
+                  ? id._id
+                  : mongoose.Types.ObjectId.isValid(id._id) &&
+                    id._id.length === 24
+                  ? new mongoose.Types.ObjectId(id._id)
+                  : null;
+              return idValue;
+            }
+            return null;
+          } catch (err) {
+            console.error("Error converting car ID:", id, err);
+            return null;
           }
-          // Handle if id is an object with _id property
-          if (typeof id === "object" && id !== null && id._id) {
-            const idValue =
-              id._id instanceof mongoose.Types.ObjectId
-                ? id._id
-                : mongoose.Types.ObjectId.isValid(id._id) &&
-                  id._id.length === 24
-                ? new mongoose.Types.ObjectId(id._id)
-                : null;
-            return idValue;
+        })
+        .filter((id) => id !== null);
+      allCarIds.push(...assignedIds);
+    }
+
+    // Add personal cars
+    if (instructor.personalCarIds && instructor.personalCarIds.length > 0) {
+      const personalIds = instructor.personalCarIds
+        .map((id) => {
+          try {
+            if (id instanceof mongoose.Types.ObjectId) {
+              return id;
+            }
+            if (typeof id === "string") {
+              if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
+                return new mongoose.Types.ObjectId(id);
+              }
+              return null;
+            }
+            if (typeof id === "object" && id !== null && id._id) {
+              const idValue =
+                id._id instanceof mongoose.Types.ObjectId
+                  ? id._id
+                  : mongoose.Types.ObjectId.isValid(id._id) &&
+                    id._id.length === 24
+                  ? new mongoose.Types.ObjectId(id._id)
+                  : null;
+              return idValue;
+            }
+            return null;
+          } catch (err) {
+            console.error("Error converting personal car ID:", id, err);
+            return null;
           }
-          console.log("Unexpected id format:", id, typeof id);
-          return null;
-        } catch (err) {
-          console.error("Error converting car ID:", id, err);
-          return null;
-        }
-      })
-      .filter((id) => id !== null);
+        })
+        .filter((id) => id !== null);
+      allCarIds.push(...personalIds);
+    }
 
-    console.log(
-      "Converted carIds (valid ObjectIds):",
-      carIds.map((id) => id.toString())
-    );
+    // Also get personal cars directly linked via instructorId
+    const personalCarsByLink = await Car.find({ instructorId: instructor._id });
+    const personalCarIdsByLink = personalCarsByLink
+      .map((car) => car._id)
+      .filter((id) => !allCarIds.some((existingId) => existingId.equals(id)));
+    allCarIds.push(...personalCarIdsByLink);
 
-    if (carIds.length === 0) {
-      console.log("No valid car IDs after conversion - all IDs were invalid");
+    if (allCarIds.length === 0) {
+      console.log("No cars found for instructor:", instructor._id);
       return res.json([]);
     }
 
-    const cars = await Car.find({ _id: { $in: carIds } }).sort({
+    const cars = await Car.find({ _id: { $in: allCarIds } }).sort({
       createdAt: -1,
     });
-    console.log("Found cars:", cars.length, "for", carIds.length, "carIds");
-    if (cars.length === 0) {
-      console.log(
-        "No cars found in database for these IDs:",
-        carIds.map((id) => id.toString())
-      );
-    }
+    console.log("Found cars:", cars.length, "for instructor:", instructor._id);
     res.json(cars);
   } catch (err) {
     console.error("Error in getMyCars:", err);

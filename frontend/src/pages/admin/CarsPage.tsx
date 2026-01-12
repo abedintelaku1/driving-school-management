@@ -40,6 +40,7 @@ export function CarsPage() {
             fuelType: item.fuelType || 'petrol',
             licensePlate: item.licensePlate || '',
             ownership: item.ownership || 'owned',
+            instructorId: item.instructorId || null,
             registrationExpiry: item.registrationExpiry
               ? new Date(item.registrationExpiry).toISOString().split('T')[0]
               : '',
@@ -325,7 +326,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
     transmission: '',
     fuelType: '',
     licensePlate: '',
-    ownership: '',
+    ownership: 'owned',
     registrationExpiry: '',
     lastInspection: '',
     nextInspection: '',
@@ -342,7 +343,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         transmission: car.transmission,
         fuelType: car.fuelType,
         licensePlate: car.licensePlate,
-        ownership: car.ownership,
+        ownership: car.instructorId ? 'instructor' : (car.ownership || 'owned'),
         registrationExpiry: car.registrationExpiry,
         lastInspection: car.lastInspection,
         nextInspection: car.nextInspection,
@@ -356,7 +357,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         transmission: '',
         fuelType: '',
         licensePlate: '',
-        ownership: '',
+        ownership: 'owned',
         registrationExpiry: '',
         lastInspection: '',
         nextInspection: '',
@@ -376,7 +377,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         transmission: formData.transmission as 'manual' | 'automatic',
         fuelType: formData.fuelType as 'petrol' | 'diesel' | 'electric' | 'hybrid',
         licensePlate: formData.licensePlate.trim(),
-        ownership: formData.ownership as 'owned' | 'leased' | 'rented',
+        ownership: car?.instructorId ? 'instructor' : (formData.ownership as 'owned' | 'instructor'),
         registrationExpiry: formData.registrationExpiry,
         lastInspection: formData.lastInspection,
         nextInspection: formData.nextInspection,
@@ -514,22 +515,31 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               { value: 'hybrid', label: 'Hybrid' },
             ]}
           />
-          <Select
-            label="Ownership"
-            required
-            value={formData.ownership}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                ownership: e.target.value,
-              })
-            }
-            options={[
-              { value: 'owned', label: 'Owned' },
-              { value: 'leased', label: 'Leased' },
-              { value: 'rented', label: 'Rented' },
-            ]}
-          />
+          {car ? (
+            // Edit mode: show ownership based on car type (disabled)
+            <Input
+              label="Ownership"
+              value={car.instructorId ? 'Instructor' : 'Owned'}
+              disabled
+              hint={car.instructorId ? 'This is a personal car owned by an instructor' : 'This is a school car'}
+            />
+          ) : (
+            // Add mode: only owned option
+            <Select
+              label="Ownership"
+              required
+              value={formData.ownership}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  ownership: e.target.value,
+                })
+              }
+              options={[
+                { value: 'owned', label: 'Owned' },
+              ]}
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-4">
