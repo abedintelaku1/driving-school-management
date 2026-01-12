@@ -25,7 +25,7 @@ export function CandidatesPage() {
   const [packageFilter, setPackageFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+  const [instructors, setInstructors] = useState<{ id: string; name: string; assignedCarIds?: string[] }[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
@@ -37,7 +37,14 @@ export function CandidatesPage() {
         if (ok && data) {
           const opts = (data as any[]).map((ins: any) => ({
             id: ins._id || ins.id,
-            name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
+            name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor',
+            assignedCarIds: (ins.assignedCarIds || []).map((id: any) => {
+              // Handle both ObjectId objects and string IDs
+              if (typeof id === "object" && id !== null && id._id) {
+                return id._id.toString();
+              }
+              return id?.toString() || id;
+            })
           }));
           setInstructors(opts);
         } else {
@@ -400,7 +407,7 @@ type AddCandidateModalProps = {
   onClose: () => void;
   candidate?: Candidate | null;
   onSuccess: () => void;
-  instructors: { id: string; name: string }[];
+  instructors: { id: string; name: string; assignedCarIds?: string[] }[];
   packages: Package[];
   cars: Car[];
 };
@@ -429,6 +436,72 @@ function AddCandidateModal({
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Get available cars for selected instructor
+  const availableCars = useMemo(() => {
+    if (!formData.instructorId) {
+      // If no instructor selected, show all active cars
+      return cars.filter(c => c.status === 'active');
+    }
+    
+    // Find the selected instructor
+    const selectedInstructor = instructors.find(inst => inst.id === formData.instructorId);
+    if (!selectedInstructor || !selectedInstructor.assignedCarIds || selectedInstructor.assignedCarIds.length === 0) {
+      // If instructor has no assigned cars, return empty array
+      return [];
+    }
+    
+    // Filter cars that are assigned to this instructor
+    return cars.filter(car => 
+      car.status === 'active' && 
+      selectedInstructor.assignedCarIds?.includes(car.id)
+    );
+  }, [formData.instructorId, instructors, cars]);
+  
+  // Auto-select car if instructor has exactly one assigned car
+  useEffect(() => {
+    if (!formData.instructorId) {
+      // If no instructor selected, clear car selection (only when not editing)
+      if (!candidate) {
+        setFormData(prev => ({
+          ...prev,
+          carId: ''
+        }));
+      }
+      return;
+    }
+    
+    if (availableCars.length === 1) {
+      // Auto-select the only available car (only when not editing or when editing and car is not set)
+      if (!candidate || !formData.carId) {
+        setFormData(prev => {
+          if (prev.carId !== availableCars[0].id) {
+            return {
+              ...prev,
+              carId: availableCars[0].id
+            };
+          }
+          return prev;
+        });
+      }
+    } else if (availableCars.length === 0) {
+      // If instructor has no cars, clear car selection
+      setFormData(prev => ({
+        ...prev,
+        carId: ''
+      }));
+    } else if (availableCars.length > 1) {
+      // If instructor has multiple cars, check if current car is still available
+      const currentCarStillAvailable = availableCars.some(car => car.id === formData.carId);
+      if (!currentCarStillAvailable) {
+        // Current car is not available for new instructor, clear it
+        setFormData(prev => ({
+          ...prev,
+          carId: ''
+        }));
+      }
+    }
+  }, [formData.instructorId, availableCars, candidate]);
 
   // Validation function - returns errors object
   const validateForm = (): Record<string, string> => {
@@ -773,10 +846,13 @@ function AddCandidateModal({
           value: pkg.id,
           label: `${pkg.name} - €${pkg.price}`
         }))} />
-          <Select label="Instructor" value={formData.instructorId} onChange={e => setFormData({
-          ...formData,
-          instructorId: e.target.value
-        })} options={[
+          <Select label="Instructor" value={formData.instructorId} onChange={e => {
+          setFormData({
+            ...formData,
+            instructorId: e.target.value,
+            carId: '' // Clear car selection when instructor changes
+          });
+        }} options={[
           { value: '', label: 'Not assigned' },
           ...instructors.map(instructor => ({
             value: instructor.id,
@@ -786,15 +862,23 @@ function AddCandidateModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="Car" value={formData.carId} onChange={e => setFormData({
-          ...formData,
-          carId: e.target.value
-        })} options={[
-          { value: '', label: 'Not assigned' },
-          ...cars.filter(c => c.status === 'active').map(car => ({
-          value: car.id,
-          label: `${car.model} (${car.licensePlate})`
-        }))]} />
+          <Select 
+            label="Car" 
+            value={formData.carId} 
+            onChange={e => setFormData({
+              ...formData,
+              carId: e.target.value
+            })} 
+            options={[
+              { value: '', label: formData.instructorId && availableCars.length === 0 ? 'No cars assigned to this instructor' : 'Not assigned' },
+              ...availableCars.map(car => ({
+                value: car.id,
+                label: `${car.model} (${car.licensePlate})`
+              }))
+            ]}
+            disabled={formData.instructorId && availableCars.length === 0}
+            hint={formData.instructorId && availableCars.length === 1 ? 'Auto-selected: Only one car assigned to this instructor' : undefined}
+          />
           <Select label="Payment Frequency" value={formData.paymentFrequency} onChange={e => setFormData({
           ...formData,
           paymentFrequency: e.target.value

@@ -138,6 +138,7 @@ const create = async (req, res, next) => {
       fuelType,
       licensePlate,
       ownership,
+      instructorId,
       registrationExpiry,
       lastInspection,
       nextInspection,
@@ -175,7 +176,7 @@ const create = async (req, res, next) => {
     }
 
     // Validate ownership type
-    if (!["owned", "leased", "rented"].includes(ownership)) {
+    if (!["owned", "leased", "rented", "instructor"].includes(ownership)) {
       return res.status(400).json({ message: "Invalid ownership type" });
     }
 
@@ -215,6 +216,18 @@ const create = async (req, res, next) => {
       .toUpperCase()
       .replace(/\s+/g, "");
 
+    // Validate instructorId if ownership is instructor
+    if (ownership === "instructor") {
+      if (!instructorId) {
+        return res.status(400).json({ message: "Instructor ID is required when ownership is instructor" });
+      }
+      const Instructor = require("../models/Instructor");
+      const instructor = await Instructor.findById(instructorId);
+      if (!instructor) {
+        return res.status(404).json({ message: "Instructor not found" });
+      }
+    }
+
     // Create car
     const car = await Car.create({
       model: model.trim(),
@@ -224,11 +237,25 @@ const create = async (req, res, next) => {
       fuelType,
       licensePlate: normalizedLicensePlate,
       ownership,
+      instructorId: ownership === "instructor" ? instructorId : null,
       registrationExpiry: regExpiry,
       lastInspection: lastInsp,
       nextInspection: nextInsp,
       status,
     });
+
+    // If ownership is instructor, add car to instructor's assignedCarIds
+    if (ownership === "instructor" && instructorId) {
+      const Instructor = require("../models/Instructor");
+      const instructor = await Instructor.findById(instructorId);
+      if (instructor) {
+        const carIdString = car._id.toString();
+        if (!instructor.assignedCarIds.includes(carIdString)) {
+          instructor.assignedCarIds.push(carIdString);
+          await instructor.save();
+        }
+      }
+    }
 
     res.status(201).json(car);
   } catch (err) {
@@ -263,6 +290,7 @@ const update = async (req, res, next) => {
       fuelType,
       licensePlate,
       ownership,
+      instructorId,
       registrationExpiry,
       lastInspection,
       nextInspection,
@@ -303,10 +331,43 @@ const update = async (req, res, next) => {
       car.licensePlate = licensePlate.trim().toUpperCase().replace(/\s+/g, "");
     }
     if (ownership !== undefined) {
-      if (!["owned", "leased", "rented"].includes(ownership)) {
+      if (!["owned", "leased", "rented", "instructor"].includes(ownership)) {
         return res.status(400).json({ message: "Invalid ownership type" });
       }
       car.ownership = ownership;
+    }
+
+    // Handle instructorId
+    const Instructor = require("../models/Instructor");
+    const oldInstructorId = car.instructorId ? car.instructorId.toString() : null;
+    
+    // Determine the final ownership value (use provided or keep existing)
+    const finalOwnership = ownership !== undefined ? ownership : car.ownership;
+    
+    if (finalOwnership === "instructor") {
+      if (instructorId !== undefined) {
+        // InstructorId is being explicitly set
+        if (!instructorId) {
+          return res.status(400).json({ message: "Instructor ID is required when ownership is instructor" });
+        }
+        const instructor = await Instructor.findById(instructorId);
+        if (!instructor) {
+          return res.status(404).json({ message: "Instructor not found" });
+        }
+        car.instructorId = instructorId;
+      } else {
+        // InstructorId not provided in request
+        if (ownership === "instructor" && !car.instructorId) {
+          // If ownership is being changed to instructor but no instructorId provided and car doesn't have one
+          return res.status(400).json({ message: "Instructor ID is required when ownership is instructor" });
+        }
+        // Otherwise, keep existing instructorId
+      }
+    } else {
+      // If ownership is not instructor (or being changed from instructor), clear instructorId
+      if (ownership !== undefined && ownership !== "instructor") {
+        car.instructorId = null;
+      }
     }
     if (registrationExpiry !== undefined) {
       const date = new Date(registrationExpiry);
@@ -353,6 +414,42 @@ const update = async (req, res, next) => {
     }
 
     await car.save();
+
+    // Update instructor's assignedCarIds if instructorId changed
+    const newInstructorId = car.instructorId ? car.instructorId.toString() : null;
+    const carIdString = car._id.toString();
+
+    // Remove from old instructor if changed
+    if (oldInstructorId && oldInstructorId !== newInstructorId) {
+      const oldInstructor = await Instructor.findById(oldInstructorId);
+      if (oldInstructor) {
+        oldInstructor.assignedCarIds = oldInstructor.assignedCarIds.filter(
+          (id) => id.toString() !== carIdString
+        );
+        await oldInstructor.save();
+      }
+    }
+
+    // Add to new instructor if ownership is instructor
+    if (car.ownership === "instructor" && newInstructorId) {
+      const newInstructor = await Instructor.findById(newInstructorId);
+      if (newInstructor) {
+        if (!newInstructor.assignedCarIds.includes(carIdString)) {
+          newInstructor.assignedCarIds.push(carIdString);
+          await newInstructor.save();
+        }
+      }
+    } else if (oldInstructorId && car.ownership !== "instructor") {
+      // Remove from instructor if ownership changed from instructor to something else
+      const oldInstructor = await Instructor.findById(oldInstructorId);
+      if (oldInstructor) {
+        oldInstructor.assignedCarIds = oldInstructor.assignedCarIds.filter(
+          (id) => id.toString() !== carIdString
+        );
+        await oldInstructor.save();
+      }
+    }
+
     res.json(car);
   } catch (err) {
     console.error("Error updating car:", err);
