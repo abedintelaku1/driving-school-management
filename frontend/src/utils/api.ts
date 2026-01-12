@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 type ApiResponse<T> = {
   ok: boolean;
@@ -6,13 +6,13 @@ type ApiResponse<T> = {
   status?: number;
 };
 
-const tokenKey = 'auth_token';
+const tokenKey = "auth_token";
 
 export const getAuthHeaders = () => {
   const token = localStorage.getItem(tokenKey);
   return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
 
@@ -25,14 +25,17 @@ async function handle<T>(res: Response): Promise<ApiResponse<T>> {
 }
 
 export const api = {
-  async login(email: string, password: string): Promise<ApiResponse<{ user: any; token: string }>> {
+  async login(
+    email: string,
+    password: string
+  ): Promise<ApiResponse<{ user: any; token: string }>> {
     try {
       const url = `${API_URL}/api/auth/login`;
 
       const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
       const result = await handle<{ user: any; token: string }>(res);
@@ -42,14 +45,18 @@ export const api = {
       }
       return result;
     } catch (err) {
-      console.error('Login error:', err);
-      return { ok: false, status: 500, data: { message: 'Network error or server unavailable' } };
+      console.error("Login error:", err);
+      return {
+        ok: false,
+        status: 500,
+        data: { message: "Network error or server unavailable" },
+      };
     }
   },
   async me(): Promise<ApiResponse<{ user: any }>> {
     try {
       const res = await fetch(`${API_URL}/api/auth/me`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -63,7 +70,18 @@ export const api = {
   async listAppointments(): Promise<ApiResponse<any[]>> {
     try {
       const res = await fetch(`${API_URL}/api/appointments`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async getMyAppointments(): Promise<ApiResponse<any[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/appointments/me`, {
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -74,9 +92,9 @@ export const api = {
   async createAppointment(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/appointments`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -87,9 +105,9 @@ export const api = {
   async updateAppointment(id: string, payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -100,8 +118,8 @@ export const api = {
   async deleteAppointment(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+        method: "DELETE",
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -112,7 +130,7 @@ export const api = {
   async listCandidates(): Promise<ApiResponse<any[]>> {
     try {
       const res = await fetch(`${API_URL}/api/candidates`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -122,9 +140,9 @@ export const api = {
   async createCandidate(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/candidates`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -134,9 +152,9 @@ export const api = {
   async updateCandidate(id: string, payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/candidates/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -146,7 +164,18 @@ export const api = {
   async getCandidate(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/candidates/${id}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async deleteCandidate(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/candidates/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -157,8 +186,19 @@ export const api = {
   async listCars(): Promise<ApiResponse<any[]>> {
     try {
       const res = await fetch(`${API_URL}/api/cars`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async getMyCars(): Promise<ApiResponse<any[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/cars/me`, {
+        headers: getAuthHeaders(),
+      });
+      console.log("getMyCars response:", res);
       return handle(res);
     } catch {
       return { ok: false, status: 500 };
@@ -167,9 +207,9 @@ export const api = {
   async createCar(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/cars`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -179,9 +219,9 @@ export const api = {
   async updateCar(id: string, payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/cars/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -191,8 +231,8 @@ export const api = {
   async deleteCar(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/cars/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+        method: "DELETE",
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -202,7 +242,7 @@ export const api = {
   async getCar(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/cars/${id}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -213,7 +253,7 @@ export const api = {
   async listInstructors(): Promise<ApiResponse<any[]>> {
     try {
       const res = await fetch(`${API_URL}/api/instructors`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -224,7 +264,7 @@ export const api = {
   async getInstructorMe(): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/instructors/me`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -235,7 +275,7 @@ export const api = {
   async getInstructor(id: string): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/instructors/${id}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
@@ -246,27 +286,31 @@ export const api = {
   async createInstructor(payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/instructors`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       const result = await handle(res);
       if (!result.ok) {
-        console.error('Create instructor error:', result.data);
+        console.error("Create instructor error:", result.data);
       }
       return result;
     } catch (error) {
-      console.error('Network error creating instructor:', error);
-      return { ok: false, status: 500, data: { message: 'Network error. Please check your connection.' } };
+      console.error("Network error creating instructor:", error);
+      return {
+        ok: false,
+        status: 500,
+        data: { message: "Network error. Please check your connection." },
+      };
     }
   },
 
   async updateInstructor(id: string, payload: any): Promise<ApiResponse<any>> {
     try {
       const res = await fetch(`${API_URL}/api/instructors/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       return handle(res);
     } catch {
@@ -274,17 +318,268 @@ export const api = {
     }
   },
 
-  async deleteInstructor(id: string): Promise<ApiResponse<any>> {
+  async listPayments(): Promise<ApiResponse<any[]>> {
     try {
-      const res = await fetch(`${API_URL}/api/instructors/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+      const res = await fetch(`${API_URL}/api/payments`, {
+        headers: getAuthHeaders(),
       });
       return handle(res);
     } catch {
       return { ok: false, status: 500 };
     }
-  }
+  },
+
+  async listPackages(): Promise<ApiResponse<any[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async getLicenseCategories(): Promise<ApiResponse<string[]>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/license-categories`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async getPackage(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/${id}`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async createPackage(payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async createPayment(payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/payments`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async updatePackage(id: string, payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/${id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async updatePayment(id: string, payload: any): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/payments/${id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async deletePackage(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/packages/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async deletePayment(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/payments/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async getPayment(id: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(`${API_URL}/api/payments/${id}`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async getPaymentsByCandidate(
+    candidateId: string
+  ): Promise<ApiResponse<any[]>> {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/payments/candidate/${candidateId}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async getAdminProfile(): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/profile`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async updateAdminProfile(payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  }): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/profile`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async changeAdminPassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/change-password`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  // Instructor Profile
+  async getInstructorProfile(): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    phone?: string;
+    address?: string;
+    dateOfBirth?: string;
+    personalNumber?: string;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/profile`, {
+        headers: getAuthHeaders(),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async updateInstructorProfile(payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  }): Promise<ApiResponse<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    phone?: string;
+    address?: string;
+    createdAt: string;
+  }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/profile`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+
+  async changeInstructorPassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const res = await fetch(`${API_URL}/api/instructors/change-password`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
 };
-
-

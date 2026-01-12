@@ -10,6 +10,7 @@ import { InstructorLayout } from './components/layout/InstructorLayout';
 import { LoginPage } from './pages/LoginPage';
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { AdminProfilePage } from './pages/admin/AdminProfilePage';
 import { CandidatesPage } from './pages/admin/CandidatesPage';
 import { CandidateDetailPage } from './pages/admin/CandidateDetailPage';
 import { CarsPage } from './pages/admin/CarsPage';
@@ -19,6 +20,7 @@ import { PackagesPage } from './pages/admin/PackagesPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 // Instructor Pages
 import { InstructorDashboard } from './pages/instructor/InstructorDashboard';
+import { InstructorProfilePage } from './pages/instructor/InstructorProfilePage';
 import { AppointmentsPage } from './pages/instructor/AppointmentsPage';
 import { CalendarPage } from './pages/instructor/CalendarPage';
 import { MyCandidatesPage } from './pages/instructor/MyCandidatesPage';
@@ -72,6 +74,7 @@ function AppContent() {
                 <AdminLayout title="Admin Panel" />
               </ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
+            <Route path="profile" element={<AdminProfilePage />} />
             <Route path="candidates" element={<CandidatesPage />} />
             <Route path="candidates/:id" element={<CandidateDetailPage />} />
             <Route path="cars" element={<CarsPage />} />
@@ -86,6 +89,7 @@ function AppContent() {
                 <InstructorLayout title="Instructor Panel" />
               </ProtectedRoute>}>
             <Route index element={<InstructorDashboard />} />
+            <Route path="profile" element={<InstructorProfilePage />} />
             <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="candidates" element={<MyCandidatesPage />} />

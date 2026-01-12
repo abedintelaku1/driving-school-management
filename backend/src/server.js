@@ -6,10 +6,15 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 // Routes
 const authRoutes = require("./routes/auth.routes");
+const adminRoutes = require("./routes/admin.routes");
 const userRoutes = require("./routes/user.routes");
 const instructorRoutes = require("./routes/instructor.routes");
+const paymentRoutes = require("./routes/payment.routes");
 const candidateRoutes = require("./routes/candidate.routes");
 const carRoutes = require("./routes/car.routes");
+const packageRoutes = require("./routes/package.routes");
+const appointmentRoutes = require("./routes/appointment.routes");
+const notificationRoutes = require("./routes/notification.routes");
 
 const app = express();
 
@@ -60,10 +65,15 @@ app.get("/api/health", (req, res) => {
 
 // API routes
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/instructors", instructorRoutes);
 app.use("/api/candidates", candidateRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api/cars", carRoutes);
+app.use("/api/packages", packageRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // 404 + errors
 app.use(notFoundHandler);

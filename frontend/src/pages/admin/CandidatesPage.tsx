@@ -11,8 +11,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { SearchBar } from '../../components/ui/SearchBar';
-import { mockPackages, mockCars, getPackageById } from '../../utils/mockData';
-import type { Candidate } from '../../types';
+import type { Package } from '../../types';
+import type { Candidate, Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
 export function CandidatesPage() {
@@ -26,32 +26,87 @@ export function CandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
 
   useEffect(() => {
     const fetchInstructors = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`${API_URL}/api/instructors`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || 'Failed to load instructors');
-        const opts = (data || []).map((ins: any) => ({
-          id: ins._id,
-          name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
-        }));
-        setInstructors(opts);
+        const { ok, data } = await api.listInstructors();
+        if (ok && data) {
+          const opts = (data as any[]).map((ins: any) => ({
+            id: ins._id || ins.id,
+            name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
+          }));
+          setInstructors(opts);
+        } else {
+          toast('error', 'Failed to load instructors');
+        }
       } catch (err) {
         console.error(err);
         toast('error', 'Failed to load instructors');
       }
     };
     fetchInstructors();
+  }, []);
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const { ok, data } = await api.listPackages();
+        if (ok && data) {
+          const mapped = (data as any[]).map(item => ({
+            id: item._id || item.id,
+            name: item.name,
+            category: item.category,
+            numberOfHours: item.numberOfHours,
+            price: item.price,
+            description: item.description || '',
+            status: item.status || 'active',
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString()
+          }));
+          setPackages(mapped as Package[]);
+        }
+      } catch (error) {
+        console.error('Failed to load packages:', error);
+        toast('error', 'Failed to load packages');
+      }
+    };
+    fetchPackages();
+  }, []);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const { ok, data } = await api.listCars();
+        if (ok && data) {
+          const mapped = (data as any[]).map(item => ({
+            id: item._id || item.id,
+            model: item.model,
+            yearOfManufacture: item.yearOfManufacture,
+            chassisNumber: item.chassisNumber,
+            transmission: item.transmission,
+            fuelType: item.fuelType,
+            licensePlate: item.licensePlate,
+            ownership: item.ownership,
+            registrationExpiry: item.registrationExpiry ? (item.registrationExpiry instanceof Date ? item.registrationExpiry.toISOString().split('T')[0] : item.registrationExpiry.split('T')[0]) : '',
+            lastInspection: item.lastInspection ? (item.lastInspection instanceof Date ? item.lastInspection.toISOString().split('T')[0] : item.lastInspection.split('T')[0]) : '',
+            nextInspection: item.nextInspection ? (item.nextInspection instanceof Date ? item.nextInspection.toISOString().split('T')[0] : item.nextInspection.split('T')[0]) : '',
+            totalHours: item.totalHours || 0,
+            status: item.status || 'active',
+            createdAt: item.createdAt ? (item.createdAt instanceof Date ? item.createdAt.toISOString().split('T')[0] : item.createdAt.split('T')[0]) : '',
+            updatedAt: item.updatedAt ? (item.updatedAt instanceof Date ? item.updatedAt.toISOString().split('T')[0] : item.updatedAt.split('T')[0]) : ''
+          }));
+          setCars(mapped as Car[]);
+        }
+      } catch (error) {
+        console.error('Failed to load cars:', error);
+        toast('error', 'Failed to load cars');
+      }
+    };
+    fetchCars();
   }, []);
   useEffect(() => {
     const fetchCandidates = async () => {
@@ -67,18 +122,18 @@ export function CandidatesPage() {
           }
           
           return {
-            id: item._id || item.id,
-            firstName: item.firstName,
-            lastName: item.lastName,
-            email: item.email,
-            phone: item.phone,
+          id: item._id || item.id,
+          firstName: item.firstName,
+          lastName: item.lastName,
+          email: item.email,
+          phone: item.phone,
             dateOfBirth: dateOfBirth || '',
-            personalNumber: item.personalNumber,
-            address: item.address,
+          personalNumber: item.personalNumber,
+          address: item.address,
             packageId: item.packageId?._id || item.packageId || '',
-            carId: item.carId || '',
-            paymentFrequency: item.paymentFrequency || '',
-            status: item.status || 'active',
+          carId: item.carId || '',
+          paymentFrequency: item.paymentFrequency || '',
+          status: item.status || 'active',
             instructorId: item.instructorId?._id || item.instructorId || item.instructor?._id || item.instructor || '',
             uniqueClientNumber: item.uniqueClientNumber || '',
             documents: item.documents || [],
@@ -91,6 +146,10 @@ export function CandidatesPage() {
     };
     fetchCandidates();
   }, [refreshKey]);
+
+  const getPackageById = (id: string): Package | null => {
+    return packages.find(p => p.id === id) || null;
+  };
 
   const filteredCandidates = useMemo(() => {
     return candidates.filter(candidate => {
@@ -138,14 +197,26 @@ export function CandidatesPage() {
       return;
     }
 
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Status'];
-    const rows = filteredCandidates.map(c => [
-      c.firstName || '',
-      c.lastName || '',
-      c.email || '',
-      c.phone || '',
-      c.status || ''
-    ]);
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Package', 'Instructor', 'Status'];
+    const rows = filteredCandidates.map(c => {
+      // Get package name
+      const pkg = c.packageId ? getPackageById(c.packageId) : null;
+      const packageName = pkg ? pkg.name : 'Not assigned';
+      
+      // Get instructor name
+      const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
+      const instructorName = instructor ? instructor.name : 'Not assigned';
+      
+      return [
+        c.firstName || '',
+        c.lastName || '',
+        c.email || '',
+        c.phone || '',
+        packageName,
+        instructorName,
+        c.status || ''
+      ];
+    });
 
     const csv = [headers, ...rows]
       .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
@@ -284,7 +355,7 @@ export function CandidatesPage() {
           <Select placeholder="All Packages" value={packageFilter} onChange={e => setPackageFilter(e.target.value)} options={[{
           value: '',
           label: 'All Packages'
-        }, ...mockPackages.map(pkg => ({
+        }, ...packages.map(pkg => ({
           value: pkg.id,
           label: pkg.name
         }))]} />
@@ -297,7 +368,7 @@ export function CandidatesPage() {
       </Card>
 
       {/* Add/Edit Modal */}
-      <AddCandidateModal instructors={instructors} isOpen={showAddModal || !!editingCandidate} onClose={() => {
+      <AddCandidateModal instructors={instructors} packages={packages} cars={cars} isOpen={showAddModal || !!editingCandidate} onClose={() => {
       setShowAddModal(false);
       setEditingCandidate(null);
     }} candidate={editingCandidate} onSuccess={() => {
@@ -330,13 +401,17 @@ type AddCandidateModalProps = {
   candidate?: Candidate | null;
   onSuccess: () => void;
   instructors: { id: string; name: string }[];
+  packages: Package[];
+  cars: Car[];
 };
 function AddCandidateModal({
   isOpen,
   onClose,
   candidate,
   onSuccess,
-  instructors
+  instructors,
+  packages,
+  cars
 }: AddCandidateModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -517,41 +592,65 @@ function AddCandidateModal({
       };
       
       const payload: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
         dateOfBirth: formData.dateOfBirth,
-        personalNumber: formData.personalNumber,
-        address: formData.address,
+        personalNumber: formData.personalNumber.trim(),
+        address: formData.address.trim(),
         status: formData.status
       };
       
-      // packageId is stored as string for mock data
-      if (formData.packageId) {
-        payload.packageId = formData.packageId;
+      // packageId is stored as string
+      if (formData.packageId && formData.packageId.trim()) {
+        payload.packageId = formData.packageId.trim();
       }
       
       // Only include instructorId if it's a valid ObjectId
       if (isValidObjectId(formData.instructorId)) {
         payload.instructorId = formData.instructorId;
+      } else {
+        payload.instructorId = null;
       }
       
-      if (formData.carId) {
-        payload.carId = formData.carId;
+      if (formData.carId && formData.carId.trim()) {
+        payload.carId = formData.carId.trim();
       }
       
-      if (formData.paymentFrequency) {
-        payload.paymentFrequency = formData.paymentFrequency;
+      if (formData.paymentFrequency && formData.paymentFrequency.trim()) {
+        payload.paymentFrequency = formData.paymentFrequency.trim();
       }
       
+      console.log('Sending payload:', payload);
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
         const errorMessage = (resp.data as any)?.message || 'Failed to save candidate';
+        console.error('API Error Response:', resp.data);
         toast('error', errorMessage);
         return;
       }
       toast('success', candidate ? 'Candidate updated successfully' : 'Candidate added successfully');
+      
+      // Reset form if creating new candidate (not editing)
+      if (!candidate) {
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          dateOfBirth: '',
+          personalNumber: '',
+          address: '',
+          packageId: '',
+          instructorId: '',
+          carId: '',
+          paymentFrequency: '',
+          status: 'active'
+        });
+        setErrors({});
+      }
+      
       onSuccess();
     } catch (error) {
       console.error('Error saving candidate:', error);
@@ -670,27 +769,32 @@ function AddCandidateModal({
           <Select label="Package" value={formData.packageId} onChange={e => setFormData({
           ...formData,
           packageId: e.target.value
-        })} options={mockPackages.filter(p => p.status === 'active').map(pkg => ({
+        })} options={packages.filter((p: Package) => p.status === 'active').map((pkg: Package) => ({
           value: pkg.id,
-          label: `${pkg.name} - $${pkg.price}`
+          label: `${pkg.name} - €${pkg.price}`
         }))} />
           <Select label="Instructor" value={formData.instructorId} onChange={e => setFormData({
           ...formData,
           instructorId: e.target.value
-        })} options={instructors.map(instructor => ({
-          value: instructor.id,
-          label: instructor.name
-        }))} />
+        })} options={[
+          { value: '', label: 'Not assigned' },
+          ...instructors.map(instructor => ({
+            value: instructor.id,
+            label: instructor.name
+          }))
+        ]} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select label="Car" value={formData.carId} onChange={e => setFormData({
           ...formData,
           carId: e.target.value
-        })} options={mockCars.filter(c => c.status === 'active').map(car => ({
+        })} options={[
+          { value: '', label: 'Not assigned' },
+          ...cars.filter(c => c.status === 'active').map(car => ({
           value: car.id,
           label: `${car.model} (${car.licensePlate})`
-        }))} />
+        }))]} />
           <Select label="Payment Frequency" value={formData.paymentFrequency} onChange={e => setFormData({
           ...formData,
           paymentFrequency: e.target.value

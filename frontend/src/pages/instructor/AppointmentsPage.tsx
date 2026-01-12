@@ -58,17 +58,82 @@ export function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [cancellingAppointment, setCancellingAppointment] = useState<Appointment | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [instructorId, setInstructorId] = useState<string | null>(null);
+
+  // Get instructor ID for filtering
+  useEffect(() => {
+    const fetchInstructorId = async () => {
+      if (user?.role === 1) { // 1 = instructor
+        try {
+          const instructorRes = await api.getInstructorMe();
+          if (instructorRes.ok && instructorRes.data) {
+            const instructor = instructorRes.data;
+            setInstructorId(instructor._id || instructor.id || null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch instructor ID:', error);
+        }
+      }
+    };
+    fetchInstructorId();
+  }, [user]);
 
   // Fetch data from API
   useEffect(() => {
     const fetchData = async () => {
+      // For instructors, wait until instructorId is available
+      if (user?.role === 1 && !instructorId) {
+        return; // Don't fetch until instructorId is set
+      }
+
       setLoading(true);
       try {
-        const [appointmentsRes, candidatesRes, carsRes] = await Promise.all([
-          api.listAppointments(),
-          api.listCandidates(),
-          api.listCars()
-        ]);
+        let appointmentsRes;
+        let candidatesRes;
+        let carsRes;
+        
+        // If user is an instructor, fetch their appointments and candidates
+        if (user?.role === 1 && instructorId) {
+          // Fetch appointments for this instructor
+          const instructorAppointmentsRes = await fetch(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/appointments/instructor/${instructorId}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+            }
+          );
+          const instructorAppointmentsData = await instructorAppointmentsRes.json();
+          appointmentsRes = { ok: instructorAppointmentsRes.ok, data: instructorAppointmentsData };
+          
+          // Fetch all candidates and filter by instructor
+          candidatesRes = await api.listCandidates();
+          if (candidatesRes.ok && candidatesRes.data) {
+            // Filter candidates assigned to this instructor
+            const filteredCandidates = candidatesRes.data.filter((c: any) => {
+              const candInstructorId = c.instructorId?._id || c.instructorId || c.instructor?._id || c.instructor?.id || c.instructorId;
+              return candInstructorId === instructorId;
+            });
+            candidatesRes.data = filteredCandidates;
+          }
+
+          // Instructor: get only assigned cars
+          console.log('Fetching cars for instructor...');
+          carsRes = await api.getMyCars();
+          console.log('Cars API response:', carsRes);
+        } else if (user?.role === 0) {
+          // Admin: fetch all appointments and candidates
+          appointmentsRes = await api.listAppointments();
+          candidatesRes = await api.listCandidates();
+          // Admin: get all cars
+          carsRes = await api.listCars();
+        } else {
+          // No user or unknown role
+          appointmentsRes = { ok: false, data: [] };
+          candidatesRes = { ok: false, data: [] };
+          carsRes = { ok: false, data: [] };
+        }
 
         if (appointmentsRes.ok && appointmentsRes.data) {
           setAppointments(appointmentsRes.data);
@@ -76,8 +141,14 @@ export function AppointmentsPage() {
         if (candidatesRes.ok && candidatesRes.data) {
           setCandidates(candidatesRes.data);
         }
-        if (carsRes.ok && carsRes.data) {
-          setCars(carsRes.data);
+        if (carsRes) {
+          if (carsRes.ok && carsRes.data) {
+            setCars(carsRes.data);
+          } else {
+            // Log error for debugging
+            console.log('Cars API response:', carsRes);
+            setCars([]);
+          }
         }
       } catch (error) {
         toast('error', 'Failed to load data');
@@ -86,20 +157,56 @@ export function AppointmentsPage() {
       }
     };
 
-    fetchData();
-  }, []);
+    // Only fetch if:
+    // - User is admin (role 0), OR
+    // - User is instructor (role 1) AND instructorId is available
+    if (user?.role === 0 || (user?.role === 1 && instructorId)) {
+      fetchData();
+    }
+  }, [user, instructorId]);
 
   const filteredAppointments = useMemo(() => {
     return appointments
-      .filter(a => !statusFilter || a.status === statusFilter)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime))
-      .map(apt => ({
-        ...apt,
-        id: apt._id || apt.id,
-        candidateId: apt.candidate?._id || apt.candidate?.id || apt.candidateId,
-        carId: apt.carId?._id || apt.carId?.id || apt.carId
-      }));
-  }, [appointments, statusFilter]);
+      .filter(a => {
+        // Filter by status if statusFilter is set
+        if (statusFilter && a.status !== statusFilter) return false;
+        
+        // For instructors, only show their own appointments
+        if (user?.role === 1 && instructorId) {
+          const aptInstructorId = a.instructorId?._id || a.instructorId || a.instructor?._id || a.instructor?.id || '';
+          if (aptInstructorId !== instructorId) return false;
+        }
+        
+        return true;
+      })
+      .map(apt => {
+        // Format date - handle both ISO string and Date object
+        let formattedDate = apt.date;
+        if (apt.date) {
+          if (typeof apt.date === 'string') {
+            // If it's an ISO string, extract just the date part (YYYY-MM-DD)
+            formattedDate = apt.date.split('T')[0];
+          } else if (apt.date instanceof Date) {
+            // If it's a Date object, format it
+            formattedDate = apt.date.toISOString().split('T')[0];
+          }
+        }
+        
+        return {
+          ...apt,
+          id: apt._id || apt.id,
+          date: formattedDate,
+          candidateId: apt.candidateId?._id || apt.candidateId?.id || apt.candidate?._id || apt.candidate?.id || apt.candidateId,
+          carId: apt.carId?._id || apt.carId?.id || apt.carId
+        };
+      })
+      .sort((a, b) => {
+        // Sort by date (descending) then by startTime (descending)
+        const dateCompare = (b.date || '').localeCompare(a.date || '');
+        if (dateCompare !== 0) return dateCompare;
+        return (b.startTime || '').localeCompare(a.startTime || '');
+      });
+  }, [appointments, statusFilter, user, instructorId]);
 
   const getCandidateById = (id: string) => {
     return candidates.find(c => (c._id || c.id) === id);
@@ -110,9 +217,27 @@ export function AppointmentsPage() {
   };
 
   const refreshAppointments = async () => {
-    const res = await api.listAppointments();
-    if (res.ok && res.data) {
-      setAppointments(res.data);
+    if (user?.role === 1 && instructorId) {
+      // Instructor: fetch their appointments
+      const instructorAppointmentsRes = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/appointments/instructor/${instructorId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        }
+      );
+      const instructorAppointmentsData = await instructorAppointmentsRes.json();
+      if (instructorAppointmentsRes.ok && instructorAppointmentsData) {
+        setAppointments(instructorAppointmentsData);
+      }
+    } else {
+      // Admin: fetch all appointments
+      const res = await api.listAppointments();
+      if (res.ok && res.data) {
+        setAppointments(res.data);
+      }
     }
   };
 
@@ -382,6 +507,7 @@ function AddAppointmentModal({
   const [instructorId, setInstructorId] = useState<string | null>(null);
 
   // Calculate hours when times change
+  // Note: 1 lesson hour = 45 minutes
   const calculateHours = (start: string, end: string) => {
     if (!start || !end) return '';
     
@@ -400,8 +526,9 @@ function AddAppointmentModal({
       diffMinutes += 24 * 60;
     }
     
-    const hours = diffMinutes / 60;
-    return hours > 0 ? hours.toFixed(2) : '';
+    // Convert to lesson hours (45 minutes = 1 hour)
+    const lessonHours = diffMinutes / 45;
+    return lessonHours > 0 ? lessonHours.toFixed(2) : '';
   };
 
   useEffect(() => {
@@ -432,10 +559,18 @@ function AddAppointmentModal({
       const endTime = appointment.endTime || '';
       const calculatedHours = startTime && endTime ? calculateHours(startTime, endTime) : (appointment.hours?.toString() || '');
       
+      // Format date for input field (YYYY-MM-DD)
+      let formattedDate = appointment.date || '';
+      if (formattedDate && typeof formattedDate === 'string' && formattedDate.includes('T')) {
+        formattedDate = formattedDate.split('T')[0];
+      } else if (formattedDate && formattedDate instanceof Date) {
+        formattedDate = formattedDate.toISOString().split('T')[0];
+      }
+      
       setFormData({
-        candidateId: appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId || '',
+        candidateId: appointment.candidateId?._id || appointment.candidateId?.id || appointment.candidate?._id || appointment.candidate?.id || appointment.candidateId || '',
         carId: appointment.carId?._id || appointment.carId?.id || appointment.carId || '',
-        date: appointment.date || '',
+        date: formattedDate,
         startTime: startTime,
         endTime: endTime,
         hours: calculatedHours,
@@ -481,10 +616,18 @@ function AddAppointmentModal({
         return;
       }
 
+      // For instructors, carId is optional (will be assigned by admin)
+      // For admins, carId is required
+      if (user?.role === 0 && !formData.carId) {
+        toast('error', 'Please select a vehicle');
+        setLoading(false);
+        return;
+      }
+
       const appointmentData = {
         instructorId,
         candidateId: formData.candidateId,
-        carId: formData.carId || undefined,
+        carId: formData.carId || (user?.role === 1 ? null : undefined),
         date: formData.date,
         startTime: formData.startTime,
         endTime: formData.endTime,
@@ -528,7 +671,21 @@ function AddAppointmentModal({
     }
   };
 
-  const activeCandidates = candidates.filter(c => !c.status || c.status === 'active');
+  // Filter candidates: for instructors, only show their assigned candidates
+  const activeCandidates = useMemo(() => {
+    let filtered = candidates.filter(c => !c.status || c.status === 'active');
+    
+    // If user is an instructor, filter by instructorId
+    if (user?.role === 1 && instructorId) {
+      filtered = filtered.filter(c => {
+        const candInstructorId = c.instructorId?._id || c.instructorId || c.instructor?._id || c.instructor?.id || '';
+        return candInstructorId === instructorId;
+      });
+    }
+    
+    return filtered;
+  }, [candidates, user, instructorId]);
+  
   const activeCars = cars.filter(c => !c.status || c.status === 'active');
 
   return (
@@ -555,21 +712,23 @@ function AddAppointmentModal({
           required
           value={formData.candidateId}
           onChange={e => setFormData({ ...formData, candidateId: e.target.value })}
-          options={activeCandidates.map(candidate => ({
+          options={activeCandidates.length > 0 ? activeCandidates.map(candidate => ({
             value: candidate._id || candidate.id || '',
             label: `${candidate.firstName} ${candidate.lastName}`
-          }))}
+          })) : [{ value: '', label: 'No candidates assigned to you' }]}
+          disabled={activeCandidates.length === 0}
         />
 
         <Select
           label="Vehicle"
-          required
+          required={user?.role === 0}
           value={formData.carId}
           onChange={e => setFormData({ ...formData, carId: e.target.value })}
-          options={activeCars.map(car => ({
+          options={activeCars.length > 0 ? activeCars.map(car => ({
             value: car._id || car.id || '',
             label: `${car.model} (${car.licensePlate})${car.transmission ? ` - ${car.transmission}` : ''}`
-          }))}
+          })) : [{ value: '', label: user?.role === 1 ? 'No cars assigned to you' : 'No cars available' }]}
+          disabled={activeCars.length === 0}
         />
 
         <Input

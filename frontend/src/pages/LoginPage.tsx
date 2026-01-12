@@ -55,14 +55,6 @@ export function LoginPage() {
       setLoading(false);
     }
   };
-  const handleDemoLogin = (role: 0 | 1) => {
-    if (role === 0) { // admin
-      setEmail('admin@drivershub.com');
-    } else { // instructor
-      setEmail('john.instructor@drivershub.com');
-    }
-    setPassword('demo123');
-  };
   return <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       {/* Background Pattern */}
       <div className="absolute inset-0 overflow-hidden">
@@ -122,21 +114,6 @@ export function LoginPage() {
               Sign in
             </Button>
           </form>
-
-          {/* Demo Accounts */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 text-center mb-3">
-              Quick demo access:
-            </p>
-            <div className="flex gap-3">
-              <Button variant="outline" fullWidth onClick={() => handleDemoLogin(0)}>
-                Admin Demo
-              </Button>
-              <Button variant="outline" fullWidth onClick={() => handleDemoLogin(1)}>
-                Instructor Demo
-              </Button>
-            </div>
-          </div>
 
         </div>
 

@@ -1,1 +1,10 @@
 .vs/
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+*.env
+
+# Documentation files (exclude task files from git)
+TASKS_DEVELOPERS.md

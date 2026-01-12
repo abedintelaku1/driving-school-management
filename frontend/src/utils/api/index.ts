@@ -2,6 +2,8 @@ import { authApi } from './auth';
 import { candidatesApi } from './candidates';
 import { instructorsApi } from './instructors';
 import { carsApi } from './cars';
+import { packagesApi } from './packages';
+import { notificationsApi } from './notifications';
 
 
 // Main API object that exports all API modules
@@ -33,10 +35,25 @@ export const api = {
   updateCar: carsApi.update,
   deleteCar: carsApi.delete,
 
+  // Packages
+  listPackages: packagesApi.list,
+  getPackage: packagesApi.get,
+  createPackage: packagesApi.create,
+  updatePackage: packagesApi.update,
+  deletePackage: packagesApi.delete,
+  getLicenseCategories: packagesApi.getLicenseCategories,
+
+  // Notifications
+  getNotifications: notificationsApi.getAll,
+  getUnreadCount: notificationsApi.getUnreadCount,
+  markNotificationAsRead: notificationsApi.markAsRead,
+  markAllNotificationsAsRead: notificationsApi.markAllAsRead,
+  deleteNotification: notificationsApi.delete,
+
 };
 
 // Export individual APIs for direct use if needed
-export { authApi, candidatesApi, instructorsApi, carsApi };
+export { authApi, candidatesApi, instructorsApi, carsApi, packagesApi, notificationsApi };
 
 // Export types
 export type { ApiResponse } from './config';

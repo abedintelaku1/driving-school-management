@@ -1,21 +1,146 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
-import { getAppointmentsByInstructor, getCandidateById, getCarById } from '../../utils/mockData';
+import { api } from '../../utils/api';
 import type { Appointment } from '../../types';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+type AppointmentEx = Appointment & {
+  _id?: string;
+  candidate?: any;
+  carId?: any;
+};
+
 export function CalendarPage() {
-  const {
-    user
-  } = useAuth();
-  const instructorId = user?.id || '2';
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const myAppointments = getAppointmentsByInstructor(instructorId);
+  const [appointments, setAppointments] = useState<AppointmentEx[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [cars, setCars] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [instructorId, setInstructorId] = useState<string | null>(null);
+
+  // Get instructor ID
+  useEffect(() => {
+    const fetchInstructorId = async () => {
+      if (user?.role === 1) {
+        try {
+          const instructorRes = await api.getInstructorMe();
+          if (instructorRes.ok && instructorRes.data) {
+            const instructor = instructorRes.data;
+            setInstructorId(instructor._id || instructor.id || null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch instructor ID:', error);
+        }
+      }
+    };
+    fetchInstructorId();
+  }, [user]);
+
+  // Fetch appointments, candidates, and cars
+  useEffect(() => {
+    const fetchData = async () => {
+      if (user?.role === 1 && !instructorId) {
+        return; // Wait for instructorId
+      }
+
+      setLoading(true);
+      try {
+        let appointmentsRes;
+        let candidatesRes;
+        let carsRes;
+
+        if (user?.role === 1 && instructorId) {
+          // Fetch appointments for this instructor
+          const instructorAppointmentsRes = await fetch(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/appointments/instructor/${instructorId}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+            }
+          );
+          const instructorAppointmentsData = await instructorAppointmentsRes.json();
+          appointmentsRes = { ok: instructorAppointmentsRes.ok, data: instructorAppointmentsData };
+
+          // Fetch candidates assigned to this instructor
+          candidatesRes = await api.listCandidates();
+          if (candidatesRes.ok && candidatesRes.data) {
+            const filteredCandidates = candidatesRes.data.filter((c: any) => {
+              const candInstructorId = c.instructorId?._id || c.instructorId || c.instructor?._id || c.instructor?.id || c.instructorId;
+              return candInstructorId === instructorId;
+            });
+            candidatesRes.data = filteredCandidates;
+          }
+
+          // Fetch assigned cars
+          carsRes = await api.getMyCars();
+        } else {
+          appointmentsRes = { ok: false, data: [] };
+          candidatesRes = { ok: false, data: [] };
+          carsRes = { ok: false, data: [] };
+        }
+
+        if (appointmentsRes.ok && appointmentsRes.data) {
+          const mapped = (appointmentsRes.data as any[]).map((item) => ({
+            id: item._id || item.id,
+            date: item.date ? (item.date.split('T')[0] || item.date) : '',
+            startTime: item.startTime || '',
+            endTime: item.endTime || '',
+            hours: item.hours || 0,
+            status: item.status || 'scheduled',
+            notes: item.notes || '',
+            candidateId: item.candidateId?._id || item.candidateId || item.candidate?._id || item.candidate?.id || '',
+            candidate: item.candidateId || item.candidate,
+            carId: item.carId?._id || item.carId || item.car?.id || '',
+            car: item.carId || item.car,
+          }));
+          setAppointments(mapped);
+        }
+
+        if (candidatesRes.ok && candidatesRes.data) {
+          const mapped = (candidatesRes.data as any[]).map((item) => ({
+            id: item._id || item.id,
+            firstName: item.firstName || '',
+            lastName: item.lastName || '',
+          }));
+          setCandidates(mapped);
+        }
+
+        if (carsRes?.ok && carsRes.data) {
+          const mapped = (carsRes.data as any[]).map((item) => ({
+            id: item._id || item.id,
+            model: item.model || '',
+            licensePlate: item.licensePlate || '',
+          }));
+          setCars(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to load calendar data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, instructorId]);
+
+  const getCandidateById = (id: string) => {
+    return candidates.find(c => (c._id || c.id) === id);
+  };
+
+  const getCarById = (id: string) => {
+    return cars.find(c => (c._id || c.id) === id);
+  };
+
+  const myAppointments = appointments;
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -32,11 +157,17 @@ export function CalendarPage() {
     }
     return days;
   }, [firstDayOfMonth, daysInMonth]);
-  const getAppointmentsForDay = (day: number): Appointment[] => {
+  const getAppointmentsForDay = (day: number): AppointmentEx[] => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return myAppointments.filter(a => a.date === dateStr);
+    return myAppointments.filter(a => {
+      const aptDate = a.date?.split('T')[0] || a.date;
+      return aptDate === dateStr;
+    });
   };
-  const selectedDateAppointments = selectedDate ? myAppointments.filter(a => a.date === selectedDate).sort((a, b) => a.startTime.localeCompare(b.startTime)) : [];
+  const selectedDateAppointments = selectedDate ? myAppointments.filter(a => {
+    const aptDate = a.date?.split('T')[0] || a.date;
+    return aptDate === selectedDate;
+  }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')) : [];
   const goToPreviousMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
   };
@@ -49,6 +180,15 @@ export function CalendarPage() {
     setSelectedDate(today);
   };
   const today = new Date().toISOString().split('T')[0];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return <div className="space-y-4 lg:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -147,8 +287,10 @@ export function CalendarPage() {
           <CardContent>
             {selectedDate ? selectedDateAppointments.length > 0 ? <div className="space-y-3 lg:space-y-4">
                   {selectedDateAppointments.map(appointment => {
-              const candidate = getCandidateById(appointment.candidateId);
-              const car = getCarById(appointment.carId);
+              const candidateId = appointment.candidateId || appointment.candidate?._id || appointment.candidate?.id || '';
+              const candidate = candidateId ? getCandidateById(candidateId) : appointment.candidate;
+              const carId = appointment.carId || appointment.car?._id || appointment.car?.id || '';
+              const car = carId ? getCarById(carId) : appointment.car;
               return <div key={appointment.id} className={`
                           p-3 lg:p-4 rounded-lg border-l-4
                           ${appointment.status === 'completed' ? 'bg-green-50 border-green-500' : ''}
