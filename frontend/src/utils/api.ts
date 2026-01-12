@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 type ApiResponse<T> = {
   ok: boolean;
@@ -458,14 +458,16 @@ export const api = {
     }
   },
 
-  async getAdminProfile(): Promise<ApiResponse<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: number;
-    createdAt: string;
-  }>> {
+  async getAdminProfile(): Promise<
+    ApiResponse<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: number;
+      createdAt: string;
+    }>
+  > {
     try {
       const res = await fetch(`${API_URL}/api/admin/profile`, {
         headers: getAuthHeaders(),
@@ -480,14 +482,16 @@ export const api = {
     firstName: string;
     lastName: string;
     email: string;
-  }): Promise<ApiResponse<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: number;
-    createdAt: string;
-  }>> {
+  }): Promise<
+    ApiResponse<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: number;
+      createdAt: string;
+    }>
+  > {
     try {
       const res = await fetch(`${API_URL}/api/admin/profile`, {
         method: "PUT",
@@ -517,18 +521,20 @@ export const api = {
   },
 
   // Instructor Profile
-  async getInstructorProfile(): Promise<ApiResponse<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: number;
-    phone?: string;
-    address?: string;
-    dateOfBirth?: string;
-    personalNumber?: string;
-    createdAt: string;
-  }>> {
+  async getInstructorProfile(): Promise<
+    ApiResponse<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: number;
+      phone?: string;
+      address?: string;
+      dateOfBirth?: string;
+      personalNumber?: string;
+      createdAt: string;
+    }>
+  > {
     try {
       const res = await fetch(`${API_URL}/api/instructors/profile`, {
         headers: getAuthHeaders(),
@@ -545,16 +551,18 @@ export const api = {
     email: string;
     phone?: string;
     address?: string;
-  }): Promise<ApiResponse<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: number;
-    phone?: string;
-    address?: string;
-    createdAt: string;
-  }>> {
+  }): Promise<
+    ApiResponse<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: number;
+      phone?: string;
+      address?: string;
+      createdAt: string;
+    }>
+  > {
     try {
       const res = await fetch(`${API_URL}/api/instructors/profile`, {
         method: "PUT",
