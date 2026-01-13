@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://128.140.121.69";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 type ApiResponse<T> = {
   ok: boolean;

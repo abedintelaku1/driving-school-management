@@ -96,7 +96,7 @@ export function AppointmentsPage() {
         if (user?.role === 1 && instructorId) {
           // Fetch appointments for this instructor
           const instructorAppointmentsRes = await fetch(
-            `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/appointments/instructor/${instructorId}`,
+            `${import.meta.env.VITE_API_URL || ''}/api/appointments/instructor/${instructorId}`,
             {
               headers: {
                 'Content-Type': 'application/json',
@@ -220,7 +220,7 @@ export function AppointmentsPage() {
     if (user?.role === 1 && instructorId) {
       // Instructor: fetch their appointments
       const instructorAppointmentsRes = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/appointments/instructor/${instructorId}`,
+        `${import.meta.env.VITE_API_URL || ''}/api/appointments/instructor/${instructorId}`,
         {
           headers: {
             'Content-Type': 'application/json',
