@@ -1,5 +1,6 @@
 const Instructor = require('../models/Instructor');
 const User = require('../models/User');
+const Car = require('../models/Car');
 const notificationService = require('../services/notification.service');
 const emailService = require('../services/email.service');
 
@@ -42,7 +43,7 @@ const getMe = async (req, res, next) => {
 
 const create = async (req, res, next) => {
     try {
-        const { firstName, lastName, email = '', password, phone, address, dateOfBirth, personalNumber, specialties = [], assignedCarIds = [] } = req.body;
+        const { firstName, lastName, email = '', password, phone, address, dateOfBirth, personalNumber, specialties = [], assignedCarIds = [], personalCar } = req.body;
         
         console.log('Creating instructor with data:', { firstName, lastName, email, phone, address, dateOfBirth, personalNumber });
         
@@ -87,8 +88,88 @@ const create = async (req, res, next) => {
             dateOfBirth: new Date(dateOfBirth),
             personalNumber,
             specialties,
-            assignedCarIds
+            assignedCarIds,
+            personalCarIds: []
         });
+        
+        // Create personal car if provided
+        let personalCarId = null;
+        if (personalCar && personalCar.model) {
+            try {
+                // Validate personal car fields
+                if (!personalCar.model || !personalCar.yearOfManufacture || !personalCar.chassisNumber || 
+                    !personalCar.transmission || !personalCar.fuelType || !personalCar.licensePlate || 
+                    !personalCar.ownership || !personalCar.registrationExpiry || 
+                    !personalCar.lastInspection || !personalCar.nextInspection) {
+                    throw new Error('All personal car fields must be provided');
+                }
+                
+                // Validate transmission type
+                if (!["manual", "automatic"].includes(personalCar.transmission)) {
+                    throw new Error('Transmission must be "manual" or "automatic"');
+                }
+                
+                // Validate fuel type
+                if (!["petrol", "diesel", "electric", "hybrid"].includes(personalCar.fuelType)) {
+                    throw new Error('Invalid fuel type');
+                }
+                
+                // Validate ownership type (for personal cars: owned or instructor)
+                if (!["owned", "instructor"].includes(personalCar.ownership)) {
+                    throw new Error('Ownership must be "owned" or "instructor" for personal cars');
+                }
+                
+                // Validate year
+                const currentYear = new Date().getFullYear();
+                if (personalCar.yearOfManufacture < 1900 || personalCar.yearOfManufacture > currentYear + 1) {
+                    throw new Error('Invalid year of manufacture');
+                }
+                
+                // Normalize license plate
+                const normalizedLicensePlate = personalCar.licensePlate.trim().toUpperCase().replace(/\s+/g, '');
+                
+                // Create personal car linked to this instructor
+                const car = await Car.create({
+                    model: personalCar.model.trim(),
+                    yearOfManufacture: personalCar.yearOfManufacture,
+                    chassisNumber: personalCar.chassisNumber.trim(),
+                    transmission: personalCar.transmission,
+                    fuelType: personalCar.fuelType,
+                    licensePlate: normalizedLicensePlate,
+                    ownership: personalCar.ownership,
+                    registrationExpiry: new Date(personalCar.registrationExpiry),
+                    lastInspection: new Date(personalCar.lastInspection),
+                    nextInspection: new Date(personalCar.nextInspection),
+                    status: personalCar.status || 'active',
+                    instructorId: instructor._id
+                });
+                
+                personalCarId = car._id.toString();
+                
+                // Update instructor with personal car ID
+                instructor.personalCarIds = [personalCarId];
+                await instructor.save();
+                
+                console.log('Personal car created for instructor:', personalCarId);
+            } catch (carErr) {
+                console.error('Error creating personal car:', carErr);
+                // If car creation fails, we should still return the instructor but log the error
+                // Optionally, you could delete the instructor here if car creation is critical
+                if (carErr.code === 11000) {
+                    if (carErr.keyPattern?.chassisNumber) {
+                        return res.status(400).json({ message: 'Chassis number already in use' });
+                    }
+                    if (carErr.keyPattern?.licensePlate) {
+                        return res.status(400).json({ message: 'License plate already in use' });
+                    }
+                }
+                // If it's a validation error, return it
+                if (carErr.message && !carErr.code) {
+                    return res.status(400).json({ message: carErr.message });
+                }
+                // Otherwise, continue without the personal car
+            }
+        }
         
         // Populate and return
         const populated = await Instructor.findById(instructor._id)
@@ -124,7 +205,7 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
-        const { phone, address, dateOfBirth, personalNumber, specialties, assignedCarIds, status } = req.body;
+        const { phone, address, dateOfBirth, personalNumber, specialties, assignedCarIds, status, personalCarIds } = req.body;
         
         const instructor = await Instructor.findById(req.params.id);
         if (!instructor) {
@@ -138,6 +219,7 @@ const update = async (req, res, next) => {
         if (personalNumber !== undefined) instructor.personalNumber = personalNumber;
         if (specialties !== undefined) instructor.specialties = specialties;
         if (assignedCarIds !== undefined) instructor.assignedCarIds = assignedCarIds;
+        if (personalCarIds !== undefined) instructor.personalCarIds = personalCarIds;
         if (status !== undefined) instructor.status = status;
         
         await instructor.save();

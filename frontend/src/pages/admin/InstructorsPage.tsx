@@ -27,6 +27,7 @@ type InstructorRow = {
   categories: string[];
   totalHours?: number;
   assignedCarIds: string[];
+  personalCarIds?: string[];
 };
 export function InstructorsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -84,6 +85,13 @@ export function InstructorsPage() {
               }
               return id?.toString() || id;
             }),
+            personalCarIds: (item.personalCarIds || []).map((id: any) => {
+              // Handle both ObjectId objects and string IDs
+              if (typeof id === "object" && id !== null && id._id) {
+                return id._id.toString();
+              }
+              return id?.toString() || id;
+            }),
           };
         });
         setRows(mapped);
@@ -122,6 +130,7 @@ export function InstructorsPage() {
               : '',
             totalHours: item.totalHours || 0,
             status: item.status || 'active',
+            instructorId: item.instructorId || null,
             createdAt: item.createdAt
               ? new Date(item.createdAt).toISOString().split('T')[0]
               : '',
@@ -216,22 +225,36 @@ export function InstructorsPage() {
     },
     {
       key: "assignedCarIds",
-      label: "Assigned Cars",
-      render: (value: unknown) => {
-        const carIds = value as string[];
-        const assignedCars = carIds
+      label: "Cars",
+      render: (value: unknown, instructor: InstructorRow) => {
+        const assignedCarIds = value as string[];
+        const personalCarIds = instructor.personalCarIds || [];
+        const allCarIds = [...assignedCarIds, ...personalCarIds];
+        
+        const assignedCars = assignedCarIds
           .map((id) => cars.find((c) => c.id === id))
           .filter(Boolean);
-        return assignedCars.length > 0 ? (
+        const personalCars = personalCarIds
+          .map((id) => cars.find((c) => c.id === id))
+          .filter(Boolean);
+        
+        if (allCarIds.length === 0) {
+          return <span className="text-gray-400">None</span>;
+        }
+        
+        return (
           <div className="flex flex-wrap gap-1">
+            {personalCars.map((car) => (
+              <Badge key={car!.id} variant="info" size="sm" title="Personal Car">
+                {car!.licensePlate} (Personal)
+              </Badge>
+            ))}
             {assignedCars.map((car) => (
-              <Badge key={car!.id} variant="outline" size="sm">
+              <Badge key={car!.id} variant="outline" size="sm" title="School Car">
                 {car!.licensePlate}
               </Badge>
             ))}
           </div>
-        ) : (
-          <span className="text-gray-400">None</span>
         );
       },
     },
@@ -430,6 +453,20 @@ function AddInstructorModal({
     categories: [] as string[],
     assignedCarIds: [] as string[],
     status: "active" as "active" | "inactive",
+    hasPersonalCar: false,
+    personalCar: {
+      model: "",
+      yearOfManufacture: new Date().getFullYear(),
+      chassisNumber: "",
+      transmission: "manual" as "manual" | "automatic",
+      fuelType: "petrol" as "petrol" | "diesel" | "electric" | "hybrid",
+      licensePlate: "",
+      ownership: "instructor" as "owned" | "instructor",
+      registrationExpiry: "",
+      lastInspection: "",
+      nextInspection: "",
+      status: "active" as "active" | "inactive",
+    },
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -501,6 +538,31 @@ function AddInstructorModal({
         "Personal number must be at least 6 characters";
     }
 
+    // Validate personal car if hasPersonalCar is true
+    if (formData.hasPersonalCar && !instructor) {
+      if (!formData.personalCar.model.trim()) {
+        newErrors.personalCarModel = "Car model is required";
+      }
+      if (!formData.personalCar.yearOfManufacture) {
+        newErrors.personalCarYear = "Year of manufacture is required";
+      }
+      if (!formData.personalCar.chassisNumber.trim()) {
+        newErrors.personalCarChassis = "Chassis number is required";
+      }
+      if (!formData.personalCar.licensePlate.trim()) {
+        newErrors.personalCarLicensePlate = "License plate is required";
+      }
+      if (!formData.personalCar.registrationExpiry) {
+        newErrors.personalCarRegExpiry = "Registration expiry is required";
+      }
+      if (!formData.personalCar.lastInspection) {
+        newErrors.personalCarLastInspection = "Last inspection date is required";
+      }
+      if (!formData.personalCar.nextInspection) {
+        newErrors.personalCarNextInspection = "Next inspection date is required";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -519,6 +581,20 @@ function AddInstructorModal({
         categories: instructor.categories,
         assignedCarIds: instructor.assignedCarIds,
         status: instructor.status,
+        hasPersonalCar: false, // Personal car editing not supported in edit mode for now
+        personalCar: {
+          model: "",
+          yearOfManufacture: new Date().getFullYear(),
+          chassisNumber: "",
+          transmission: "manual",
+          fuelType: "petrol",
+          licensePlate: "",
+          ownership: "instructor",
+          registrationExpiry: "",
+          lastInspection: "",
+          nextInspection: "",
+          status: "active",
+        },
       });
     } else {
       setFormData({
@@ -533,6 +609,20 @@ function AddInstructorModal({
         categories: [],
         assignedCarIds: [],
         status: "active",
+        hasPersonalCar: false,
+        personalCar: {
+          model: "",
+          yearOfManufacture: new Date().getFullYear(),
+          chassisNumber: "",
+          transmission: "manual",
+          fuelType: "petrol",
+          licensePlate: "",
+          ownership: "instructor",
+          registrationExpiry: "",
+          lastInspection: "",
+          nextInspection: "",
+          status: "active",
+        },
       });
     }
     // Clear errors when form data changes
@@ -615,6 +705,7 @@ function AddInstructorModal({
           personalNumber: formData.personalNumber,
           specialties: formData.categories,
           assignedCarIds: formData.assignedCarIds,
+          personalCar: formData.hasPersonalCar ? formData.personalCar : undefined,
         });
 
         console.log("Create instructor result:", result);
@@ -819,8 +910,232 @@ function AddInstructorModal({
           </div>
         </div>
 
+        {!instructor && (
+          <div className="border-t pt-4">
+            <Checkbox
+              label="Instructor has their own personal car"
+              checked={formData.hasPersonalCar}
+              onChange={(checked) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  hasPersonalCar: checked,
+                }));
+              }}
+            />
+            {formData.hasPersonalCar && (
+              <div className="mt-4 space-y-5 p-5 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="border-b border-gray-200 pb-3">
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Personal Car Information
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Enter the details of the instructor's personal vehicle
+                  </p>
+                </div>
+                
+                <div className="space-y-5">
+                  {/* Basic Information */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Basic Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        label="Model"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.model}
+                        error={errors.personalCarModel}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: { ...prev.personalCar, model: e.target.value },
+                          }));
+                          if (errors.personalCarModel)
+                            setErrors({ ...errors, personalCarModel: "" });
+                        }}
+                      />
+                      <Input
+                        label="Year of Manufacture"
+                        type="number"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.yearOfManufacture}
+                        error={errors.personalCarYear}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              yearOfManufacture: parseInt(e.target.value) || new Date().getFullYear(),
+                            },
+                          }));
+                          if (errors.personalCarYear)
+                            setErrors({ ...errors, personalCarYear: "" });
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <Input
+                        label="Chassis Number"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.chassisNumber}
+                        error={errors.personalCarChassis}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              chassisNumber: e.target.value,
+                            },
+                          }));
+                          if (errors.personalCarChassis)
+                            setErrors({ ...errors, personalCarChassis: "" });
+                        }}
+                      />
+                      <Input
+                        label="License Plate"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.licensePlate}
+                        error={errors.personalCarLicensePlate}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              licensePlate: e.target.value.toUpperCase(),
+                            },
+                          }));
+                          if (errors.personalCarLicensePlate)
+                            setErrors({ ...errors, personalCarLicensePlate: "" });
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Specifications */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Specifications</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <Select
+                        label="Transmission"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.transmission}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              transmission: e.target.value as "manual" | "automatic",
+                            },
+                          }));
+                        }}
+                        options={[
+                          { value: "manual", label: "Manual" },
+                          { value: "automatic", label: "Automatic" },
+                        ]}
+                      />
+                      <Select
+                        label="Fuel Type"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.fuelType}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              fuelType: e.target.value as "petrol" | "diesel" | "electric" | "hybrid",
+                            },
+                          }));
+                        }}
+                        options={[
+                          { value: "petrol", label: "Petrol" },
+                          { value: "diesel", label: "Diesel" },
+                          { value: "electric", label: "Electric" },
+                          { value: "hybrid", label: "Hybrid" },
+                        ]}
+                      />
+                      <Input
+                        label="Ownership"
+                        value="Instructor"
+                        disabled
+                        hint="Personal cars are always owned by the instructor"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Inspection & Registration */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Inspection & Registration</h4>
+                    <div className="space-y-4">
+                      <Input
+                        label="Registration Expiry"
+                        type="date"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.registrationExpiry}
+                        error={errors.personalCarRegExpiry}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              registrationExpiry: e.target.value,
+                            },
+                          }));
+                          if (errors.personalCarRegExpiry)
+                            setErrors({ ...errors, personalCarRegExpiry: "" });
+                        }}
+                      />
+                      <Input
+                        label="Last Inspection"
+                        type="date"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.lastInspection}
+                        error={errors.personalCarLastInspection}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              lastInspection: e.target.value,
+                            },
+                          }));
+                          if (errors.personalCarLastInspection)
+                            setErrors({ ...errors, personalCarLastInspection: "" });
+                        }}
+                      />
+                      <Input
+                        label="Next Inspection"
+                        type="date"
+                        required={formData.hasPersonalCar}
+                        value={formData.personalCar.nextInspection}
+                        error={errors.personalCarNextInspection}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            personalCar: {
+                              ...prev.personalCar,
+                              nextInspection: e.target.value,
+                            },
+                          }));
+                          if (errors.personalCarNextInspection)
+                            setErrors({ ...errors, personalCarNextInspection: "" });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {instructor && instructor.personalCarIds && instructor.personalCarIds.length > 0 && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> This instructor has a personal car. You can still assign school cars in addition to their personal car.
+            </p>
+          </div>
+        )}
+
         <Select
-          label="Assign Cars"
+          label="Assign School Cars (Optional)"
           value=""
           onChange={(e) => {
             if (
@@ -834,7 +1149,13 @@ function AddInstructorModal({
             }
           }}
           options={cars
-            .filter((c) => c.status === "active")
+            .filter((c) => {
+              // Filter out personal cars (cars with instructorId)
+              if (c.status !== "active" || c.instructorId) return false;
+              // Also filter out personal cars of the instructor being edited
+              if (instructor && instructor.personalCarIds?.includes(c.id)) return false;
+              return true;
+            })
             .map((car) => ({
               value: car.id,
               label: `${car.model} (${car.licensePlate})`,

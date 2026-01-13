@@ -5,7 +5,7 @@ export type PaymentMethod = 'bank' | 'cash';
 export type PaymentFrequency = 'deposit' | 'one-time' | 'installments';
 export type TransmissionType = 'manual' | 'automatic';
 export type FuelType = 'petrol' | 'diesel' | 'electric' | 'hybrid';
-export type OwnershipType = 'owned' | 'leased' | 'rented';
+export type OwnershipType = 'owned' | 'leased' | 'rented' | 'instructor';
 export type DocumentStatus = 'pending' | 'submitted' | 'approved' | 'rejected';
 export type EntityStatus = 'active' | 'inactive';
 export type User = {
@@ -57,6 +57,7 @@ export type Car = {
   nextInspection: string;
   totalHours: number;
   status: EntityStatus;
+  instructorId?: string | null; // For personal cars
   createdAt: string;
   updatedAt: string;
 };
@@ -71,6 +72,7 @@ export type Instructor = {
   email: string;
   categories: string[];
   assignedCarIds: string[];
+  personalCarIds?: string[]; // Personal cars owned by this instructor
   status: EntityStatus;
   totalHours: number;
   createdAt: string;

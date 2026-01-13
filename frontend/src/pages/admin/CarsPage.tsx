@@ -40,6 +40,7 @@ export function CarsPage() {
             fuelType: item.fuelType || 'petrol',
             licensePlate: item.licensePlate || '',
             ownership: item.ownership || 'owned',
+            instructorId: item.instructorId || null,
             registrationExpiry: item.registrationExpiry
               ? new Date(item.registrationExpiry).toISOString().split('T')[0]
               : '',
@@ -325,13 +326,36 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
     transmission: '',
     fuelType: '',
     licensePlate: '',
-    ownership: '',
+    ownership: 'owned',
+    instructorId: '',
     registrationExpiry: '',
     lastInspection: '',
     nextInspection: '',
     status: 'active' as 'active' | 'inactive',
   });
   const [loading, setLoading] = useState(false);
+  const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+
+  // Fetch instructors when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const fetchInstructors = async () => {
+        try {
+          const { ok, data } = await api.listInstructors();
+          if (ok && data) {
+            const opts = (data as any[]).map((ins: any) => ({
+              id: ins._id || ins.id,
+              name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
+            }));
+            setInstructors(opts);
+          }
+        } catch (err) {
+          console.error('Failed to load instructors:', err);
+        }
+      };
+      fetchInstructors();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (car) {
@@ -342,7 +366,8 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         transmission: car.transmission,
         fuelType: car.fuelType,
         licensePlate: car.licensePlate,
-        ownership: car.ownership,
+        ownership: car.instructorId ? 'instructor' : (car.ownership || 'owned'),
+        instructorId: car.instructorId || '',
         registrationExpiry: car.registrationExpiry,
         lastInspection: car.lastInspection,
         nextInspection: car.nextInspection,
@@ -356,7 +381,8 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         transmission: '',
         fuelType: '',
         licensePlate: '',
-        ownership: '',
+        ownership: 'owned',
+        instructorId: '',
         registrationExpiry: '',
         lastInspection: '',
         nextInspection: '',
@@ -369,19 +395,24 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
     e.preventDefault();
     setLoading(true);
     try {
-      const carData = {
+      const carData: any = {
         model: formData.model.trim(),
         yearOfManufacture: parseInt(formData.yearOfManufacture),
         chassisNumber: formData.chassisNumber.trim(),
         transmission: formData.transmission as 'manual' | 'automatic',
         fuelType: formData.fuelType as 'petrol' | 'diesel' | 'electric' | 'hybrid',
         licensePlate: formData.licensePlate.trim(),
-        ownership: formData.ownership as 'owned' | 'leased' | 'rented',
+        ownership: formData.ownership as 'owned' | 'instructor',
         registrationExpiry: formData.registrationExpiry,
         lastInspection: formData.lastInspection,
         nextInspection: formData.nextInspection,
         status: formData.status,
       };
+
+      // If ownership is instructor, add instructorId
+      if (formData.ownership === 'instructor' && formData.instructorId) {
+        carData.instructorId = formData.instructorId;
+      }
 
       if (car) {
         // Update existing car
@@ -514,23 +545,56 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               { value: 'hybrid', label: 'Hybrid' },
             ]}
           />
+          {car ? (
+            // Edit mode: show ownership based on car type (disabled)
+            <Input
+              label="Ownership"
+              value={car.instructorId ? 'Instructor' : 'Owned'}
+              disabled
+              hint={car.instructorId ? 'This is a personal car owned by an instructor' : 'This is a school car'}
+            />
+          ) : (
+            // Add mode: owned and instructor options
+            <Select
+              label="Ownership"
+              required
+              value={formData.ownership}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  ownership: e.target.value,
+                  instructorId: e.target.value !== 'instructor' ? '' : formData.instructorId, // Clear instructor if not instructor ownership
+                })
+              }
+              options={[
+                { value: 'owned', label: 'Owned' },
+                { value: 'instructor', label: 'Instructor' },
+              ]}
+            />
+          )}
+        </div>
+
+        {/* Instructor field - only show when ownership is instructor */}
+        {formData.ownership === 'instructor' && (
           <Select
-            label="Ownership"
-            required
-            value={formData.ownership}
+            label="Instructor"
+            required={formData.ownership === 'instructor'}
+            value={formData.instructorId}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                ownership: e.target.value,
+                instructorId: e.target.value,
               })
             }
             options={[
-              { value: 'owned', label: 'Owned' },
-              { value: 'leased', label: 'Leased' },
-              { value: 'rented', label: 'Rented' },
+              { value: '', label: 'Select an instructor' },
+              ...instructors.map((instructor) => ({
+                value: instructor.id,
+                label: instructor.name,
+              })),
             ]}
           />
-        </div>
+        )}
 
         <div className="grid grid-cols-3 gap-4">
           <Input

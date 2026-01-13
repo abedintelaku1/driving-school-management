@@ -37,7 +37,7 @@ const CarSchema = new mongoose.Schema({
   },
   ownership: {
     type: String,
-    enum: ["owned", "leased", "rented"],
+    enum: ["owned", "leased", "rented", "instructor"],
     required: true,
   },
   registrationExpiry: {
@@ -61,6 +61,11 @@ const CarSchema = new mongoose.Schema({
     type: String,
     enum: ["active", "inactive"],
     default: "active",
+  },
+  instructorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Instructor",
+    default: null,
   },
   createdAt: {
     type: Date,
