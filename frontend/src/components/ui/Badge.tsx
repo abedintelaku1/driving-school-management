@@ -52,7 +52,7 @@ export function StatusBadge({
   status: 'active' | 'inactive';
 }) {
   return <Badge variant={status === 'active' ? 'success' : 'danger'} dot>
-      {status === 'active' ? 'Active' : 'Inactive'}
+      {status === 'active' ? 'Aktive' : 'Joaktive'}
     </Badge>;
 }
 export function PaymentStatusBadge({
@@ -69,6 +69,12 @@ export function PaymentStatusBadge({
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </Badge>;
 }
+const documentLabels: Record<string, string> = {
+  pending: 'Në pritje',
+  submitted: 'Dorëzuar',
+  approved: 'Aprovuar',
+  rejected: 'Refuzuar'
+};
 export function DocumentStatusBadge({
   status
 }: {
@@ -81,6 +87,6 @@ export function DocumentStatusBadge({
     rejected: 'danger'
   };
   return <Badge variant={variants[status]} size="sm">
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {documentLabels[status] ?? status}
     </Badge>;
 }

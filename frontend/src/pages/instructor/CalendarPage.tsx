@@ -7,8 +7,8 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 import type { Appointment } from '../../types';
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAYS = ['Dië', 'Hën', 'Mar', 'Mër', 'Enj', 'Pre', 'Sht'];
+const MONTHS = ['Janar', 'Shkurt', 'Mars', 'Prill', 'Maj', 'Qershor', 'Korrik', 'Gusht', 'Shtator', 'Tetor', 'Nëntor', 'Dhjetor'];
 type AppointmentEx = Appointment & {
   _id?: string;
   candidate?: any;
@@ -194,14 +194,14 @@ export function CalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Calendar
+            Kalendari
           </h1>
           <p className="text-sm lg:text-base text-gray-500 mt-1">
-            View and manage your schedule.
+            Shikoni dhe menaxhoni orarin tuaj.
           </p>
         </div>
         <Button variant="outline" onClick={goToToday} size="sm">
-          Today
+          Sot
         </Button>
       </div>
 
@@ -277,11 +277,11 @@ export function CalendarPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base lg:text-lg">
-              {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+              {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('sq-AL', {
               weekday: 'long',
               month: 'long',
               day: 'numeric'
-            }) : 'Select a Day'}
+            }) : 'Zgjidhni një ditë'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -302,7 +302,7 @@ export function CalendarPage() {
                             {appointment.startTime} - {appointment.endTime}
                           </span>
                           <Badge variant={appointment.status === 'completed' ? 'success' : appointment.status === 'scheduled' ? 'info' : 'danger'} size="sm">
-                            {appointment.status}
+                            {appointment.status === 'completed' ? 'Përfunduar' : appointment.status === 'scheduled' ? 'E planifikuar' : 'Anuluar'}
                           </Badge>
                         </div>
                         <p className="text-sm lg:text-base font-medium text-gray-900">
@@ -319,12 +319,12 @@ export function CalendarPage() {
                 </div> : <div className="text-center py-8">
                   <CalendarIcon className="w-10 h-10 lg:w-12 lg:h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">
-                    No appointments on this day
+                    Nuk ka takime këtë ditë
                   </p>
                 </div> : <div className="text-center py-8">
                 <CalendarIcon className="w-10 h-10 lg:w-12 lg:h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-gray-500">
-                  Click on a day to see appointments
+                  Klikoni mbi një ditë për të parë takimet
                 </p>
               </div>}
           </CardContent>

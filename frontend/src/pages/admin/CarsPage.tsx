@@ -61,11 +61,11 @@ export function CarsPage() {
           }));
           setCars(mapped as Car[]);
         } else {
-          toast('error', 'Failed to load cars');
+          toast('error', 'Dështoi ngarkimi i makinave');
         }
       } catch (error) {
         console.error('Error fetching cars:', error);
-        toast('error', 'Failed to load cars');
+        toast('error', 'Dështoi ngarkimi i makinave');
       } finally {
         setLoading(false);
       }
@@ -109,18 +109,18 @@ export function CarsPage() {
         setRefreshKey((prev) => prev + 1);
         setDeletingCar(null);
       } else {
-        toast('error', (data as any)?.message || 'Failed to delete car');
+        toast('error', (data as any)?.message || 'Dështoi fshirja e makinës');
       }
     } catch (error) {
       console.error('Error deleting car:', error);
-      toast('error', 'Failed to delete car');
+      toast('error', 'Dështoi fshirja e makinës');
     }
   };
 
   const columns = [
     {
       key: 'model',
-      label: 'Vehicle',
+      label: 'Mjeti',
       sortable: true,
       render: (_: unknown, car: Car) => (
         <div>
@@ -131,7 +131,7 @@ export function CarsPage() {
     },
     {
       key: 'licensePlate',
-      label: 'License Plate',
+      label: 'Targë',
       sortable: true,
       render: (value: unknown) => (
         <span className="font-mono text-gray-900">{value as string}</span>
@@ -139,7 +139,7 @@ export function CarsPage() {
     },
     {
       key: 'transmission',
-      label: 'Transmission',
+      label: 'Transmisioni',
       render: (value: unknown) => (
         <Badge variant="outline">
           {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
@@ -148,14 +148,14 @@ export function CarsPage() {
     },
     {
       key: 'fuelType',
-      label: 'Fuel',
+      label: 'Karburanti',
       render: (value: unknown) => (
         <span className="text-gray-700 capitalize">{value as string}</span>
       ),
     },
     {
       key: 'totalHours',
-      label: 'Total Hours',
+      label: 'Orë totale',
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">{value as number}h</span>
@@ -163,7 +163,7 @@ export function CarsPage() {
     },
     {
       key: 'nextInspection',
-      label: 'Next Inspection',
+      label: 'Inspektimi i ardhshëm',
       sortable: true,
       render: (value: unknown) => {
         const days = getDaysUntilInspection(value as string);
@@ -194,7 +194,7 @@ export function CarsPage() {
         onClick={() => setEditingCar(car)}
         icon={<EditIcon className="w-4 h-4" />}
       >
-        Edit
+        Ndrysho
       </Button>
       <Button
         variant="ghost"
@@ -202,7 +202,7 @@ export function CarsPage() {
         onClick={() => handleDelete(car)}
         icon={<TrashIcon className="w-4 h-4" />}
       >
-        Delete
+        Fshi
       </Button>
     </div>
   );
@@ -220,13 +220,13 @@ export function CarsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cars</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Makinat</h1>
           <p className="text-gray-500 mt-1">
-            Manage driving school vehicles and their maintenance.
+            Menaxhoni mjetet e shkollës së makinës dhe mirëmbajtjen e tyre.
           </p>
         </div>
         <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
-          Add Car
+          Shto makinë
         </Button>
       </div>
 
@@ -234,25 +234,25 @@ export function CarsPage() {
       <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="All Statuses"
+            placeholder="Të gjitha statuset"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             options={[
-              { value: '', label: 'All Statuses' },
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
+              { value: '', label: 'Të gjitha statuset' },
+              { value: 'active', label: 'Aktive' },
+              { value: 'inactive', label: 'Joaktive' },
             ]}
           />
         </div>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="All Transmissions"
+            placeholder="Të gjitha transmisionet"
             value={transmissionFilter}
             onChange={(e) => setTransmissionFilter(e.target.value)}
             options={[
-              { value: '', label: 'All Transmissions' },
-              { value: 'manual', label: 'Manual' },
-              { value: 'automatic', label: 'Automatic' },
+              { value: '', label: 'Të gjitha transmisionet' },
+              { value: 'manual', label: 'Manuale' },
+              { value: 'automatic', label: 'Automatik' },
             ]}
           />
         </div>
@@ -282,7 +282,7 @@ export function CarsPage() {
         car={editingCar}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast('success', editingCar ? 'Car updated successfully' : 'Car added successfully');
+          toast('success', editingCar ? 'Makina u përditësua me sukses' : 'Makina u shtua me sukses');
           setShowAddModal(false);
           setEditingCar(null);
         }}
@@ -293,15 +293,15 @@ export function CarsPage() {
         <Modal
           isOpen={!!deletingCar}
           onClose={() => setDeletingCar(null)}
-          title="Delete Car"
-          description={`Are you sure you want to delete ${deletingCar.model} (${deletingCar.licensePlate})? This action cannot be undone.`}
+          title="Fshi makinën"
+          description={`Jeni të sigurt që dëshironi të fshini ${deletingCar.model} (${deletingCar.licensePlate})? Ky veprim nuk mund të kthehet.`}
           footer={
             <div className="flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setDeletingCar(null)}>
-                Cancel
+                Anulo
               </Button>
               <Button variant="danger" onClick={confirmDelete}>
-                Delete
+                Fshi
               </Button>
             </div>
           }
@@ -420,7 +420,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         if (ok) {
           onSuccess();
         } else {
-          toast('error', (data as any)?.message || 'Failed to update car');
+          toast('error', (data as any)?.message || 'Dështoi përditësimi i makinës');
         }
       } else {
         // Create new car
@@ -428,12 +428,12 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         if (ok) {
           onSuccess();
         } else {
-          toast('error', (data as any)?.message || 'Failed to create car');
+          toast('error', (data as any)?.message || 'Dështoi krijimi i makinës');
         }
       }
     } catch (error) {
       console.error('Error saving car:', error);
-      toast('error', 'Failed to save car');
+      toast('error', 'Dështoi ruajtja e makinës');
     } finally {
       setLoading(false);
     }
@@ -443,16 +443,16 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={car ? 'Edit Car' : 'Add New Car'}
-      description="Enter the vehicle information to register it in the system."
+      title={car ? 'Ndrysho makinën' : 'Shto makinë të re'}
+      description="Vendosni të dhënat e mjetit për ta regjistruar në sistem."
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            Anulo
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            {car ? 'Save Changes' : 'Add Car'}
+            {car ? 'Ruaj ndryshimet' : 'Shto makinë'}
           </Button>
         </div>
       }
@@ -460,7 +460,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Model"
+            label="Modeli"
             required
             value={formData.model}
             onChange={(e) =>
@@ -469,10 +469,10 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 model: e.target.value,
               })
             }
-            placeholder="e.g., Toyota Corolla"
+            placeholder="p.sh. Toyota Corolla"
           />
           <Input
-            label="Year of Manufacture"
+            label="Viti i prodhimit"
             type="number"
             required
             value={formData.yearOfManufacture}
@@ -482,13 +482,13 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 yearOfManufacture: e.target.value,
               })
             }
-            placeholder="e.g., 2022"
+            placeholder="p.sh. 2022"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Chassis Number"
+            label="Numri i shasisë"
             required
             value={formData.chassisNumber}
             onChange={(e) =>
@@ -499,7 +499,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
             }
           />
           <Input
-            label="License Plate"
+            label="Targë"
             required
             value={formData.licensePlate}
             onChange={(e) =>
@@ -508,13 +508,13 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 licensePlate: e.target.value,
               })
             }
-            placeholder="e.g., ABC-1234"
+            placeholder="p.sh. ABC-1234"
           />
         </div>
 
         <div className="grid grid-cols-3 gap-4">
           <Select
-            label="Transmission"
+            label="Transmisioni"
             required
             value={formData.transmission}
             onChange={(e) =>
@@ -524,12 +524,12 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: 'manual', label: 'Manual' },
-              { value: 'automatic', label: 'Automatic' },
+              { value: 'manual', label: 'Manuale' },
+              { value: 'automatic', label: 'Automatik' },
             ]}
           />
           <Select
-            label="Fuel Type"
+            label="Lloji i karburantit"
             required
             value={formData.fuelType}
             onChange={(e) =>
@@ -539,36 +539,36 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: 'petrol', label: 'Petrol' },
-              { value: 'diesel', label: 'Diesel' },
-              { value: 'electric', label: 'Electric' },
-              { value: 'hybrid', label: 'Hybrid' },
+              { value: 'petrol', label: 'Benzinë' },
+              { value: 'diesel', label: 'Naftë' },
+              { value: 'electric', label: 'Elektrik' },
+              { value: 'hybrid', label: 'Hibrid' },
             ]}
           />
           {car ? (
             // Edit mode: show ownership based on car type (disabled)
             <Input
-              label="Ownership"
-              value={car.instructorId ? 'Instructor' : 'Owned'}
+              label="Pronësia"
+              value={car.instructorId ? 'Instruktor' : 'Shkolla'}
               disabled
-              hint={car.instructorId ? 'This is a personal car owned by an instructor' : 'This is a school car'}
+              hint={car.instructorId ? 'Kjo është makina personale e një instruktori' : 'Kjo është makina e shkollës'}
             />
           ) : (
             // Add mode: owned and instructor options
             <Select
-              label="Ownership"
+              label="Pronësia"
               required
               value={formData.ownership}
               onChange={(e) =>
                 setFormData({
                   ...formData,
                   ownership: e.target.value,
-                  instructorId: e.target.value !== 'instructor' ? '' : formData.instructorId, // Clear instructor if not instructor ownership
+                  instructorId: e.target.value !== 'instructor' ? '' : formData.instructorId,
                 })
               }
               options={[
-                { value: 'owned', label: 'Owned' },
-                { value: 'instructor', label: 'Instructor' },
+                { value: 'owned', label: 'Shkolla' },
+                { value: 'instructor', label: 'Instruktor' },
               ]}
             />
           )}
@@ -598,7 +598,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
 
         <div className="grid grid-cols-3 gap-4">
           <Input
-            label="Registration Expiry"
+            label="Skadenca e regjistrimit"
             type="date"
             required
             value={formData.registrationExpiry}
@@ -610,7 +610,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
             }
           />
           <Input
-            label="Last Inspection"
+            label="Inspektimi i fundit"
             type="date"
             required
             value={formData.lastInspection}
@@ -622,7 +622,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
             }
           />
           <Input
-            label="Next Inspection"
+            label="Inspektimi i ardhshëm"
             type="date"
             required
             value={formData.nextInspection}
@@ -637,7 +637,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
 
         {car && (
           <Select
-            label="Status"
+            label="Statusi"
             value={formData.status}
             onChange={(e) =>
               setFormData({
@@ -646,8 +646,8 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
+              { value: 'active', label: 'Aktive' },
+              { value: 'inactive', label: 'Joaktive' },
             ]}
           />
         )}

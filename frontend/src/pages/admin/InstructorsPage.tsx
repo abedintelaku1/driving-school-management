@@ -279,12 +279,12 @@ export function InstructorsPage() {
       const result = await api.deleteInstructor(instructorToDelete.id);
 
       if (!result.ok) {
-        toast("error", result.data?.message || "Failed to delete instructor");
+        toast("error", result.data?.message || "Dështoi fshirja e instruktorit");
         setIsDeleting(false);
         return;
       }
 
-      toast("success", "Instructor deleted successfully");
+      toast("success", "Instruktori u fshi me sukses");
       setInstructorToDelete(null);
       setRefreshKey((prev) => prev + 1); // Refresh the list
     } catch (error: any) {
@@ -306,7 +306,7 @@ export function InstructorsPage() {
         onClick={() => setEditingInstructor(instructor)}
         icon={<EditIcon className="w-4 h-4" />}
       >
-        Edit
+        Ndrysho
       </Button>
       <Button
         variant="ghost"
@@ -315,7 +315,7 @@ export function InstructorsPage() {
         icon={<TrashIcon className="w-4 h-4" />}
         className="text-red-600 hover:text-red-700 hover:bg-red-50"
       >
-        Delete
+        Fshi
       </Button>
     </div>
   );
@@ -324,16 +324,16 @@ export function InstructorsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Instructors</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Instruktorët</h1>
           <p className="text-gray-500 mt-1">
-            Manage driving instructors and their assignments.
+            Menaxhoni instruktorët e makinës dhe caktimet e tyre.
           </p>
         </div>
         <Button
           onClick={() => setShowAddModal(true)}
           icon={<PlusIcon className="w-4 h-4" />}
         >
-          Add Instructor
+          Shto instruktor
         </Button>
       </div>
 
@@ -362,17 +362,14 @@ export function InstructorsPage() {
         </div>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="All Categories"
+            placeholder="Të gjitha kategoritë"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             options={[
-              {
-                value: "",
-                label: "All Categories",
-              },
+              { value: "", label: "Të gjitha kategoritë" },
               ...licenseCategories.map((cat) => ({
                 value: cat,
-                label: `Category ${cat}`,
+                label: `Kategoria ${cat}`,
               })),
             ]}
           />
@@ -415,10 +412,10 @@ export function InstructorsPage() {
         isOpen={!!instructorToDelete}
         onClose={() => setInstructorToDelete(null)}
         onConfirm={handleDeleteConfirm}
-        title="Delete Instructor"
-        message={`Are you sure you want to delete ${instructorToDelete?.firstName} ${instructorToDelete?.lastName}? This action cannot be undone.`}
-        confirmText="Yes, Delete"
-        cancelText="Cancel"
+        title="Fshi instruktorin"
+        message={`Jeni të sigurt që dëshironi të fshini ${instructorToDelete?.firstName} ${instructorToDelete?.lastName}? Ky veprim nuk mund të kthehet.`}
+        confirmText="Po, fshi"
+        cancelText="Anulo"
         variant="danger"
         loading={isDeleting}
       />
@@ -477,89 +474,85 @@ function AddInstructorModal({
     const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = "First name is required";
+      newErrors.firstName = "Emri është i detyrueshëm";
     }
 
     if (!formData.lastName.trim()) {
-      newErrors.lastName = "Last name is required";
+      newErrors.lastName = "Mbiemri është i detyrueshëm";
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = "Emaili është i detyrueshëm";
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
-        newErrors.email = "Please enter a valid email address";
+        newErrors.email = "Vendosni një adresë email të vlefshme";
       }
     }
 
     if (!instructor) {
-      // Password only required when creating new instructor
       if (!formData.password) {
-        newErrors.password = "Password is required";
+        newErrors.password = "Fjalëkalimi është i detyrueshëm";
       } else if (formData.password.length < 6) {
-        newErrors.password = "Password must be at least 6 characters";
+        newErrors.password = "Fjalëkalimi duhet të ketë të paktën 6 karaktere";
       }
     }
 
     if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
+      newErrors.phone = "Numri i telefonit është i detyrueshëm";
     } else {
-      // Basic phone validation (at least 6 digits)
       const phoneRegex = /^[\d\s\-\+\(\)]{6,}$/;
       if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = "Please enter a valid phone number";
+        newErrors.phone = "Vendosni një numër telefoni të vlefshëm";
       }
     }
 
     if (!formData.address.trim()) {
-      newErrors.address = "Address is required";
+      newErrors.address = "Adresa është e detyrueshme";
     }
 
     if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = "Date of birth is required";
+      newErrors.dateOfBirth = "Data e lindjes është e detyrueshme";
     } else {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
       if (birthDate >= today) {
-        newErrors.dateOfBirth = "Date of birth must be in the past";
+        newErrors.dateOfBirth = "Data e lindjes duhet të jetë në të kaluarën";
       }
-      // Check if age is reasonable (at least 18 years old)
       const age = today.getFullYear() - birthDate.getFullYear();
       if (age < 18) {
-        newErrors.dateOfBirth = "Instructor must be at least 18 years old";
+        newErrors.dateOfBirth = "Instruktori duhet të jetë të paktën 18 vjeç";
       }
     }
 
     if (!formData.personalNumber.trim()) {
-      newErrors.personalNumber = "Personal number is required";
+      newErrors.personalNumber = "Numri personal është i detyrueshëm";
     } else if (formData.personalNumber.trim().length < 6) {
       newErrors.personalNumber =
-        "Personal number must be at least 6 characters";
+        "Numri personal duhet të ketë të paktën 6 karaktere";
     }
 
-    // Validate personal car if hasPersonalCar is true
     if (formData.hasPersonalCar && !instructor) {
       if (!formData.personalCar.model.trim()) {
-        newErrors.personalCarModel = "Car model is required";
+        newErrors.personalCarModel = "Modeli i makinës është i detyrueshëm";
       }
       if (!formData.personalCar.yearOfManufacture) {
-        newErrors.personalCarYear = "Year of manufacture is required";
+        newErrors.personalCarYear = "Viti i prodhimit është i detyrueshëm";
       }
       if (!formData.personalCar.chassisNumber.trim()) {
-        newErrors.personalCarChassis = "Chassis number is required";
+        newErrors.personalCarChassis = "Numri i shasisë është i detyrueshëm";
       }
       if (!formData.personalCar.licensePlate.trim()) {
-        newErrors.personalCarLicensePlate = "License plate is required";
+        newErrors.personalCarLicensePlate = "Targa është e detyrueshme";
       }
       if (!formData.personalCar.registrationExpiry) {
-        newErrors.personalCarRegExpiry = "Registration expiry is required";
+        newErrors.personalCarRegExpiry = "Skadenca e regjistrimit është e detyrueshme";
       }
       if (!formData.personalCar.lastInspection) {
-        newErrors.personalCarLastInspection = "Last inspection date is required";
+        newErrors.personalCarLastInspection = "Data e inspektimit të fundit është e detyrueshme";
       }
       if (!formData.personalCar.nextInspection) {
-        newErrors.personalCarNextInspection = "Next inspection date is required";
+        newErrors.personalCarNextInspection = "Data e inspektimit të ardhshëm është e detyrueshme";
       }
     }
 
@@ -651,7 +644,7 @@ function AddInstructorModal({
 
     if (!isValid) {
       console.log("❌ Validation failed, errors:", errors);
-      toast("error", "Please fix the errors in the form");
+      toast("error", "Ju lutemi korrigjoni gabimet në formular");
       return;
     }
 
@@ -673,12 +666,12 @@ function AddInstructorModal({
         });
 
         if (!result.ok) {
-          toast("error", result.data?.message || "Failed to update instructor");
+          toast("error", result.data?.message || "Dështoi përditësimi i instruktorit");
           setLoading(false);
           return;
         }
 
-        toast("success", "Instructor updated successfully");
+        toast("success", "Instruktori u përditësua me sukses");
         onSuccess();
       } else {
         // Create new instructor via backend
@@ -715,7 +708,7 @@ function AddInstructorModal({
 
         if (!result.ok) {
           const errorMessage =
-            result.data?.message || "Failed to create instructor";
+            result.data?.message || "Dështoi krijimi i instruktorit";
           console.error("❌ Failed to create instructor:", errorMessage);
           toast("error", errorMessage);
 
@@ -740,7 +733,7 @@ function AddInstructorModal({
         console.log("✅ Instructor created successfully!");
         toast(
           "success",
-          "Instructor created successfully! They can now login with their email and password."
+          "Instruktori u krijua me sukses! Tani mund të hyjnë me email dhe fjalëkalimin e tyre."
         );
         onSuccess();
       }
@@ -753,7 +746,7 @@ function AddInstructorModal({
       });
       toast(
         "error",
-        error?.message || "Failed to save instructor. Please try again."
+        error?.message || "Dështoi ruajtja e instruktorit. Ju lutemi provoni përsëri."
       );
     } finally {
       console.log("=== FORM SUBMISSION END ===");
@@ -771,13 +764,13 @@ function AddInstructorModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={instructor ? "Edit Instructor" : "Add New Instructor"}
-      description="Enter the instructor's information to register them in the system."
+      title={instructor ? "Ndrysho instruktorin" : "Shto instruktor të ri"}
+      description="Vendosni të dhënat e instruktorit për ta regjistruar në sistem."
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            Anulo
           </Button>
           <Button
             type="button"
@@ -785,7 +778,7 @@ function AddInstructorModal({
             loading={loading}
             disabled={loading}
           >
-            {instructor ? "Save Changes" : "Add Instructor"}
+            {instructor ? "Ruaj ndryshimet" : "Shto instruktor"}
           </Button>
         </div>
       }
@@ -798,7 +791,7 @@ function AddInstructorModal({
       >
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="First Name"
+            label="Emri"
             required
             value={formData.firstName}
             error={errors.firstName}
@@ -808,7 +801,7 @@ function AddInstructorModal({
             }}
           />
           <Input
-            label="Last Name"
+            label="Mbiemri"
             required
             value={formData.lastName}
             error={errors.lastName}
@@ -821,7 +814,7 @@ function AddInstructorModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Email"
+            label="Emaili"
             type="email"
             required
             value={formData.email}
@@ -832,7 +825,7 @@ function AddInstructorModal({
             }}
           />
           <Input
-            label="Phone"
+            label="Telefoni"
             type="tel"
             required
             value={formData.phone}
@@ -844,7 +837,7 @@ function AddInstructorModal({
           />
         </div>
         <Input
-          label="Address"
+          label="Adresa"
           required
           value={formData.address}
           error={errors.address}
@@ -856,7 +849,7 @@ function AddInstructorModal({
 
         {!instructor && (
           <Input
-            label="Password"
+            label="Fjalëkalimi"
             type="password"
             required
             value={formData.password}
@@ -865,13 +858,13 @@ function AddInstructorModal({
               setFormData({ ...formData, password: e.target.value });
               if (errors.password) setErrors({ ...errors, password: "" });
             }}
-            hint="Minimum 6 characters. Instructor will use this to login."
+            hint="Të paktën 6 karaktere. Instruktori do ta përdorë për të hyrë."
           />
         )}
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Date of Birth"
+            label="Data e lindjes"
             type="date"
             required
             value={formData.dateOfBirth}
@@ -882,7 +875,7 @@ function AddInstructorModal({
             }}
           />
           <Input
-            label="Personal Number"
+            label="Numri personal"
             required
             value={formData.personalNumber}
             error={errors.personalNumber}
@@ -896,7 +889,7 @@ function AddInstructorModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            License Categories
+            Kategoritë e patentës
           </label>
           <div className="grid grid-cols-4 gap-2">
             {licenseCategories.map((category) => (
@@ -913,7 +906,7 @@ function AddInstructorModal({
         {!instructor && (
           <div className="border-t pt-4">
             <Checkbox
-              label="Instructor has their own personal car"
+              label="Instruktori ka makinën e vet personale"
               checked={formData.hasPersonalCar}
               onChange={(checked) => {
                 setFormData((prev) => ({
@@ -926,20 +919,20 @@ function AddInstructorModal({
               <div className="mt-4 space-y-5 p-5 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="border-b border-gray-200 pb-3">
                   <h3 className="text-base font-semibold text-gray-900">
-                    Personal Car Information
+                    Të dhënat e makinës personale
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Enter the details of the instructor's personal vehicle
+                    Vendosni detajet e mjetit personal të instruktorit
                   </p>
                 </div>
                 
                 <div className="space-y-5">
                   {/* Basic Information */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Basic Information</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Të dhënat themelore</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <Input
-                        label="Model"
+                        label="Modeli"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.model}
                         error={errors.personalCarModel}
@@ -953,7 +946,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Year of Manufacture"
+                        label="Viti i prodhimit"
                         type="number"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.yearOfManufacture}
@@ -973,7 +966,7 @@ function AddInstructorModal({
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <Input
-                        label="Chassis Number"
+                        label="Numri i shasisë"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.chassisNumber}
                         error={errors.personalCarChassis}
@@ -990,7 +983,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="License Plate"
+                        label="Targë"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.licensePlate}
                         error={errors.personalCarLicensePlate}
@@ -1011,10 +1004,10 @@ function AddInstructorModal({
 
                   {/* Specifications */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Specifications</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Specifikimet</h4>
                     <div className="grid grid-cols-3 gap-4">
                       <Select
-                        label="Transmission"
+                        label="Transmisioni"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.transmission}
                         onChange={(e) => {
@@ -1027,12 +1020,12 @@ function AddInstructorModal({
                           }));
                         }}
                         options={[
-                          { value: "manual", label: "Manual" },
-                          { value: "automatic", label: "Automatic" },
+                          { value: "manual", label: "Manuale" },
+                          { value: "automatic", label: "Automatik" },
                         ]}
                       />
                       <Select
-                        label="Fuel Type"
+                        label="Lloji i karburantit"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.fuelType}
                         onChange={(e) => {
@@ -1045,27 +1038,27 @@ function AddInstructorModal({
                           }));
                         }}
                         options={[
-                          { value: "petrol", label: "Petrol" },
-                          { value: "diesel", label: "Diesel" },
-                          { value: "electric", label: "Electric" },
-                          { value: "hybrid", label: "Hybrid" },
+                          { value: "petrol", label: "Benzinë" },
+                          { value: "diesel", label: "Naftë" },
+                          { value: "electric", label: "Elektrik" },
+                          { value: "hybrid", label: "Hibrid" },
                         ]}
                       />
                       <Input
-                        label="Ownership"
-                        value="Instructor"
+                        label="Pronësia"
+                        value="Instruktor"
                         disabled
-                        hint="Personal cars are always owned by the instructor"
+                        hint="Makinat personale janë gjithmonë të instruktorit"
                       />
                     </div>
                   </div>
 
                   {/* Inspection & Registration */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Inspection & Registration</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Inspektimi dhe regjistrimi</h4>
                     <div className="space-y-4">
                       <Input
-                        label="Registration Expiry"
+                        label="Skadenca e regjistrimit"
                         type="date"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.registrationExpiry}
@@ -1083,7 +1076,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Last Inspection"
+                        label="Inspektimi i fundit"
                         type="date"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.lastInspection}
@@ -1101,7 +1094,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Next Inspection"
+                        label="Inspektimi i ardhshëm"
                         type="date"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.nextInspection}
@@ -1129,13 +1122,13 @@ function AddInstructorModal({
         {instructor && instructor.personalCarIds && instructor.personalCarIds.length > 0 && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-700">
-              <strong>Note:</strong> This instructor has a personal car. You can still assign school cars in addition to their personal car.
+              <strong>Shënim:</strong> Ky instruktor ka makinë personale. Mund të caktoni edhe makina të shkollës përveç makinës së tyre personale.
             </p>
           </div>
         )}
 
         <Select
-          label="Assign School Cars (Optional)"
+          label="Cakto makina të shkollës (opsionale)"
           value=""
           onChange={(e) => {
             if (
@@ -1161,7 +1154,7 @@ function AddInstructorModal({
               label: `${car.model} (${car.licensePlate})`,
               disabled: formData.assignedCarIds.includes(car.id),
             }))}
-          placeholder="Select cars to assign"
+          placeholder="Zgjidhni makina për t'u caktuar"
         />
         {formData.assignedCarIds.length > 0 && (
           <div className="flex flex-wrap gap-2">

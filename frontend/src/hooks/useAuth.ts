@@ -15,6 +15,7 @@ export function useAuthProvider() {
   
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; user?: any; status?: number; message?: string }> => {
     const { ok, data, status } = await api.login(email, password);
+    const errMsg = (data as any)?.message;
 
     if (ok && data && data.user) {
       const userData = {
@@ -28,8 +29,13 @@ export function useAuthProvider() {
       return { success: true, user: userData };
     }
 
-    // No mock fallback; fail fast so user sees real error
-    return { success: false, status, message: (data as any)?.message || 'Invalid credentials' };
+    // Server unreachable (proxy ECONNREFUSED → 502) or network error
+    const serverUnreachable = status === 502 || status === 503 || status === 504 ||
+      (status === 500 && (!errMsg || errMsg.includes('server') || errMsg.includes('try again')));
+    const message = serverUnreachable
+      ? 'Serveri nuk është i disponueshëm. Nisni backend-in (porti 5000).'
+      : errMsg || 'Kredencialet janë të gabuara.';
+    return { success: false, status, message };
   }, []);
   
   const logout = useCallback(() => {

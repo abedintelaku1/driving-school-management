@@ -151,7 +151,7 @@ export function AppointmentsPage() {
           }
         }
       } catch (error) {
-        toast('error', 'Failed to load data');
+        toast('error', 'Dështoi ngarkimi i të dhënave');
       } finally {
         setLoading(false);
       }
@@ -244,7 +244,7 @@ export function AppointmentsPage() {
   const columns = [
     {
       key: 'date',
-      label: 'Date & Time',
+      label: 'Data dhe ora',
       sortable: true,
       render: (_: unknown, appointment: Appointment) => (
         <div>
@@ -257,10 +257,10 @@ export function AppointmentsPage() {
     },
     {
       key: 'candidateId',
-      label: 'Student',
+      label: 'Nxënësi',
       render: (value: unknown) => {
         const candidate = getCandidateById(value as string);
-        if (!candidate) return <span className="text-gray-400">Unknown</span>;
+        if (!candidate) return <span className="text-gray-400">I panjohur</span>;
         return (
           <div className="flex items-center gap-3">
             <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="sm" />
@@ -278,7 +278,7 @@ export function AppointmentsPage() {
     },
     {
       key: 'carId',
-      label: 'Vehicle',
+      label: 'Mjeti',
       render: (value: unknown) => {
         if (!value) return <span className="text-gray-400">-</span>;
         const car = getCarById(value as string);
@@ -304,7 +304,7 @@ export function AppointmentsPage() {
     },
     {
       key: 'status',
-      label: 'Status',
+      label: 'Statusi',
       sortable: true,
       render: (value: unknown) => {
         const status = value as string;
@@ -329,9 +329,9 @@ export function AppointmentsPage() {
     const res = await api.updateAppointment(id, { status: 'completed' });
     if (res.ok) {
       await refreshAppointments();
-      toast('success', 'Appointment marked as completed');
+      toast('success', 'Takimi u shënua si i përfunduar');
     } else {
-      toast('error', 'Failed to update appointment');
+      toast('error', 'Dështoi përditësimi i takimit');
     }
   };
 
@@ -344,10 +344,10 @@ export function AppointmentsPage() {
     const res = await api.updateAppointment(id, { status: 'cancelled' });
     if (res.ok) {
       await refreshAppointments();
-      toast('success', 'Appointment cancelled');
+      toast('success', 'Takimi u anulua');
       setCancellingAppointment(null);
     } else {
-      toast('error', 'Failed to cancel appointment');
+      toast('error', 'Dështoi anulimi i takimit');
     }
   };
 
@@ -360,9 +360,9 @@ export function AppointmentsPage() {
             size="sm"
             onClick={() => handleComplete(appointment)}
             icon={<CheckIcon className="w-4 h-4 text-green-600" />}
-            title="Mark as completed"
+            title="Shëno si të përfunduar"
           >
-            Complete
+            Përfundo
           </Button>
           <Button
             variant="ghost"
@@ -370,16 +370,16 @@ export function AppointmentsPage() {
             onClick={() => setEditingAppointment(appointment)}
             icon={<EditIcon className="w-4 h-4" />}
           >
-            Edit
+            Ndrysho
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setCancellingAppointment(appointment)}
             icon={<XIcon className="w-4 h-4 text-red-600" />}
-            title="Cancel appointment"
+            title="Anulo takimin"
           >
-            Cancel
+            Anulo
           </Button>
         </>
       )}
@@ -389,7 +389,7 @@ export function AppointmentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">Duke u ngarkuar...</p>
       </div>
     );
   }
@@ -414,14 +414,14 @@ export function AppointmentsPage() {
         <div className="flex flex-wrap gap-4">
           <div className="w-48">
             <Select
-              placeholder="All Statuses"
+              placeholder="Të gjitha statuset"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               options={[
-                { value: '', label: 'All Statuses' },
-                { value: 'scheduled', label: 'Scheduled' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'cancelled', label: 'Cancelled' }
+                { value: '', label: 'Të gjitha statuset' },
+                { value: 'scheduled', label: 'E planifikuar' },
+                { value: 'completed', label: 'Përfunduar' },
+                { value: 'cancelled', label: 'Anuluar' }
               ]}
             />
           </div>
@@ -454,7 +454,7 @@ export function AppointmentsPage() {
         cars={cars}
         onSuccess={async () => {
           await refreshAppointments();
-          toast('success', editingAppointment ? 'Appointment updated successfully' : 'Appointment scheduled successfully');
+          toast('success', editingAppointment ? 'Takimi u përditësua me sukses' : 'Takimi u planifikua me sukses');
           setShowAddModal(false);
           setEditingAppointment(null);
         }}
@@ -465,9 +465,9 @@ export function AppointmentsPage() {
         isOpen={!!cancellingAppointment}
         onClose={() => setCancellingAppointment(null)}
         onConfirm={handleCancel}
-        title="Cancel Appointment"
-        message="Are you sure you want to cancel this appointment? This action cannot be undone."
-        confirmText="Cancel Appointment"
+        title="Anulo takimin"
+        message="Jeni të sigurt që dëshironi të anuloni këtë takim? Ky veprim nuk mund të kthehet."
+        confirmText="Anulo takimin"
         variant="danger"
       />
     </div>
@@ -611,7 +611,7 @@ function AddAppointmentModal({
     setLoading(true);
     try {
       if (!instructorId) {
-        toast('error', 'Unable to determine instructor. Please try again.');
+        toast('error', 'Nuk mund të përcaktohet instruktori. Ju lutemi provoni përsëri.');
         setLoading(false);
         return;
       }
@@ -619,7 +619,7 @@ function AddAppointmentModal({
       // For instructors, carId is optional (will be assigned by admin)
       // For admins, carId is required
       if (user?.role === 0 && !formData.carId) {
-        toast('error', 'Please select a vehicle');
+        toast('error', 'Ju lutemi zgjidhni një mjet');
         setLoading(false);
         return;
       }
@@ -640,7 +640,7 @@ function AddAppointmentModal({
       if (appointment) {
         const id = appointment._id || appointment.id;
         if (!id) {
-          toast('error', 'Invalid appointment ID');
+          toast('error', 'ID e pavlefshme e takimit');
           setLoading(false);
           return;
         }
@@ -662,10 +662,10 @@ function AddAppointmentModal({
         });
         onSuccess();
       } else {
-        toast('error', res.data?.message || 'Failed to save appointment');
+        toast('error', res.data?.message || 'Dështoi ruajtja e takimit');
       }
     } catch (error) {
-      toast('error', 'Failed to save appointment');
+      toast('error', 'Dështoi ruajtja e takimit');
     } finally {
       setLoading(false);
     }
@@ -692,47 +692,47 @@ function AddAppointmentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={appointment ? 'Edit Appointment' : 'Schedule New Appointment'}
-      description={appointment ? 'Update the appointment details.' : 'Create a new driving lesson appointment.'}
+      title={appointment ? 'Ndrysho takimin' : 'Planifiko takim të ri'}
+      description={appointment ? 'Përditësoni detajet e takimit.' : 'Krijoni një takim të ri për mësimin e makinës.'}
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            Anulo
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            {appointment ? 'Save Changes' : 'Schedule Appointment'}
+            {appointment ? 'Ruaj ndryshimet' : 'Planifiko takimin'}
           </Button>
         </div>
       }
     >
       <form className="space-y-6">
         <Select
-          label="Student"
+          label="Nxënësi"
           required
           value={formData.candidateId}
           onChange={e => setFormData({ ...formData, candidateId: e.target.value })}
           options={activeCandidates.length > 0 ? activeCandidates.map(candidate => ({
             value: candidate._id || candidate.id || '',
             label: `${candidate.firstName} ${candidate.lastName}`
-          })) : [{ value: '', label: 'No candidates assigned to you' }]}
+          })) : [{ value: '', label: 'Nuk ju janë caktuar kandidatë' }]}
           disabled={activeCandidates.length === 0}
         />
 
         <Select
-          label="Vehicle"
+          label="Mjeti"
           required={user?.role === 0}
           value={formData.carId}
           onChange={e => setFormData({ ...formData, carId: e.target.value })}
           options={activeCars.length > 0 ? activeCars.map(car => ({
             value: car._id || car.id || '',
             label: `${car.model} (${car.licensePlate})${car.transmission ? ` - ${car.transmission}` : ''}`
-          })) : [{ value: '', label: user?.role === 1 ? 'No cars assigned to you' : 'No cars available' }]}
+          })) : [{ value: '', label: user?.role === 1 ? 'Nuk ju janë caktuar makina' : 'Nuk ka makina të disponueshme' }]}
           disabled={activeCars.length === 0}
         />
 
         <Input
-          label="Date"
+          label="Data"
           type="date"
           required
           value={formData.date}
@@ -755,7 +755,7 @@ function AddAppointmentModal({
             }}
           />
           <Input
-            label="End Time"
+            label="Ora e mbarimit"
             type="time"
             required
             value={formData.endTime}
@@ -769,20 +769,20 @@ function AddAppointmentModal({
             }}
           />
           <Input
-            label="Hours"
+            label="Orët"
             type="number"
             required
             value={formData.hours}
             onChange={e => setFormData({ ...formData, hours: e.target.value })}
-            hint="Auto-calculated"
+            hint="Llogaritet automatikisht"
           />
         </div>
 
         <TextArea
-          label="Notes"
+          label="Shënime"
           value={formData.notes}
           onChange={e => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Optional notes about this lesson..."
+          placeholder="Shënime opsionale për këtë mësim..."
           rows={3}
         />
       </form>

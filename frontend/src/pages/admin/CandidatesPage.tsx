@@ -48,11 +48,11 @@ export function CandidatesPage() {
           }));
           setInstructors(opts);
         } else {
-          toast('error', 'Failed to load instructors');
+          toast('error', 'Dështoi ngarkimi i instruktorëve');
         }
       } catch (err) {
         console.error(err);
-        toast('error', 'Failed to load instructors');
+        toast('error', 'Dështoi ngarkimi i instruktorëve');
       }
     };
     fetchInstructors();
@@ -78,7 +78,7 @@ export function CandidatesPage() {
         }
       } catch (error) {
         console.error('Failed to load packages:', error);
-        toast('error', 'Failed to load packages');
+        toast('error', 'Dështoi ngarkimi i paketave');
       }
     };
     fetchPackages();
@@ -110,7 +110,7 @@ export function CandidatesPage() {
         }
       } catch (error) {
         console.error('Failed to load cars:', error);
-        toast('error', 'Failed to load cars');
+        toast('error', 'Dështoi ngarkimi i makinave');
       }
     };
     fetchCars();
@@ -184,35 +184,33 @@ export function CandidatesPage() {
     try {
       const resp = await api.deleteCandidate(deletingCandidate.id);
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Failed to delete candidate';
+        const errorMessage = (resp.data as any)?.message || 'Dështoi fshirja e kandidatit';
         toast('error', errorMessage);
         return;
       }
-      toast('success', 'Candidate deleted successfully');
+      toast('success', 'Kandidati u fshi me sukses');
       setRefreshKey(prev => prev + 1);
       setDeletingCandidate(null);
     } catch (error) {
       console.error('Error deleting candidate:', error);
-      toast('error', 'An error occurred. Please try again.');
+      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
     } finally {
       setIsDeleting(false);
     }
   };
   const handleExport = () => {
     if (!filteredCandidates.length) {
-      toast('info', 'No candidates to export');
+      toast('info', 'Nuk ka kandidatë për eksport');
       return;
     }
 
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Package', 'Instructor', 'Status'];
+    const headers = ['Emri', 'Mbiemri', 'Email', 'Telefon', 'Paketa', 'Instruktori', 'Statusi'];
     const rows = filteredCandidates.map(c => {
-      // Get package name
       const pkg = c.packageId ? getPackageById(c.packageId) : null;
-      const packageName = pkg ? pkg.name : 'Not assigned';
+      const packageName = pkg ? pkg.name : 'Pa caktuar';
       
-      // Get instructor name
       const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
-      const instructorName = instructor ? instructor.name : 'Not assigned';
+      const instructorName = instructor ? instructor.name : 'Pa caktuar';
       
       return [
         c.firstName || '',
@@ -238,7 +236,7 @@ export function CandidatesPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast('success', 'Exported candidates to CSV');
+    toast('success', 'Kandidatët u eksportuan në CSV');
   };
   const clearFilters = () => {
     setStatusFilter('');
@@ -248,7 +246,7 @@ export function CandidatesPage() {
   const hasActiveFilters = !!(statusFilter || packageFilter || searchQuery);
   const columns = [{
     key: 'name',
-    label: 'Candidate',
+    label: 'Kandidati',
     sortable: true,
     render: (_: unknown, candidate: Candidate) => <div className="flex items-center gap-3">
           <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="sm" className="hidden sm:flex" />
@@ -263,7 +261,7 @@ export function CandidatesPage() {
         </div>
   }, {
     key: 'email',
-    label: 'Contact',
+    label: 'Kontakti',
     hideOnMobile: true,
     render: (_: unknown, candidate: Candidate) => <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm text-gray-900">
@@ -277,26 +275,26 @@ export function CandidatesPage() {
         </div>
   }, {
     key: 'packageId',
-    label: 'Package',
+    label: 'Paketa',
     render: (value: unknown) => {
       const pkg = value ? getPackageById(value as string) : null;
       return pkg ? <Badge variant="info" size="sm">
             {pkg.name}
-          </Badge> : <span className="text-xs sm:text-sm text-gray-400">Not assigned</span>;
+          </Badge> : <span className="text-xs sm:text-sm text-gray-400">Pa caktuar</span>;
     }
   }, {
     key: 'instructorId',
-    label: 'Instructor',
+    label: 'Instruktori',
     hideOnMobile: true,
     render: (value: unknown) => {
       const instructor = instructors.find(i => i.id === value);
       return instructor ? <span className="text-sm text-gray-700">
             {instructor.name}
-          </span> : <span className="text-sm text-gray-400">Not assigned</span>;
+          </span> : <span className="text-sm text-gray-400">Pa caktuar</span>;
     }
   }, {
     key: 'status',
-    label: 'Status',
+    label: 'Statusi',
     sortable: true,
     render: (value: unknown) => <StatusBadge status={value as 'active' | 'inactive'} />
   }];
@@ -305,10 +303,10 @@ export function CandidatesPage() {
   };
   const actions = (candidate: Candidate) => <div className="flex items-center gap-2">
       <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/candidates/${candidate.id}`)} icon={<EyeIcon className="w-4 h-4" />} className="hidden sm:flex">
-        View
+        Shiko
       </Button>
       <Button variant="ghost" size="sm" onClick={() => setEditingCandidate(candidate)} icon={<EditIcon className="w-4 h-4" />}>
-        <span className="hidden sm:inline">Edit</span>
+        <span className="hidden sm:inline">Ndrysho</span>
       </Button>
       <Button 
         variant="ghost" 
@@ -317,7 +315,7 @@ export function CandidatesPage() {
         icon={<TrashIcon className="w-4 h-4" />}
         className="text-red-600 hover:text-red-700 hover:bg-red-50"
       >
-        <span className="hidden sm:inline">Delete</span>
+        <span className="hidden sm:inline">Fshi</span>
       </Button>
     </div>;
   return <div className="space-y-4 lg:space-y-6">
@@ -325,43 +323,43 @@ export function CandidatesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Candidates
+            Kandidatët
           </h1>
           <p className="text-sm lg:text-base text-gray-500 mt-1">
-            Manage driving school candidates ({filteredCandidates.length} total)
+            Menaxhoni kandidatët e shkollës së makinës ({filteredCandidates.length} gjithsej)
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExport} icon={<DownloadIcon className="w-4 h-4" />} className="hidden sm:flex">
-            Export
+            Eksporto
           </Button>
           <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />} size="sm" className="flex-1 sm:flex-none">
-            Add Candidate
+            Shto kandidat
           </Button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search by name, email, phone, or ID..." />
+      <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Kërko sipas emrit, emailit, telefonit ose ID..." />
 
       {/* Filters */}
       <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
         <div className="w-full sm:w-48">
-          <Select placeholder="All Statuses" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} options={[{
+          <Select placeholder="Të gjitha statuset" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} options={[{
           value: '',
-          label: 'All Statuses'
+          label: 'Të gjitha statuset'
         }, {
           value: 'active',
-          label: 'Active'
+          label: 'Aktive'
         }, {
           value: 'inactive',
-          label: 'Inactive'
+          label: 'Joaktive'
         }]} />
         </div>
         <div className="w-full sm:w-48">
-          <Select placeholder="All Packages" value={packageFilter} onChange={e => setPackageFilter(e.target.value)} options={[{
+          <Select placeholder="Të gjitha paketat" value={packageFilter} onChange={e => setPackageFilter(e.target.value)} options={[{
           value: '',
-          label: 'All Packages'
+          label: 'Të gjitha paketat'
         }, ...packages.map(pkg => ({
           value: pkg.id,
           label: pkg.name
@@ -371,7 +369,7 @@ export function CandidatesPage() {
 
       {/* Table */}
       <Card padding="none">
-        <DataTable data={filteredCandidates} columns={columns} keyExtractor={candidate => candidate.id} searchable={false} onRowClick={handleRowClick} actions={actions} emptyMessage="No candidates found" />
+        <DataTable data={filteredCandidates} columns={columns} keyExtractor={candidate => candidate.id} searchable={false} onRowClick={handleRowClick} actions={actions} emptyMessage="Nuk u gjetën kandidatë" />
       </Card>
 
       {/* Add/Edit Modal */}
@@ -393,10 +391,10 @@ export function CandidatesPage() {
         isOpen={!!deletingCandidate}
         onClose={() => setDeletingCandidate(null)}
         onConfirm={handleDelete}
-        title="Delete Candidate"
-        message={deletingCandidate ? `Are you sure you want to delete ${deletingCandidate.firstName} ${deletingCandidate.lastName}? This action cannot be undone.` : ''}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title="Fshi kandidatin"
+        message={deletingCandidate ? `Jeni të sigurt që dëshironi të fshini ${deletingCandidate.firstName} ${deletingCandidate.lastName}? Ky veprim nuk mund të kthehet.` : ''}
+        confirmText="Fshi"
+        cancelText="Anulo"
         variant="danger"
         loading={isDeleting}
       />
@@ -508,58 +506,56 @@ function AddCandidateModal({
     const newErrors: Record<string, string> = {};
     
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'Emri është i detyrueshëm';
     }
     
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Mbiemri është i detyrueshëm';
     }
     
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Emaili është i detyrueshëm';
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
-        newErrors.email = 'Please enter a valid email address';
+        newErrors.email = 'Vendosni një adresë email të vlefshme';
       }
     }
     
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = 'Numri i telefonit është i detyrueshëm';
     } else {
-      // Basic phone validation (at least 6 digits)
       const phoneRegex = /^[\d\s\-\+\(\)]{6,}$/;
       if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = 'Please enter a valid phone number';
+        newErrors.phone = 'Vendosni një numër telefoni të vlefshëm';
       }
     }
     
     if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
+      newErrors.address = 'Adresa është e detyrueshme';
     }
     
     if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
+      newErrors.dateOfBirth = 'Data e lindjes është e detyrueshme';
     } else {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
       if (birthDate >= today) {
-        newErrors.dateOfBirth = 'Date of birth must be in the past';
+        newErrors.dateOfBirth = 'Data e lindjes duhet të jetë në të kaluarën';
       }
-      // Check if age is reasonable (at least 16 years old for driving school)
       const age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
       const dayDiff = today.getDate() - birthDate.getDate();
       const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
       if (actualAge < 16) {
-        newErrors.dateOfBirth = 'Candidate must be at least 16 years old';
+        newErrors.dateOfBirth = 'Kandidati duhet të jetë të paktën 16 vjeç';
       }
     }
     
     if (!formData.personalNumber.trim()) {
-      newErrors.personalNumber = 'Personal number is required';
+      newErrors.personalNumber = 'Numri personal është i detyrueshëm';
     } else if (formData.personalNumber.trim().length < 6) {
-      newErrors.personalNumber = 'Personal number must be at least 6 characters';
+      newErrors.personalNumber = 'Numri personal duhet të ketë të paktën 6 karaktere';
     }
     
     setErrors(newErrors);
@@ -577,29 +573,28 @@ function AddCandidateModal({
     for (const field of fieldOrder) {
       if (validationErrors[field]) {
         const fieldLabels: Record<string, string> = {
-          firstName: 'First name',
-          lastName: 'Last name',
-          email: 'Email',
-          phone: 'Phone number',
-          address: 'Address',
-          dateOfBirth: 'Date of birth',
-          personalNumber: 'Personal number'
+          firstName: 'Emri',
+          lastName: 'Mbiemri',
+          email: 'Emaili',
+          phone: 'Telefoni',
+          address: 'Adresa',
+          dateOfBirth: 'Data e lindjes',
+          personalNumber: 'Numri personal'
         };
         const fieldLabel = fieldLabels[field] || field;
         return `${fieldLabel}: ${validationErrors[field]}`;
       }
     }
     
-    // Fallback to first error if not in order
     const firstKey = errorKeys[0];
     const fieldLabels: Record<string, string> = {
-      firstName: 'First name',
-      lastName: 'Last name',
-      email: 'Email',
-      phone: 'Phone number',
-      address: 'Address',
-      dateOfBirth: 'Date of birth',
-      personalNumber: 'Personal number'
+      firstName: 'Emri',
+      lastName: 'Mbiemri',
+      email: 'Emaili',
+      phone: 'Telefoni',
+      address: 'Adresa',
+      dateOfBirth: 'Data e lindjes',
+      personalNumber: 'Numri personal'
     };
     return `${fieldLabels[firstKey] || firstKey}: ${validationErrors[firstKey]}`;
   };
@@ -650,7 +645,7 @@ function AddCandidateModal({
       if (errorMessage) {
         toast('error', errorMessage);
       } else {
-        toast('error', 'Please fix the errors in the form');
+        toast('error', 'Ju lutemi korrigjoni gabimet në formular');
       }
       return;
     }
@@ -698,12 +693,12 @@ function AddCandidateModal({
       console.log('Sending payload:', payload);
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Failed to save candidate';
+        const errorMessage = (resp.data as any)?.message || 'Dështoi ruajtja e kandidatit';
         console.error('API Error Response:', resp.data);
         toast('error', errorMessage);
         return;
       }
-      toast('success', candidate ? 'Candidate updated successfully' : 'Candidate added successfully');
+      toast('success', candidate ? 'Kandidati u përditësua me sukses' : 'Kandidati u shtua me sukses');
       
       // Reset form if creating new candidate (not editing)
       if (!candidate) {
@@ -727,23 +722,23 @@ function AddCandidateModal({
       onSuccess();
     } catch (error) {
       console.error('Error saving candidate:', error);
-      toast('error', 'An error occurred. Please try again.');
+      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
     } finally {
       setLoading(false);
     }
   };
-  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Edit Candidate' : 'Add New Candidate'} description="Enter the candidate's information to register them in the system." size="lg"       footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Ndrysho kandidatin' : 'Shto kandidat të ri'} description="Vendosni të dhënat e kandidatit për ta regjistruar në sistem." size="lg"       footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading} fullWidth className="sm:w-auto">
-            Cancel
+            Anulo
           </Button>
           <Button onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)} loading={loading} fullWidth className="sm:w-auto">
-            {candidate ? 'Save Changes' : 'Create Candidate'}
+            {candidate ? 'Ruaj ndryshimet' : 'Krijo kandidatin'}
           </Button>
         </div>}>
       <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input 
-            label="First Name" 
+            label="Emri" 
             required 
             value={formData.firstName} 
             error={errors.firstName}
@@ -755,7 +750,7 @@ function AddCandidateModal({
             }} 
           />
           <Input 
-            label="Last Name" 
+            label="Mbiemri" 
             required 
             value={formData.lastName} 
             error={errors.lastName}
@@ -770,7 +765,7 @@ function AddCandidateModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input 
-            label="Email" 
+            label="Emaili" 
             type="email" 
             required 
             value={formData.email} 
@@ -783,7 +778,7 @@ function AddCandidateModal({
             }} 
           />
           <Input 
-            label="Phone" 
+            label="Telefoni" 
             type="tel" 
             required 
             value={formData.phone} 
@@ -799,7 +794,7 @@ function AddCandidateModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input 
-            label="Date of Birth" 
+            label="Data e lindjes" 
             type="date" 
             required 
             value={formData.dateOfBirth} 
@@ -812,7 +807,7 @@ function AddCandidateModal({
             }} 
           />
           <Input 
-            label="Personal Number" 
+            label="Numri personal" 
             required 
             value={formData.personalNumber} 
             error={errors.personalNumber}
@@ -826,7 +821,7 @@ function AddCandidateModal({
         </div>
 
         <Input 
-          label="Address" 
+          label="Adresa" 
           required 
           value={formData.address} 
           error={errors.address}
@@ -839,21 +834,21 @@ function AddCandidateModal({
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="Package" value={formData.packageId} onChange={e => setFormData({
+          <Select label="Paketa" value={formData.packageId} onChange={e => setFormData({
           ...formData,
           packageId: e.target.value
         })} options={packages.filter((p: Package) => p.status === 'active').map((pkg: Package) => ({
           value: pkg.id,
           label: `${pkg.name} - €${pkg.price}`
         }))} />
-          <Select label="Instructor" value={formData.instructorId} onChange={e => {
+          <Select label="Instruktori" value={formData.instructorId} onChange={e => {
           setFormData({
             ...formData,
             instructorId: e.target.value,
             carId: '' // Clear car selection when instructor changes
           });
         }} options={[
-          { value: '', label: 'Not assigned' },
+          { value: '', label: 'Pa caktuar' },
           ...instructors.map(instructor => ({
             value: instructor.id,
             label: instructor.name
@@ -863,49 +858,49 @@ function AddCandidateModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select 
-            label="Car" 
+            label="Makina" 
             value={formData.carId} 
             onChange={e => setFormData({
               ...formData,
               carId: e.target.value
             })} 
             options={[
-              { value: '', label: formData.instructorId && availableCars.length === 0 ? 'No cars assigned to this instructor' : 'Not assigned' },
+              { value: '', label: formData.instructorId && availableCars.length === 0 ? 'Nuk i janë caktuar makina këtij instruktori' : 'Pa caktuar' },
               ...availableCars.map(car => ({
                 value: car.id,
                 label: `${car.model} (${car.licensePlate})`
               }))
             ]}
             disabled={formData.instructorId && availableCars.length === 0}
-            hint={formData.instructorId && availableCars.length === 1 ? 'Auto-selected: Only one car assigned to this instructor' : undefined}
+            hint={formData.instructorId && availableCars.length === 1 ? 'U zgjidh automatikisht: vetëm një makinë i është caktuar këtij instruktori' : undefined}
           />
-          <Select label="Payment Frequency" value={formData.paymentFrequency} onChange={e => setFormData({
+          <Select label="Frekuenca e pagesës" value={formData.paymentFrequency} onChange={e => setFormData({
           ...formData,
           paymentFrequency: e.target.value
         })} options={[{
           value: 'deposit',
-          label: 'Deposit'
-        }, {
-          value: 'one-time',
-          label: 'One-time Payment'
-        }, {
-          value: 'installments',
-          label: 'Installments'
-        }]} />
+label: 'Depozitë'
+          }, {
+            value: 'one-time',
+          label: 'Pagesë një herë'
+          }, {
+            value: 'installments',
+          label: 'Këste'
+          }]} />
         </div>
 
         {candidate && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select 
-              label="Status" 
+              label="Statusi" 
               value={formData.status} 
               onChange={e => setFormData({
                 ...formData,
                 status: e.target.value as 'active' | 'inactive'
               })} 
               options={[
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' }
+                { value: 'active', label: 'Aktive' },
+                { value: 'inactive', label: 'Joaktive' }
               ]} 
             />
           </div>

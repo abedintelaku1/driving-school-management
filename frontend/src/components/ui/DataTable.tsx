@@ -29,11 +29,11 @@ export function DataTable<T extends Record<string, unknown>>({
   columns,
   keyExtractor,
   searchable = true,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder = 'Kërko...',
   searchKeys = [],
   pagination = true,
   pageSize = 10,
-  emptyMessage = 'No data found',
+  emptyMessage = 'Nuk u gjetën të dhëna',
   onRowClick,
   actions,
   loading = false
@@ -132,7 +132,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     </div>
                   </th>)}
                 {actions && <th className="px-4 lg:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
+                    Veprimet
                   </th>}
               </tr>
             </thead>
@@ -190,7 +190,7 @@ export function DataTable<T extends Record<string, unknown>>({
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} icon={<ChevronLeftIcon className="w-4 h-4" />}>
-              <span className="hidden sm:inline">Previous</span>
+              <span className="hidden sm:inline">Para</span>
             </Button>
             <div className="flex items-center gap-1">
               {[...Array(Math.min(5, totalPages))].map((_, i) => {
@@ -213,7 +213,7 @@ export function DataTable<T extends Record<string, unknown>>({
           })}
             </div>
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>
-              <span className="hidden sm:inline">Next</span>
+              <span className="hidden sm:inline">Tjetër</span>
               <ChevronRightIcon className="w-4 h-4" />
             </Button>
           </div>

@@ -226,25 +226,25 @@ export function ReportsPage() {
       const timestamp = new Date().toISOString().split("T")[0];
       const filename = `reports_all_${dateRange}_${timestamp}.csv`;
 
-      let csvContent = "Driving School Management - Complete Reports Export\n";
-      csvContent += `Generated: ${new Date().toLocaleString()}\n`;
+      let csvContent = "Menaxhimi i shkollës së makinave - Eksport i plotë raportesh\n";
+      csvContent += `Gjeneruar: ${new Date().toLocaleString("sq-AL")}\n`;
       if (dateFrom || dateTo) {
-        csvContent += `Date Range: ${dateFrom || "All"} to ${
-          dateTo || "All"
+        csvContent += `Periudha: ${dateFrom || "Të gjitha"} deri ${
+          dateTo || "Të gjitha"
         }\n`;
       }
       csvContent += "\n";
 
       // 1. Summary Stats
-      csvContent += "=== SUMMARY STATISTICS ===\n";
-      csvContent += `Total Candidates,${totalCandidates}\n`;
-      csvContent += `Active Candidates,${activeCandidates}\n`;
-      csvContent += `Total Revenue,${formatCurrency(totalRevenue)}\n`;
-      csvContent += `Total Hours Taught,${formatNumber(totalHours)}\n`;
-      csvContent += `Active Cars,${
+      csvContent += "=== STATISTIKA PËRMBLEDHËSE ===\n";
+      csvContent += `Kandidatët gjithsej,${totalCandidates}\n`;
+      csvContent += `Kandidatë aktivë,${activeCandidates}\n`;
+      csvContent += `Të ardhurat gjithsej,${formatCurrency(totalRevenue)}\n`;
+      csvContent += `Orë të mësuara gjithsej,${formatNumber(totalHours)}\n`;
+      csvContent += `Makinat aktive,${
         cars.filter((c) => !c.status || c.status === "active").length
       }\n`;
-      csvContent += `Total Cars,${cars.length}\n`;
+      csvContent += `Makinat gjithsej,${cars.length}\n`;
       csvContent += "\n";
 
       // 2. Instructor Performance
@@ -282,7 +282,7 @@ export function ReportsPage() {
           const lastName =
             instructor.lastName || instructor.user?.lastName || "";
           return {
-            name: `${firstName} ${lastName}`.trim() || "Unknown",
+            name: `${firstName} ${lastName}`.trim() || "I panjohur",
             totalHours,
             completedLessons: completedAppointments.length,
             activeCandidates: instructorCandidates.filter(
@@ -294,14 +294,14 @@ export function ReportsPage() {
         });
 
       csvContent +=
-        "Instructor,Hours Taught,Completed Lessons,Active Students,Total Students,Status\n";
+        "Instruktori,Orë të mësuara,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
       instructorStats.forEach((stat) => {
         csvContent += `"${stat.name}",${formatNumber(stat.totalHours)},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
       });
       csvContent += "\n";
 
       // 3. Candidate Progress
-      csvContent += "=== CANDIDATE PROGRESS ===\n";
+      csvContent += "=== ECURIA E KANDIDATËVE ===\n";
       const candidateStats = candidates
         .filter(
           (candidate) =>
@@ -342,7 +342,7 @@ export function ReportsPage() {
         });
 
       csvContent +=
-        "Candidate,Client Number,Hours Completed,Scheduled Lessons,Total Paid,Status\n";
+        "Kandidati,Numri i klientit,Orë të përfunduara,Mësime të planifikuara,Totali i paguar,Statusi\n";
       candidateStats.forEach((stat) => {
         csvContent += `"${stat.name}","${stat.clientNumber}",${
           formatNumber(stat.completedHours)
@@ -353,7 +353,7 @@ export function ReportsPage() {
       csvContent += "\n";
 
       // 4. Car Usage
-      csvContent += "=== CAR USAGE ===\n";
+      csvContent += "=== PËRDORIMI I MAKINAVE ===\n";
       const carStats = cars
         .filter((car) => car != null && car.model && car.licensePlate)
         .map((car) => {
@@ -381,14 +381,14 @@ export function ReportsPage() {
         });
 
       csvContent +=
-        "Vehicle Model,License Plate,Total Hours,Recent Usage,Next Inspection,Status\n";
+        "Modeli,Targat,Orë gjithsej,Përdorim i fundit,Inspektimi tjetër,Statusi\n";
       carStats.forEach((stat) => {
         csvContent += `"${stat.model}","${stat.licensePlate}",${formatNumber(stat.totalHours)},${formatNumber(stat.recentUsage)},"${stat.nextInspection}",${stat.status}\n`;
       });
       csvContent += "\n";
 
       // 5. Payment Summary
-      csvContent += "=== PAYMENT SUMMARY BY MONTH ===\n";
+      csvContent += "=== PËRMBLEDHJE PAGESASH SIPAS MUAJIT ===\n";
       const paymentsByMonth: Record<
         string,
         {
@@ -431,10 +431,10 @@ export function ReportsPage() {
         }))
         .sort((a, b) => b.month.localeCompare(a.month));
 
-      csvContent += "Month,Total,Transactions,Bank,Cash\n";
+      csvContent += "Muaji,Totali,Transaksione,Bankë,Para në dorë\n";
       monthlyData.forEach((data) => {
         const monthName = new Date(data.month + "-01").toLocaleDateString(
-          "en-US",
+          "sq-AL",
           {
             year: "numeric",
             month: "long",
@@ -458,17 +458,17 @@ export function ReportsPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast("success", "Reports exported successfully");
+      toast("success", "Raportet u eksportuan me sukses");
     } catch (error) {
       console.error("Error exporting reports:", error);
-      toast("error", "Failed to export reports");
+      toast("error", "Dështoi eksportimi i raporteve");
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Loading reports...</p>
+        <p className="text-gray-500">Duke ngarkuar raportet...</p>
       </div>
     );
   }
@@ -477,9 +477,9 @@ export function ReportsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Raportet</h1>
           <p className="text-gray-500 mt-1">
-            View and export reports for all entities.
+            Shikoni dhe eksportoni raporte për të gjitha entitetet.
           </p>
         </div>
         <Button
@@ -487,7 +487,7 @@ export function ReportsPage() {
           icon={<DownloadIcon className="w-4 h-4" />}
           onClick={handleExportAll}
         >
-          Export All
+          Eksporto të gjitha
         </Button>
       </div>
 
@@ -499,12 +499,12 @@ export function ReportsPage() {
               <UsersIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Candidates</p>
+              <p className="text-sm text-gray-500">Kandidatët gjithsej</p>
               <p className="text-2xl font-bold text-gray-900">
                 {totalCandidates}
               </p>
               <p className="text-xs text-green-600">
-                {activeCandidates} active
+                {activeCandidates} aktivë
               </p>
             </div>
           </div>
@@ -515,12 +515,12 @@ export function ReportsPage() {
               <CreditCardIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Revenue</p>
+              <p className="text-sm text-gray-500">Të ardhurat gjithsej</p>
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(totalRevenue)}
               </p>
               <p className="text-xs text-gray-500">
-                {filteredPayments.length} transactions
+                {filteredPayments.length} transaksione
               </p>
             </div>
           </div>
@@ -531,14 +531,14 @@ export function ReportsPage() {
               <CalendarIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Hours Taught</p>
+              <p className="text-sm text-gray-500">Orë të mësuara</p>
               <p className="text-2xl font-bold text-gray-900">{formatNumber(totalHours)}h</p>
               <p className="text-xs text-gray-500">
                 {
                   filteredAppointments.filter((a) => a.status === "completed")
                     .length
                 }{" "}
-                lessons
+                mësime
               </p>
             </div>
           </div>
@@ -549,11 +549,11 @@ export function ReportsPage() {
               <CarIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Active Cars</p>
+              <p className="text-sm text-gray-500">Makinat aktive</p>
               <p className="text-2xl font-bold text-gray-900">
                 {cars.filter((c) => !c.status || c.status === "active").length}
               </p>
-              <p className="text-xs text-gray-500">of {cars.length} total</p>
+              <p className="text-xs text-gray-500">nga {cars.length} gjithsej</p>
             </div>
           </div>
         </Card>
@@ -565,7 +565,7 @@ export function ReportsPage() {
           <div className="flex-1 flex flex-wrap gap-3">
             <div className="w-full sm:w-40">
               <Input
-                label="From Date"
+                label="Nga data"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
@@ -573,7 +573,7 @@ export function ReportsPage() {
             </div>
             <div className="w-full sm:w-40">
               <Input
-                label="To Date"
+                label="Deri në datë"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
@@ -582,7 +582,7 @@ export function ReportsPage() {
           </div>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Clear
+              Pastro
             </Button>
           )}
         </div>
@@ -591,10 +591,10 @@ export function ReportsPage() {
       {/* Report Tabs */}
       <Tabs defaultTab="instructors">
         <TabList>
-          <Tab value="instructors">Instructor Performance</Tab>
-          <Tab value="candidates">Candidate Progress</Tab>
-          <Tab value="cars">Car Usage</Tab>
-          <Tab value="payments">Payment Summary</Tab>
+          <Tab value="instructors">Performanca e instruktorëve</Tab>
+          <Tab value="candidates">Ecuria e kandidatëve</Tab>
+          <Tab value="cars">Përdorimi i makinave</Tab>
+          <Tab value="payments">Përmbledhje pagesash</Tab>
         </TabList>
 
         <TabPanel value="instructors">
@@ -669,7 +669,7 @@ function InstructorPerformanceReport({
       const lastName = instructor.lastName || instructor.user?.lastName || "";
       return {
         id: instructorId,
-        name: `${firstName} ${lastName}`.trim() || "Unknown",
+        name: `${firstName} ${lastName}`.trim() || "I panjohur",
         totalHours,
         completedLessons: completedAppointments.length,
         activeCandidates: instructorCandidates.filter(
@@ -682,12 +682,12 @@ function InstructorPerformanceReport({
   const columns = [
     {
       key: "name",
-      label: "Instructor",
+      label: "Instruktori",
       sortable: true,
     },
     {
       key: "totalHours",
-      label: "Hours Taught",
+      label: "Orë të mësuara",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
@@ -695,25 +695,25 @@ function InstructorPerformanceReport({
     },
     {
       key: "completedLessons",
-      label: "Lessons",
+      label: "Mësime",
       sortable: true,
     },
     {
       key: "activeCandidates",
-      label: "Active Students",
+      label: "Nxënës aktivë",
       sortable: true,
     },
     {
       key: "totalCandidates",
-      label: "Total Students",
+      label: "Nxënës gjithsej",
       sortable: true,
     },
     {
       key: "status",
-      label: "Status",
+      label: "Statusi",
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value as string}
+          {value === "active" ? "Aktiv" : (value as string)}
         </Badge>
       ),
     },
@@ -780,7 +780,7 @@ function CandidateProgressReport({
   const columns = [
     {
       key: "name",
-      label: "Candidate",
+      label: "Kandidati",
       sortable: true,
       render: (_: unknown, item: (typeof candidateStats)[0]) => (
         <div>
@@ -791,7 +791,7 @@ function CandidateProgressReport({
     },
     {
       key: "completedHours",
-      label: "Hours Completed",
+      label: "Orë të përfunduara",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
@@ -799,12 +799,12 @@ function CandidateProgressReport({
     },
     {
       key: "scheduledLessons",
-      label: "Scheduled",
+      label: "Të planifikuara",
       sortable: true,
     },
     {
       key: "totalPaid",
-      label: "Total Paid",
+      label: "Totali i paguar",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatCurrency(value as number)}</span>
@@ -812,10 +812,10 @@ function CandidateProgressReport({
     },
     {
       key: "status",
-      label: "Status",
+      label: "Statusi",
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value as string}
+          {value === "active" ? "Aktiv" : (value as string)}
         </Badge>
       ),
     },
@@ -827,7 +827,7 @@ function CandidateProgressReport({
         columns={columns}
         keyExtractor={(item) => item.id}
         searchable
-        searchPlaceholder="Search candidates..."
+        searchPlaceholder="Kërko kandidatë..."
         searchKeys={["name", "clientNumber"]}
       />
     </Card>
@@ -869,7 +869,7 @@ function CarUsageReport({
   const columns = [
     {
       key: "model",
-      label: "Vehicle",
+      label: "Mjeti",
       sortable: true,
       render: (_: unknown, item: (typeof carStats)[0]) => (
         <div>
@@ -880,7 +880,7 @@ function CarUsageReport({
     },
     {
       key: "totalHours",
-      label: "Total Hours",
+      label: "Orë gjithsej",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
@@ -888,21 +888,21 @@ function CarUsageReport({
     },
     {
       key: "recentUsage",
-      label: "Recent Usage",
+      label: "Përdorim i fundit",
       sortable: true,
       render: (value: unknown) => <span>{formatNumber(value as number)}h</span>,
     },
     {
       key: "nextInspection",
-      label: "Next Inspection",
+      label: "Inspektimi tjetër",
       sortable: true,
     },
     {
       key: "status",
-      label: "Status",
+      label: "Statusi",
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value as string}
+          {value === "active" ? "Aktiv" : (value as string)}
         </Badge>
       ),
     },
@@ -969,11 +969,11 @@ function PaymentSummaryReport({
   const columns = [
     {
       key: "month",
-      label: "Month",
+      label: "Muaji",
       sortable: true,
       render: (value: unknown) => {
         const date = new Date((value as string) + "-01");
-        return date.toLocaleDateString("en-US", {
+        return date.toLocaleDateString("sq-AL", {
           year: "numeric",
           month: "long",
         });
@@ -981,7 +981,7 @@ function PaymentSummaryReport({
     },
     {
       key: "total",
-      label: "Total",
+      label: "Totali",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-green-600">{formatCurrency(value as number)}</span>
@@ -989,17 +989,17 @@ function PaymentSummaryReport({
     },
     {
       key: "count",
-      label: "Transactions",
+      label: "Transaksione",
       sortable: true,
     },
     {
       key: "bank",
-      label: "Bank",
+      label: "Bankë",
       render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
     {
       key: "cash",
-      label: "Cash",
+      label: "Para në dorë",
       render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
   ];

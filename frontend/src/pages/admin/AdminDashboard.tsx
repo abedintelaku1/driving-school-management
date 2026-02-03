@@ -133,7 +133,7 @@ export function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Loading dashboard...</p>
+        <p className="text-gray-500">Duke ngarkuar panelin...</p>
       </div>
     );
   }
@@ -142,19 +142,19 @@ export function AdminDashboard() {
       {/* Page Header */}
       <div>
         <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-          Dashboard
+          Paneli
         </h1>
         <p className="text-sm lg:text-base text-gray-500 mt-1">
-          Welcome back! Here's what's happening today.
+          Mirë se u ktheve! Ja çfarë ndodh sot.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
-        <StatCard title="Active Candidates" value={activeCandidates} change="+12% from last month" changeType="positive" icon={<UsersIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/candidates" />
-        <StatCard title="Active Cars" value={activeCars} icon={<CarIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/cars" />
-        <StatCard title="Active Instructors" value={activeInstructors} icon={<GraduationCapIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/instructors" />
-        <StatCard title="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} change="+8% from last month" changeType="positive" icon={<CreditCardIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/payments" />
+        <StatCard title="Kandidatë aktivë" value={activeCandidates} change="+12% nga muaji i kaluar" changeType="positive" icon={<UsersIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/candidates" />
+        <StatCard title="Makina aktivë" value={activeCars} icon={<CarIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/cars" />
+        <StatCard title="Instruktorë aktivë" value={activeInstructors} icon={<GraduationCapIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/instructors" />
+        <StatCard title="Të ardhura totale" value={`€${totalRevenue.toLocaleString()}`} change="+8% nga muaji i kaluar" changeType="positive" icon={<CreditCardIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/payments" />
       </div>
 
       {/* Content Grid */}
@@ -163,9 +163,9 @@ export function AdminDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Recent Candidates</CardTitle>
+              <CardTitle>Kandidatët e fundit</CardTitle>
               <Link to="/admin/candidates" className="text-xs lg:text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors">
-                View all <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
+                Shiko të gjithë <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -192,7 +192,7 @@ export function AdminDashboard() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <Badge variant={!candidate.status || candidate.status === 'active' ? 'success' : 'danger'} dot>
-                        {candidate.status || 'active'}
+                        {candidate.status || 'aktiv'}
                       </Badge>
                     </div>
                   </Link>
@@ -200,7 +200,7 @@ export function AdminDashboard() {
               })}
               {recentCandidates.length === 0 && (
                 <p className="text-center text-sm text-gray-500 py-4">
-                  No candidates found
+                  Nuk u gjetën kandidatë
                 </p>
               )}
             </div>
@@ -211,9 +211,9 @@ export function AdminDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Upcoming Appointments</CardTitle>
+              <CardTitle>Takimet e ardhshme</CardTitle>
               <Link to="/admin/reports" className="text-xs lg:text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors">
-                View all <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
+                Shiko të gjithë <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -238,9 +238,9 @@ export function AdminDashboard() {
                       </p>
                       <p className="text-xs lg:text-sm text-gray-500 truncate">
                         {instructorUser?.firstName && instructorUser?.lastName ? (
-                          <>with {instructorUser.firstName} {instructorUser.lastName}</>
+                          <>me {instructorUser.firstName} {instructorUser.lastName}</>
                         ) : (
-                          <span className="text-gray-400">No instructor assigned</span>
+                          <span className="text-gray-400">Nuk ka instruktor caktuar</span>
                         )}
                       </p>
                     </div>
@@ -257,7 +257,7 @@ export function AdminDashboard() {
               })}
               {upcomingAppointments.length === 0 && (
                 <p className="text-center text-sm text-gray-500 py-4">
-                  No upcoming appointments
+                  Nuk ka takime të ardhshme
                 </p>
               )}
             </div>
@@ -274,10 +274,10 @@ export function AdminDashboard() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-sm lg:text-base text-amber-800">
-                Attention Required
+                Kërkohet vëmendje
               </h3>
               <p className="text-xs lg:text-sm text-amber-700 mt-1">
-                {carsNeedingAttention.length} car(s) need inspection within the next 30 days.
+                {carsNeedingAttention.length} makinë(ra) kanë nevojë për inspektim brenda 30 ditëve të ardhshme.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {carsNeedingAttention.map(car => {

@@ -129,7 +129,7 @@ export function CandidateDetailPage() {
     if (aptWithInstructor?.instructor?.user) {
       return `${aptWithInstructor.instructor.user.firstName || ''} ${aptWithInstructor.instructor.user.lastName || ''}`.trim();
     }
-    return 'Not assigned';
+    return 'Pa caktuar';
   }, [candidate?.instructor, appointments]);
 
   const totalPaid = useMemo(() => {
@@ -143,7 +143,7 @@ export function CandidateDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <p className="text-gray-500">Loading candidate...</p>
+        <p className="text-gray-500">Duke ngarkuar kandidatin...</p>
       </div>
     );
   }
@@ -152,10 +152,10 @@ export function CandidateDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <EmptyState
-          title="Candidate not found"
-          description="The candidate you're looking for doesn't exist or has been removed."
+          title="Kandidati nuk u gjet"
+          description="Kandidati që po kërkoni nuk ekziston ose është hequr."
           action={{
-            label: 'Back to Candidates',
+            label: 'Kthehu te kandidatët',
             onClick: () => navigate('/admin/candidates')
           }}
         />
@@ -172,7 +172,7 @@ export function CandidateDetailPage() {
           onClick={() => navigate('/admin/candidates')}
           icon={<ArrowLeftIcon className="w-4 h-4" />}
         >
-          Back
+          Kthehu
         </Button>
       </div>
 
@@ -191,7 +191,7 @@ export function CandidateDetailPage() {
               <div className="flex items-center gap-3">
                 <StatusBadge status={(candidate.status as 'active' | 'inactive') || 'active'} />
                 <Button variant="outline" icon={<EditIcon className="w-4 h-4" />} onClick={() => setEditOpen(true)}>
-                  Edit
+                  Ndrysho
                 </Button>
               </div>
             </div>
@@ -226,9 +226,9 @@ export function CandidateDetailPage() {
               <PackageIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Package</p>
+              <p className="text-sm text-gray-500">Paketa</p>
               <p className="font-semibold text-gray-900">
-                {packageInfo ? packageInfo.name : 'Not assigned'}
+                {packageInfo ? packageInfo.name : 'Nuk është caktuar'}
               </p>
             </div>
           </div>
@@ -239,7 +239,7 @@ export function CandidateDetailPage() {
               <UserIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Instructor</p>
+              <p className="text-sm text-gray-500">Instruktori</p>
               <p className="font-semibold text-gray-900">
                 {instructorName}
               </p>
@@ -252,7 +252,7 @@ export function CandidateDetailPage() {
               <ClockIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Hours Completed</p>
+              <p className="text-sm text-gray-500">Orë të përfunduara</p>
               <p className="font-semibold text-gray-900">{completedHours}h</p>
             </div>
           </div>
@@ -263,11 +263,11 @@ export function CandidateDetailPage() {
               <CreditCardIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Balance</p>
+              <p className="text-sm text-gray-500">Bilanci</p>
               <p className="font-semibold text-gray-900">{balanceText}</p>
               {packageInfo && balance > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  {((totalPaid / packagePrice) * 100).toFixed(1)}% paid
+                  {((totalPaid / packagePrice) * 100).toFixed(1)}% e paguar
                 </p>
               )}
             </div>
@@ -278,9 +278,9 @@ export function CandidateDetailPage() {
       {/* Tabs */}
       <Tabs defaultTab="appointments">
         <TabList>
-          <Tab value="appointments">Appointments</Tab>
-          <Tab value="payments">Payments</Tab>
-          <Tab value="package">Package</Tab>
+          <Tab value="appointments">Takimet</Tab>
+          <Tab value="payments">Pagesat</Tab>
+          <Tab value="package">Paketa</Tab>
         </TabList>
 
         <TabPanel value="appointments">
@@ -318,12 +318,12 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
   const columns = [
     {
       key: 'date',
-      label: 'Date',
+      label: 'Data',
       sortable: true
     },
     {
       key: 'time',
-      label: 'Time',
+      label: 'Ora',
       render: (_: unknown, appointment: AppointmentEx) => (
         <span>
           {appointment.startTime} - {appointment.endTime}
@@ -332,11 +332,11 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
     },
     {
       key: 'hours',
-      label: 'Hours'
+      label: 'Orët'
     },
     {
       key: 'status',
-      label: 'Status',
+      label: 'Statusi',
       render: (value: unknown) => {
         const status = value as string;
         const variants: Record<string, 'success' | 'warning' | 'danger'> = {
@@ -353,7 +353,7 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
     },
     {
       key: 'notes',
-      label: 'Notes',
+      label: 'Shënime',
       render: (value: unknown) => <span className="text-gray-500">{(value as string) || '-'}</span>
     }
   ];
@@ -364,7 +364,7 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
         columns={columns}
         keyExtractor={a => a._id || a.id || ''}
         searchable={false}
-        emptyMessage="No appointments scheduled"
+        emptyMessage="Nuk ka takime të planifikuara"
       />
     </Card>
   );
@@ -416,13 +416,13 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
       }
       const resp = await api.updateCandidate(candidate._id || candidate.id!, payload as any);
       if (!resp.ok) {
-        alert((resp.data as any)?.message || 'Failed to update candidate');
+        alert((resp.data as any)?.message || 'Dështoi përditësimi i kandidatit');
         return;
       }
       onSaved();
       onClose();
     } catch (err) {
-      alert('Failed to update candidate');
+      alert('Dështoi përditësimi i kandidatit');
     } finally {
       setSaving(false);
     }
@@ -432,16 +432,16 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Edit Candidate"
-      description="Update candidate information."
+      title="Ndrysho kandidatin"
+      description="Përditësoni të dhënat e kandidatit."
       size="lg"
       footer={
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={saving} fullWidth className="sm:w-auto">
-            Cancel
+            Anulo
           </Button>
           <Button onClick={handleSave} loading={saving} fullWidth className="sm:w-auto">
-            Save Changes
+            Ruaj ndryshimet
           </Button>
         </div>
       }
@@ -454,35 +454,35 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
         }}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
-          <Input label="Last Name" required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+          <Input label="Emri" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+          <Input label="Mbiemri" required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Email" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-          <Input label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+          <Input label="Emaili" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+          <Input label="Telefoni" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Date of Birth" type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} />
-          <Input label="Personal Number" value={form.personalNumber || ''} onChange={e => setForm({ ...form, personalNumber: e.target.value })} />
+          <Input label="Data e lindjes" type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} />
+          <Input label="Numri personal" value={form.personalNumber || ''} onChange={e => setForm({ ...form, personalNumber: e.target.value })} />
         </div>
-        <Input label="Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+        <Input label="Adresa" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Instructor"
+            label="Instruktori"
             value={form.instructorId}
             onChange={e => setForm({ ...form, instructorId: e.target.value })}
             options={[
-              { value: '', label: 'Not assigned' },
-              ...instructors.map(i => ({ value: i.id, label: i.name || 'Instructor' }))
+              { value: '', label: 'Pa caktuar' },
+              ...instructors.map(i => ({ value: i.id, label: i.name || 'Instruktor' }))
             ]}
           />
           <Select
-            label="Status"
+            label="Statusi"
             value={form.status}
             onChange={e => setForm({ ...form, status: e.target.value as 'active' | 'inactive' })}
             options={[
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' }
+              { value: 'active', label: 'Aktive' },
+              { value: 'inactive', label: 'Joaktive' }
             ]}
           />
         </div>
@@ -513,15 +513,15 @@ function PaymentsTab({
   const paymentColumns = [
     {
       key: 'date',
-      label: 'Date',
+      label: 'Data',
       sortable: true,
       render: (value: unknown) => (
-        <span>{new Date(value as string).toLocaleDateString()}</span>
+        <span>{new Date(value as string).toLocaleDateString('sq-AL')}</span>
       ),
     },
     {
       key: 'amount',
-      label: 'Amount',
+      label: 'Shuma',
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">
@@ -531,7 +531,7 @@ function PaymentsTab({
     },
     {
       key: 'method',
-      label: 'Method',
+      label: 'Metoda',
       render: (value: unknown) => (
         <Badge variant={value === 'bank' ? 'info' : 'default'}>
           {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
@@ -540,7 +540,7 @@ function PaymentsTab({
     },
     {
       key: 'notes',
-      label: 'Notes',
+      label: 'Shënime',
       render: (value: unknown) => (
         <span className="text-gray-500 truncate max-w-[200px] block">
           {(value as string) || '-'}
@@ -556,9 +556,9 @@ function PaymentsTab({
         {/* Package Price */}
         <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <div className="p-4">
-            <p className="text-blue-100 text-sm">Package Price</p>
+            <p className="text-blue-100 text-sm">Çmimi i paketës</p>
             <p className="text-3xl font-bold mt-1">
-              {packageInfoProp ? `€${packagePrice.toLocaleString()}` : 'No Package'}
+              {packageInfoProp ? `€${packagePrice.toLocaleString()}` : 'Pa paketë'}
             </p>
             {packageInfoProp && (
               <p className="text-blue-100 text-xs mt-1">{packageInfoProp.name}</p>
@@ -569,12 +569,12 @@ function PaymentsTab({
         {/* Total Paid */}
         <Card className="bg-gradient-to-r from-green-600 to-green-700 text-white">
           <div className="p-4">
-            <p className="text-green-100 text-sm">Total Paid</p>
+            <p className="text-green-100 text-sm">Totali i paguar</p>
             <p className="text-3xl font-bold mt-1">
               €{totalPaid.toLocaleString()}
             </p>
             <p className="text-green-100 text-xs mt-1">
-              {paymentsProp.length} payment{paymentsProp.length !== 1 ? 's' : ''}
+              {paymentsProp.length} pagesë{paymentsProp.length !== 1 ? '' : ''}
             </p>
           </div>
         </Card>
@@ -589,14 +589,14 @@ function PaymentsTab({
         }`}>
           <div className="p-4">
             <p className="text-white/90 text-sm">
-              {isFullyPaid ? 'Fully Paid' : balance > 0 ? 'Remaining' : 'Overpaid'}
+              {isFullyPaid ? 'E paguar plotësisht' : balance > 0 ? 'E mbetur' : 'Më shumë se çmimi'}
             </p>
             <p className="text-3xl font-bold mt-1">
               €{Math.abs(balance).toLocaleString()}
             </p>
             {!isFullyPaid && balance > 0 && (
               <p className="text-white/90 text-xs mt-1">
-                {((totalPaid / packagePrice) * 100).toFixed(1)}% paid
+                {((totalPaid / packagePrice) * 100).toFixed(1)}% e paguar
               </p>
             )}
           </div>
@@ -606,11 +606,11 @@ function PaymentsTab({
       {/* Payments Table */}
       <Card padding="none">
         <div className="p-4 sm:p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Payment History</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Historiku i pagesave</h3>
         </div>
         {paymentsProp.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            <p>No payments recorded yet.</p>
+            <p>Ende nuk është regjistruar asnjë pagesë.</p>
           </div>
         ) : (
           <DataTable
@@ -618,7 +618,7 @@ function PaymentsTab({
             columns={paymentColumns}
             keyExtractor={(payment) => payment.id}
             searchable={false}
-            emptyMessage="No payments found"
+            emptyMessage="Nuk u gjetën pagesa"
           />
         )}
       </Card>
@@ -629,7 +629,7 @@ function PaymentsTab({
 function PackageTab() {
   return (
     <Card>
-      <div className="p-4 sm:p-6 text-gray-600">No package assigned.</div>
+      <div className="p-4 sm:p-6 text-gray-600">Nuk është caktuar paketë.</div>
     </Card>
   );
 }

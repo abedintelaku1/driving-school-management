@@ -42,7 +42,7 @@ function ProtectedRoute({
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">Duke u ngarkuar...</p>
       </div>
     );
   }
@@ -86,7 +86,7 @@ function AppContent() {
 
           {/* Instructor Routes */}
           <Route path="/instructor" element={<ProtectedRoute allowedRole={1}>
-                <InstructorLayout title="Instructor Panel" />
+                <InstructorLayout title="Paneli i instruktorit" />
               </ProtectedRoute>}>
             <Route index element={<InstructorDashboard />} />
             <Route path="profile" element={<InstructorProfilePage />} />

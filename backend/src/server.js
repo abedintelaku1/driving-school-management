@@ -1,7 +1,9 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const connectDB = require("./config/database");
+const seedUsers = require("./config/seedUsers");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 // Routes
@@ -19,6 +21,9 @@ const notificationRoutes = require("./routes/notification.routes");
 const app = express();
 
 connectDB();
+mongoose.connection.once("open", () => {
+  seedUsers().catch((err) => console.error("Seed users error:", err));
+});
 
 // CORS configuration
 app.use(
@@ -82,8 +87,8 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-// For iisnode compatibility
-if (!process.env.PORT) {
+// Skip listen when run under iisnode (IIS sets this)
+if (!process.env.IISNODE_VERSION) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || "development"}`);

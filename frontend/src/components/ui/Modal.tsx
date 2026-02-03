@@ -101,7 +101,7 @@ export function Modal({
               <button
                 onClick={onClose}
                 className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0"
-                aria-label="Close modal"
+                aria-label="Mbyll dritaren"
               >
                 <XIcon className="w-5 h-5" />
               </button>
@@ -140,8 +140,8 @@ export function ConfirmModal({
   onConfirm,
   title,
   message,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
+  confirmText = "Konfirmo",
+  cancelText = "Anulo",
   variant = "danger",
   loading = false,
 }: ConfirmModalProps) {
