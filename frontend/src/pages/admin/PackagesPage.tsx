@@ -40,7 +40,7 @@ export function PackagesPage() {
         }
       } catch (error) {
         console.error('Failed to load packages:', error);
-        toast('error', 'Failed to load packages');
+        toast('error', 'Dështoi ngarkimi i paketave');
       } finally {
         setLoading(false);
       }
@@ -56,15 +56,15 @@ export function PackagesPage() {
       const newStatus = pkg.status === 'active' ? 'inactive' : 'active';
       const resp = await api.updatePackage(pkg.id, { status: newStatus });
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Failed to update package status';
+        const errorMessage = (resp.data as any)?.message || 'Dështoi përditësimi i statusit të paketës';
         toast('error', errorMessage);
         return;
       }
-      toast('success', `Package ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+      toast('success', `Paketa u ${newStatus === 'active' ? 'aktivizua' : 'çaktivizua'} me sukses`);
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error toggling package status:', error);
-      toast('error', 'An error occurred. Please try again.');
+      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
     }
   };
 
@@ -75,16 +75,16 @@ export function PackagesPage() {
     try {
       const resp = await api.deletePackage(deletingPackage.id);
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Failed to delete package';
+        const errorMessage = (resp.data as any)?.message || 'Dështoi fshirja e paketës';
         toast('error', errorMessage);
         return;
       }
-      toast('success', 'Package deleted successfully');
+      toast('success', 'Paketa u fshi me sukses');
       setRefreshKey(prev => prev + 1);
       setDeletingPackage(null);
     } catch (error) {
       console.error('Error deleting package:', error);
-      toast('error', 'An error occurred. Please try again.');
+      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
     } finally {
       setIsDeleting(false);
     }
@@ -93,32 +93,32 @@ export function PackagesPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Packages</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Paketat</h1>
           <p className="text-gray-500 mt-1">
-            Manage service packages and pricing.
+            Menaxhoni paketat e shërbimeve dhe çmimet.
           </p>
         </div>
         <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
-          Add Package
+          Shto paketë
         </Button>
       </div>
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">Loading packages...</p>
+          <p className="text-gray-500">Duke ngarkuar paketat...</p>
         </div>
       ) : (
         <>
           {/* Active Packages */}
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Active Packages
+              Paketa aktivë
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activePackages.map(pkg => <PackageCard key={pkg.id} package={pkg} onEdit={() => setEditingPackage(pkg)} onToggleStatus={() => handleToggleStatus(pkg)} onDelete={() => setDeletingPackage(pkg)} />)}
               {activePackages.length === 0 && <Card className="col-span-full">
                   <p className="text-center text-gray-500 py-8">
-                    No active packages
+                    Nuk ka paketa aktivë
                   </p>
                 </Card>}
             </div>
@@ -127,7 +127,7 @@ export function PackagesPage() {
           {/* Inactive Packages */}
           {inactivePackages.length > 0 && <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Inactive Packages
+                Paketa joaktive
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {inactivePackages.map(pkg => <PackageCard key={pkg.id} package={pkg} onEdit={() => setEditingPackage(pkg)} onToggleStatus={() => handleToggleStatus(pkg)} onDelete={() => setDeletingPackage(pkg)} />)}
@@ -152,10 +152,10 @@ export function PackagesPage() {
         isOpen={!!deletingPackage}
         onClose={() => setDeletingPackage(null)}
         onConfirm={handleDelete}
-        title="Delete Package"
-        message={deletingPackage ? `Are you sure you want to delete "${deletingPackage.name}"? This action cannot be undone.` : ''}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title="Fshi paketën"
+        message={deletingPackage ? `Jeni të sigurt që dëshironi të fshini "${deletingPackage.name}"? Ky veprim nuk mund të kthehet.` : ''}
+        confirmText="Fshi"
+        cancelText="Anulo"
         variant="danger"
         loading={isDeleting}
       />
@@ -188,17 +188,17 @@ function PackageCard({
 
       <div className="space-y-3 mb-6">
         <div className="flex justify-between">
-          <span className="text-gray-500">Price</span>
+          <span className="text-gray-500">Çmimi</span>
           <span className="font-semibold text-gray-900">€{pkg.price}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Hours</span>
+          <span className="text-gray-500">Orët</span>
           <span className="font-semibold text-gray-900">
             {pkg.numberOfHours}h
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Per Hour</span>
+          <span className="text-gray-500">Për orë</span>
           <span className="font-semibold text-gray-900">
             €{(pkg.price / pkg.numberOfHours).toFixed(2)}
           </span>
@@ -209,10 +209,10 @@ function PackageCard({
 
       <div className="flex gap-2 pt-4 border-t border-gray-100">
         <Button variant="outline" size="sm" fullWidth onClick={onEdit} icon={<EditIcon className="w-4 h-4" />}>
-          Edit
+          Ndrysho
         </Button>
         <Button variant="ghost" size="sm" fullWidth onClick={onToggleStatus} icon={pkg.status === 'active' ? <ToggleRightIcon className="w-4 h-4" /> : <ToggleLeftIcon className="w-4 h-4" />}>
-          {pkg.status === 'active' ? 'Deactivate' : 'Activate'}
+          {pkg.status === 'active' ? 'Çaktivizo' : 'Aktivizo'}
         </Button>
         <Button 
           variant="ghost" 
@@ -222,7 +222,7 @@ function PackageCard({
           icon={<TrashIcon className="w-4 h-4" />}
           className="text-red-600 hover:text-red-700 hover:bg-red-50"
         >
-          Delete
+          Fshi
         </Button>
       </div>
     </Card>;
@@ -313,12 +313,12 @@ function PackageModal({
       }
       
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Failed to save package';
+        const errorMessage = (resp.data as any)?.message || 'Dështoi ruajtja e paketës';
         toast('error', errorMessage);
         return;
       }
       
-      toast('success', pkg ? 'Package updated successfully' : 'Package created successfully');
+      toast('success', pkg ? 'Paketa u përditësua me sukses' : 'Paketa u krijua me sukses');
       
       // Reset form if creating new package
       if (!pkg) {
@@ -335,48 +335,48 @@ function PackageModal({
       onSuccess();
     } catch (error) {
       console.error('Error saving package:', error);
-      toast('error', 'An error occurred. Please try again.');
+      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
     } finally {
       setLoading(false);
     }
   };
-  return <Modal isOpen={isOpen} onClose={onClose} title={pkg ? 'Edit Package' : 'Add New Package'} description={pkg ? 'Update the package details.' : 'Create a new service package.'} size="md" footer={<div className="flex justify-end gap-3">
+  return <Modal isOpen={isOpen} onClose={onClose} title={pkg ? 'Ndrysho paketën' : 'Shto paketë të re'} description={pkg ? 'Përditësoni detajet e paketës.' : 'Krijoni një paketë shërbimi të re.'} size="md" footer={<div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            Anulo
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            {pkg ? 'Save Changes' : 'Create Package'}
+            {pkg ? 'Ruaj ndryshimet' : 'Krijo paketën'}
           </Button>
         </div>}>
       <form className="space-y-6">
-        <Input label="Package Name" required value={formData.name} onChange={e => setFormData({
+        <Input label="Emri i paketës" required value={formData.name} onChange={e => setFormData({
         ...formData,
         name: e.target.value
-      })} placeholder="e.g., Basic Package" />
+      })} placeholder="p.sh. Paketa bazë" />
 
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Category" required value={formData.category} onChange={e => setFormData({
+          <Select label="Kategoria" required value={formData.category} onChange={e => setFormData({
           ...formData,
           category: e.target.value
         })} options={licenseCategories.map(cat => ({
           value: cat,
-          label: `Category ${cat}`
+          label: `Kategoria ${cat}`
         }))} />
-          <Input label="Number of Hours" type="number" required value={formData.numberOfHours} onChange={e => setFormData({
+          <Input label="Numri i orëve" type="number" required value={formData.numberOfHours} onChange={e => setFormData({
           ...formData,
           numberOfHours: e.target.value
-        })} placeholder="e.g., 20" />
+        })} placeholder="p.sh. 20" />
         </div>
 
-        <Input label="Price (€)" type="number" required value={formData.price} onChange={e => setFormData({
+        <Input label="Çmimi (€)" type="number" required value={formData.price} onChange={e => setFormData({
         ...formData,
         price: e.target.value
-      })} placeholder="e.g., 800" />
+      })} placeholder="p.sh. 800" />
 
-        <TextArea label="Description" value={formData.description} onChange={e => setFormData({
+        <TextArea label="Përshkrimi" value={formData.description} onChange={e => setFormData({
         ...formData,
         description: e.target.value
-      })} placeholder="Optional description of what's included..." rows={3} />
+      })} placeholder="Përshkrim opsional i asaj që përfshihet..." rows={3} />
       </form>
     </Modal>;
 }

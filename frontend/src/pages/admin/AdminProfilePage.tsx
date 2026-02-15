@@ -65,10 +65,10 @@ export function AdminProfilePage() {
           email: result.data.email || '',
         });
       } else {
-        toast('error', result.data?.message || 'Failed to load profile');
+        toast('error', result.data?.message || 'Dështoi ngarkimi i profilit');
       }
     } catch (error) {
-      toast('error', 'Failed to load profile');
+      toast('error', 'Dështoi ngarkimi i profilit');
     } finally {
       setLoading(false);
     }
@@ -79,19 +79,19 @@ export function AdminProfilePage() {
     const errors: ValidationErrors = {};
     
     if (!profileData.firstName.trim()) {
-      errors.firstName = 'First name is required';
+      errors.firstName = 'Emri është i detyrueshëm';
     }
     
     if (!profileData.lastName.trim()) {
-      errors.lastName = 'Last name is required';
+      errors.lastName = 'Mbiemri është i detyrueshëm';
     }
     
     if (!profileData.email.trim()) {
-      errors.email = 'Email is required';
+      errors.email = 'Emaili është i detyrueshëm';
     } else {
       const emailRegex = /^\S+@\S+\.\S+$/;
       if (!emailRegex.test(profileData.email)) {
-        errors.email = 'Invalid email format';
+        errors.email = 'Formati i emailit është i pavlefshëm';
       }
     }
     
@@ -104,13 +104,13 @@ export function AdminProfilePage() {
     const errors: ValidationErrors = {};
     
     if (!passwordData.currentPassword) {
-      errors.currentPassword = 'Current password is required';
+      errors.currentPassword = 'Fjalëkalimi aktual është i detyrueshëm';
     }
     
     if (!passwordData.newPassword) {
-      errors.newPassword = 'New password is required';
+      errors.newPassword = 'Fjalëkalimi i ri është i detyrueshëm';
     } else if (passwordData.newPassword.length < 6) {
-      errors.newPassword = 'Password must be at least 6 characters long';
+      errors.newPassword = 'Fjalëkalimi duhet të ketë të paktën 6 karaktere';
     } else {
       // Check password strength
       const hasUpperCase = /[A-Z]/.test(passwordData.newPassword);
@@ -118,14 +118,14 @@ export function AdminProfilePage() {
       const hasNumber = /[0-9]/.test(passwordData.newPassword);
       
       if (!hasUpperCase || !hasLowerCase || !hasNumber) {
-        errors.newPassword = 'Password must contain uppercase, lowercase, and number';
+        errors.newPassword = 'Fjalëkalimi duhet të përmbajë shkronja të mëdha, të vogla dhe numra';
       }
     }
     
     if (!passwordData.confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password';
+      errors.confirmPassword = 'Ju lutemi konfirmoni fjalëkalimin';
     } else if (passwordData.newPassword !== passwordData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+      errors.confirmPassword = 'Fjalëkalimet nuk përputhen';
     }
     
     setPasswordErrors(errors);
@@ -144,14 +144,14 @@ export function AdminProfilePage() {
       const result = await api.updateAdminProfile(profileData);
       
       if (result.ok && result.data) {
-        toast('success', 'Profile updated successfully');
+        toast('success', 'Profili u përditësua me sukses');
         // Optionally refresh user data
         const { ok, data } = await api.me();
         if (ok && data?.user) {
           // The auth context will update on next check
         }
       } else {
-        const errorMessage = result.data?.message || 'Failed to update profile';
+        const errorMessage = result.data?.message || 'Dështoi përditësimi i profilit';
         toast('error', errorMessage);
         
         // Set field-specific errors if available
@@ -160,7 +160,7 @@ export function AdminProfilePage() {
         }
       }
     } catch (error) {
-      toast('error', 'Failed to update profile');
+      toast('error', 'Dështoi përditësimi i profilit');
     } finally {
       setSavingProfile(false);
     }
@@ -181,7 +181,7 @@ export function AdminProfilePage() {
       });
       
       if (result.ok) {
-        toast('success', 'Password changed successfully');
+        toast('success', 'Fjalëkalimi u ndryshua me sukses');
         // Clear password form
         setPasswordData({
           currentPassword: '',
@@ -190,7 +190,7 @@ export function AdminProfilePage() {
         });
         setPasswordErrors({});
       } else {
-        const errorMessage = result.data?.message || 'Failed to change password';
+        const errorMessage = result.data?.message || 'Dështoi ndryshimi i fjalëkalimit';
         toast('error', errorMessage);
         
         // Set field-specific errors if available
@@ -201,7 +201,7 @@ export function AdminProfilePage() {
         }
       }
     } catch (error) {
-      toast('error', 'Failed to change password');
+      toast('error', 'Dështoi ndryshimi i fjalëkalimit');
     } finally {
       setChangingPassword(false);
     }
@@ -210,7 +210,7 @@ export function AdminProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-gray-500">Loading profile...</div>
+        <div className="text-gray-500">Duke ngarkuar profilin...</div>
       </div>
     );
   }
@@ -218,8 +218,8 @@ export function AdminProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
-        <p className="text-gray-500 mt-1">Manage your personal information and password</p>
+        <h1 className="text-2xl font-bold text-gray-900">Cilësimet e profilit</h1>
+        <p className="text-gray-500 mt-1">Menaxhoni të dhënat personale dhe fjalëkalimin</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -231,15 +231,15 @@ export function AdminProfilePage() {
                 <UserIcon className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Edit Profile</h2>
-                <p className="text-sm text-gray-500">Update your personal information</p>
+                <h2 className="text-lg font-semibold text-gray-900">Ndrysho profilin</h2>
+                <p className="text-sm text-gray-500">Përditësoni të dhënat personale</p>
               </div>
             </div>
 
             <form onSubmit={handleProfileSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="First Name"
+                  label="Emri"
                   type="text"
                   value={profileData.firstName}
                   onChange={(e) => {
@@ -254,7 +254,7 @@ export function AdminProfilePage() {
                 />
 
                 <Input
-                  label="Last Name"
+                  label="Mbiemri"
                   type="text"
                   value={profileData.lastName}
                   onChange={(e) => {
@@ -270,7 +270,7 @@ export function AdminProfilePage() {
               </div>
 
               <Input
-                label="Email"
+                label="Emaili"
                 type="email"
                 value={profileData.email}
                 onChange={(e) => {
@@ -291,7 +291,7 @@ export function AdminProfilePage() {
                   disabled={savingProfile}
                   icon={<SaveIcon className="w-4 h-4" />}
                 >
-                  {savingProfile ? 'Saving...' : 'Save Changes'}
+                  {savingProfile ? 'Duke ruajtur...' : 'Ruaj ndryshimet'}
                 </Button>
               </div>
             </form>
@@ -306,14 +306,14 @@ export function AdminProfilePage() {
                 <LockIcon className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
-                <p className="text-sm text-gray-500">Update your account password</p>
+                <h2 className="text-lg font-semibold text-gray-900">Ndrysho fjalëkalimin</h2>
+                <p className="text-sm text-gray-500">Përditësoni fjalëkalimin e llogarisë</p>
               </div>
             </div>
 
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <Input
-                label="Current Password"
+                label="Fjalëkalimi aktual"
                 type="password"
                 value={passwordData.currentPassword}
                 onChange={(e) => {
@@ -328,7 +328,7 @@ export function AdminProfilePage() {
               />
 
               <Input
-                label="New Password"
+                label="Fjalëkalimi i ri"
                 type="password"
                 value={passwordData.newPassword}
                 onChange={(e) => {
@@ -342,13 +342,13 @@ export function AdminProfilePage() {
                   }
                 }}
                 error={passwordErrors.newPassword}
-                hint="Must be at least 6 characters with uppercase, lowercase, and number"
+                hint="Të paktën 6 karaktere me shkronja të mëdha, të vogla dhe numra"
                 required
                 autoComplete="new-password"
               />
 
               <Input
-                label="Confirm New Password"
+                label="Konfirmo fjalëkalimin e ri"
                 type="password"
                 value={passwordData.confirmPassword}
                 onChange={(e) => {
@@ -369,7 +369,7 @@ export function AdminProfilePage() {
                   disabled={changingPassword}
                   icon={<LockIcon className="w-4 h-4" />}
                 >
-                  {changingPassword ? 'Changing...' : 'Change Password'}
+                  {changingPassword ? 'Duke ndryshuar...' : 'Ndrysho fjalëkalimin'}
                 </Button>
               </div>
             </form>

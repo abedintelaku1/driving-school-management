@@ -213,15 +213,15 @@ export function InstructorDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome back, {user?.firstName || 'Instructor'}!
+            Mirë se u ktheve, {user?.firstName || 'Instruktor'}!
           </h1>
           <p className="text-gray-500 mt-1">
-            {todayAppointments.length > 0 ? `You have ${todayAppointments.length} appointment${todayAppointments.length > 1 ? 's' : ''} today.` : 'No appointments scheduled for today.'}
+            {todayAppointments.length > 0 ? `Keni ${todayAppointments.length} takim${todayAppointments.length > 1 ? 'e' : ''} sot.` : 'Nuk ka takime të planifikuara për sot.'}
           </p>
         </div>
         <Link to="/instructor/appointments">
           <Button icon={<CalendarIcon className="w-4 h-4" />}>
-            New Appointment
+            Takim i ri
           </Button>
         </Link>
       </div>
@@ -234,7 +234,7 @@ export function InstructorDashboard() {
               <CalendarIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Today's Lessons</p>
+              <p className="text-sm text-gray-500">Mësimet e sotme</p>
               <p className="text-2xl font-bold text-gray-900">
                 {todayAppointments.length}
               </p>
@@ -247,7 +247,7 @@ export function InstructorDashboard() {
               <ClockIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Hours This Month</p>
+              <p className="text-sm text-gray-500">Orët këtë muaj</p>
               <p className="text-2xl font-bold text-gray-900">
                 {hoursThisMonth}h
               </p>
@@ -260,7 +260,7 @@ export function InstructorDashboard() {
               <UsersIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Active Students</p>
+              <p className="text-sm text-gray-500">Nxënës aktivë</p>
               <p className="text-2xl font-bold text-gray-900">
                 {activeCandidates.length}
               </p>
@@ -273,7 +273,7 @@ export function InstructorDashboard() {
               <CheckCircleIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Completed This Month</p>
+              <p className="text-sm text-gray-500">Përfunduar këtë muaj</p>
               <p className="text-2xl font-bold text-gray-900">
                 {completedThisMonth.length}
               </p>
@@ -288,9 +288,9 @@ export function InstructorDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Today's Schedule</CardTitle>
+              <CardTitle>Orari i sotem</CardTitle>
               <Link to="/instructor/calendar" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                View Calendar <ArrowRightIcon className="w-4 h-4" />
+                Shiko kalendarin <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -324,7 +324,7 @@ export function InstructorDashboard() {
                           </p>
                         )}
                       </div>
-                      <Badge variant="info">Scheduled</Badge>
+                      <Badge variant="info">E planifikuar</Badge>
                     </div>
                   );
                 })}
@@ -332,10 +332,10 @@ export function InstructorDashboard() {
             ) : (
               <div className="text-center py-8">
                 <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No lessons scheduled for today</p>
+                <p className="text-gray-500">Nuk ka mësime të planifikuara për sot</p>
                 <Link to="/instructor/appointments">
                   <Button variant="outline" size="sm" className="mt-3">
-                    Schedule a Lesson
+                    Planifiko një mësim
                   </Button>
                 </Link>
               </div>
@@ -347,9 +347,9 @@ export function InstructorDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Upcoming Appointments</CardTitle>
+              <CardTitle>Takimet e ardhshme</CardTitle>
               <Link to="/instructor/appointments" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                View All <ArrowRightIcon className="w-4 h-4" />
+                Shiko të gjitha <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -387,7 +387,7 @@ export function InstructorDashboard() {
               </div>
             ) : (
               <p className="text-center text-gray-500 py-8">
-                No upcoming appointments
+                Nuk ka takime të ardhshme
               </p>
             )}
           </CardContent>
@@ -398,9 +398,9 @@ export function InstructorDashboard() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>My Students</CardTitle>
+            <CardTitle>Nxënësit e mi</CardTitle>
             <Link to="/instructor/candidates" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              View All <ArrowRightIcon className="w-4 h-4" />
+              Shiko të gjitha <ArrowRightIcon className="w-4 h-4" />
             </Link>
           </div>
         </CardHeader>
@@ -425,7 +425,7 @@ export function InstructorDashboard() {
                         {candidate.firstName} {candidate.lastName}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {completedHours}h completed
+                        {completedHours}h përfunduar
                       </p>
                     </div>
                   </div>
@@ -434,7 +434,7 @@ export function InstructorDashboard() {
             </div>
           ) : (
             <p className="text-center text-gray-500 py-8">
-              No active students
+              Nuk ka nxënës aktivë
             </p>
           )}
         </CardContent>

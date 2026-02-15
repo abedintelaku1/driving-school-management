@@ -32,10 +32,10 @@ const create = async (req, res, next) => {
         // Convert role to number if string is provided
         let roleNum = role;
         if (typeof role === 'string') {
-            roleNum = role === 'admin' ? 0 : role === 'instructor' ? 1 : null;
+            roleNum = role === 'admin' ? 0 : role === 'instructor' ? 1 : role === 'staff' ? 2 : null;
         }
-        if (roleNum !== 0 && roleNum !== 1) {
-            return res.status(400).json({ message: 'Role must be 0 (admin) or 1 (instructor)' });
+        if (roleNum !== 0 && roleNum !== 1 && roleNum !== 2) {
+            return res.status(400).json({ message: 'Role must be 0 (admin), 1 (instructor) or 2 (staff)' });
         }
         
         // Validate email format

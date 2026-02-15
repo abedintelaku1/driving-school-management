@@ -1,6 +1,6 @@
 // Core entity types for Drivers Hub
 
-export type UserRole = 0 | 1; // 0 = Admin, 1 = Instructor
+export type UserRole = 0 | 1 | 2; // 0 = Admin, 1 = Instructor, 2 = Staff
 export type PaymentMethod = 'bank' | 'cash';
 export type PaymentFrequency = 'deposit' | 'one-time' | 'installments';
 export type TransmissionType = 'manual' | 'automatic';

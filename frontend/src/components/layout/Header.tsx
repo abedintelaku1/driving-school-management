@@ -122,6 +122,16 @@ export function Header({
     return date.toLocaleDateString('sq-AL');
   };
 
+  // Get notification type label (Albanian)
+  const getNotificationTypeLabel = (type: string): string => {
+    switch (type) {
+      case 'success': return 'Sukses';
+      case 'warning': return 'Paralajmërim';
+      case 'error': return 'Gabim';
+      default: return 'Info';
+    }
+  };
+
   // Get notification type color
   const getNotificationTypeColor = (type: string): string => {
     switch (type) {
@@ -186,6 +196,7 @@ export function Header({
   const getRoleDisplay = (role: number | string | undefined): string => {
     if (role === 0 || role === '0' || role === 'admin') return 'Admin';
     if (role === 1 || role === '1' || role === 'instructor') return 'Instructor';
+    if (role === 2 || role === '2' || role === 'staff') return 'Staff';
     return 'User';
   };
 
@@ -197,7 +208,7 @@ export function Header({
         <button 
           onClick={onMobileMenuToggle} 
           className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors" 
-          aria-label="Open menu"
+          aria-label="Hap menunë"
         >
           <MenuIcon className="w-5 h-5 text-gray-600" />
         </button>
@@ -216,7 +227,7 @@ export function Header({
         <div className="relative" ref={notificationsRef}>
           <button
             className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Notifications"
+            aria-label="Njoftimet"
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <BellIcon className="w-5 h-5" />
@@ -257,7 +268,7 @@ export function Header({
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <p className={`text-xs px-2 py-0.5 rounded-full ${getNotificationTypeColor(item.type)}`}>
-                              {item.type}
+                              {getNotificationTypeLabel(item.type)}
                             </p>
                             {!item.read && (
                               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -300,7 +311,7 @@ export function Header({
             onClick={() => setShowDropdown(!showDropdown)} 
             className="flex items-center gap-2 lg:gap-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <Avatar name={user ? `${user.firstName} ${user.lastName}` : 'User'} size="sm" />
+            <Avatar name={user ? `${user.firstName} ${user.lastName}` : 'Përdorues'} size="sm" />
             <div className="text-left hidden md:block">
               <p className="text-sm font-medium text-gray-900">
                 {user?.firstName} {user?.lastName}
@@ -323,12 +334,12 @@ export function Header({
                 <button 
                   onClick={() => {
                     setShowDropdown(false);
-                    navigate(user?.role === 0 ? '/admin/profile' : '/instructor/profile');
+                    navigate(user?.role === 0 || user?.role === 2 ? '/admin/profile' : '/instructor/profile');
                   }} 
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <UserIcon className="w-4 h-4" />
-                  Profile
+                  Profili
                 </button>
               </div>
               <div className="border-t border-gray-100 py-1">
@@ -337,7 +348,7 @@ export function Header({
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                 >
                   <LogOutIcon className="w-4 h-4" />
-                  Sign out
+                  Dilni
                 </button>
               </div>
             </div>

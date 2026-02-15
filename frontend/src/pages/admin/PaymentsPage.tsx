@@ -11,6 +11,7 @@ import { TextArea } from '../../components/ui/TextArea';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import type { Payment, Candidate, Package } from '../../types';
 import { toast } from '../../hooks/useToast';
+import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 
 type PaymentRow = {
@@ -25,6 +26,13 @@ type PaymentRow = {
 };
 
 export function PaymentsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 0;
+  const isStaff = user?.role === 2;
+  const canAddPayment = isAdmin || isStaff;      // Staff: ✅ shtim pagesash
+  const canEditPayment = isAdmin;                // Staff: ❌ editim
+  const canDeletePayment = isAdmin;              // Staff: ❌ fshirje / minusim
+
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
@@ -66,7 +74,7 @@ export function PaymentsPage() {
           }));
           setPayments(mapped);
         } else {
-          toast('error', 'Failed to load payments');
+          toast('error', 'Dështoi ngarkimi i pagesave');
         }
 
         if (candidatesRes.ok && candidatesRes.data) {
@@ -107,7 +115,7 @@ export function PaymentsPage() {
         }
       } catch (error) {
         console.error('Error fetching data:', error);
-        toast('error', 'Failed to load data');
+        toast('error', 'Dështoi ngarkimi i të dhënave');
       } finally {
         setLoading(false);
       }
@@ -201,28 +209,28 @@ export function PaymentsPage() {
     try {
       const { ok, data } = await api.deletePayment(selectedPayment.id);
       if (ok) {
-        toast('success', 'Payment deleted successfully');
+        toast('success', 'Pagesa u fshi me sukses');
         setRefreshKey((prev) => prev + 1);
         setShowDeleteModal(false);
         setSelectedPayment(null);
       } else {
-        toast('error', (data as any)?.message || 'Failed to delete payment');
+        toast('error', (data as any)?.message || 'Dështoi fshirja e pagesës');
       }
     } catch (error) {
       console.error('Error deleting payment:', error);
-      toast('error', 'Failed to delete payment');
+      toast('error', 'Dështoi fshirja e pagesës');
     }
   };
 
   // Handle export
   const handleExport = () => {
     // Create CSV content
-    const headers = ['Date', 'Candidate Name', 'Client Number', 'Package', 'Amount', 'Method', 'Notes'];
+    const headers = ['Data', 'Emri i kandidatit', 'Numri i klientit', 'Paketa', 'Shuma', 'Metoda', 'Shënime'];
     const rows = filteredPayments.map((payment) => {
       const candidate = getCandidateInfo(payment.candidateId);
       const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
         ? `${candidate.firstName} ${candidate.lastName}`
-        : 'Unknown';
+        : 'I panjohur';
       const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
         ? (candidate.uniqueClientNumber || '')
         : '';
@@ -257,7 +265,7 @@ export function PaymentsPage() {
     link.click();
     document.body.removeChild(link);
     
-    toast('success', 'Payments exported successfully');
+    toast('success', 'Pagesat u eksportuan me sukses');
   };
 
   // Clear all filters
@@ -271,12 +279,12 @@ export function PaymentsPage() {
   const columns = [
     {
       key: 'date',
-      label: 'Date',
+      label: 'Data',
       sortable: true,
     },
     {
       key: 'candidateId',
-      label: 'Candidate',
+      label: 'Kandidati',
       render: (value: unknown) => {
         const candidate = getCandidateInfo(value as any);
         if (typeof candidate === 'object' && candidate !== null && 'firstName' in candidate) {
@@ -291,12 +299,12 @@ export function PaymentsPage() {
             </div>
           );
         }
-        return <span className="text-gray-400">Unknown</span>;
+        return <span className="text-gray-400">I panjohur</span>;
       },
     },
     {
       key: 'packageId',
-      label: 'Package',
+      label: 'Paketa',
       render: (value: unknown) => {
         const pkg = getPackageInfo(value as any);
         return pkg ? (
@@ -308,7 +316,7 @@ export function PaymentsPage() {
     },
     {
       key: 'amount',
-      label: 'Amount',
+      label: 'Shuma',
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">€{(value as number).toLocaleString()}</span>
@@ -316,7 +324,7 @@ export function PaymentsPage() {
     },
     {
       key: 'method',
-      label: 'Method',
+      label: 'Metoda',
       render: (value: unknown) => (
         <Badge variant={value === 'bank' ? 'info' : 'default'}>
           {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
@@ -325,7 +333,7 @@ export function PaymentsPage() {
     },
     {
       key: 'notes',
-      label: 'Notes',
+      label: 'Shënime',
       render: (value: unknown) => (
         <span className="text-gray-500 truncate max-w-[200px] block">
           {(value as string) || '-'}
@@ -347,9 +355,9 @@ export function PaymentsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Pagesat</h1>
           <p className="text-gray-500 mt-1">
-            Track and manage all payment transactions.
+            Ndiqni dhe menaxhoni të gjitha transaksionet e pagesave.
           </p>
         </div>
         <div className="flex gap-3">
@@ -359,14 +367,16 @@ export function PaymentsPage() {
             onClick={handleExport}
             disabled={filteredPayments.length === 0}
           >
-            Export
+            Eksporto
           </Button>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            icon={<PlusIcon className="w-4 h-4" />}
-          >
-            Record Payment
-          </Button>
+          {canAddPayment && (
+            <Button
+              onClick={() => setShowAddModal(true)}
+              icon={<PlusIcon className="w-4 h-4" />}
+            >
+              Regjistro pagesë
+            </Button>
+          )}
         </div>
       </div>
 
@@ -374,13 +384,13 @@ export function PaymentsPage() {
       <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-blue-100">Total Collected (filtered)</p>
+            <p className="text-blue-100">Totali i mbledhur (të filtruara)</p>
             <p className="text-4xl font-bold mt-1">
               €{totalAmount.toLocaleString()}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-blue-100">Transactions</p>
+            <p className="text-blue-100">Transaksionet</p>
             <p className="text-4xl font-bold mt-1">{filteredPayments.length}</p>
           </div>
         </div>
@@ -392,28 +402,28 @@ export function PaymentsPage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <Input
-                label="Search"
-                placeholder="Search by candidate, package, amount, method..."
+                label="Kërko"
+                placeholder="Kërko sipas kandidatit, paketës, shumës, metodës..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="w-48">
               <Select
-                label="Payment Method"
-                placeholder="All Methods"
+                label="Metoda e pagesës"
+                placeholder="Të gjitha metodat"
                 value={methodFilter}
                 onChange={(e) => setMethodFilter(e.target.value)}
                 options={[
-                  { value: '', label: 'All Methods' },
-                  { value: 'bank', label: 'Bank Transfer' },
-                  { value: 'cash', label: 'Cash' },
+                  { value: '', label: 'Të gjitha metodat' },
+                  { value: 'bank', label: 'Transfer bankar' },
+                  { value: 'cash', label: 'Para në dorë' },
                 ]}
               />
             </div>
             <div className="w-40">
               <Input
-                label="From Date"
+                label="Nga data"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
@@ -421,7 +431,7 @@ export function PaymentsPage() {
             </div>
             <div className="w-40">
               <Input
-                label="To Date"
+                label="Deri në datë"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
@@ -433,7 +443,7 @@ export function PaymentsPage() {
                 size="sm"
                 onClick={clearAllFilters}
               >
-                Clear Filters
+                Pastro filtrat
               </Button>
             )}
           </div>
@@ -447,34 +457,38 @@ export function PaymentsPage() {
           columns={columns}
           keyExtractor={(payment) => payment.id}
           searchable={false}
-          emptyMessage="No payments found"
-          actions={(payment) => (
+          emptyMessage="Nuk u gjetën pagesa"
+          actions={canEditPayment || canDeletePayment ? (payment) => (
             <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEdit(payment);
-                }}
-                icon={<EditIcon className="w-4 h-4" />}
-              >
-                <span className="hidden sm:inline">Edit</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(payment);
-                }}
-                icon={<TrashIcon className="w-4 h-4" />}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <span className="hidden sm:inline">Delete</span>
-              </Button>
+              {canEditPayment && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(payment);
+                  }}
+                  icon={<EditIcon className="w-4 h-4" />}
+                >
+                  <span className="hidden sm:inline">Ndrysho</span>
+                </Button>
+              )}
+              {canDeletePayment && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(payment);
+                  }}
+                  icon={<TrashIcon className="w-4 h-4" />}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <span className="hidden sm:inline">Fshi</span>
+                </Button>
+              )}
             </div>
-          )}
+          ) : undefined}
         />
       </Card>
 
@@ -484,7 +498,7 @@ export function PaymentsPage() {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast('success', 'Payment recorded successfully');
+          toast('success', 'Pagesa u regjistrua me sukses');
           setShowAddModal(false);
         }}
         candidates={candidates}
@@ -500,7 +514,7 @@ export function PaymentsPage() {
         }}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast('success', 'Payment updated successfully');
+          toast('success', 'Pagesa u përditësua me sukses');
           setShowEditModal(false);
           setSelectedPayment(null);
         }}
@@ -571,19 +585,19 @@ function AddPaymentModal({
     
     // Validation
     if (!formData.candidateId) {
-      toast('error', 'Please select a candidate');
+      toast('error', 'Ju lutemi zgjidhni një kandidat');
       return;
     }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      toast('error', 'Please enter a valid amount');
+      toast('error', 'Ju lutemi vendosni një shumë të vlefshme');
       return;
     }
     if (!formData.method) {
-      toast('error', 'Please select a payment method');
+      toast('error', 'Ju lutemi zgjidhni një metodë pagese');
       return;
     }
     if (!formData.date) {
-      toast('error', 'Please select a date');
+      toast('error', 'Ju lutemi zgjidhni një datë');
       return;
     }
 
@@ -607,12 +621,12 @@ function AddPaymentModal({
         onSuccess();
       } else {
         console.error('Failed to create payment:', { status, data });
-        const errorMessage = (data as any)?.message || `Failed to record payment (Status: ${status})`;
+        const errorMessage = (data as any)?.message || `Dështoi regjistrimi i pagesës (Status: ${status})`;
         toast('error', errorMessage);
       }
     } catch (error) {
       console.error('Error creating payment:', error);
-      toast('error', 'Failed to record payment. Please check your connection.');
+      toast('error', 'Dështoi regjistrimi i pagesës. Ju lutemi kontrolloni lidhjen.');
     } finally {
       setLoading(false);
     }
@@ -622,23 +636,23 @@ function AddPaymentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Record Payment"
-      description="Enter the payment details to record a new transaction."
+      title="Regjistro pagesë"
+      description="Vendosni detajet e pagesës për të regjistruar një transaksion të ri."
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            Anulo
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            Record Payment
+            Regjistro pagesën
           </Button>
         </div>
       }
     >
       <form className="space-y-6" onSubmit={handleSubmit}>
         <Select
-          label="Candidate"
+          label="Kandidati"
           required
           value={formData.candidateId}
           onChange={(e) => {
@@ -664,13 +678,13 @@ function AddPaymentModal({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-blue-900">
-                    Candidate's Package
+                    Paketa e kandidatit
                   </p>
                   <p className="text-lg font-semibold text-blue-900 mt-1">
                     {packageInfo.name}
                   </p>
                   <p className="text-sm text-blue-700 mt-1">
-                    {packageInfo.numberOfHours} hours • €{packageInfo.price.toLocaleString()}
+                    {packageInfo.numberOfHours} orë • €{packageInfo.price.toLocaleString()}
                   </p>
                 </div>
                 <Badge variant="info">{packageInfo.category}</Badge>
@@ -679,7 +693,7 @@ function AddPaymentModal({
           ) : selectedCandidate.packageId ? (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                Package ID: {selectedCandidate.packageId} (not found in system)
+                ID e paketës: {selectedCandidate.packageId} (nuk u gjet në sistem)
               </p>
             </div>
           ) : null;
@@ -687,7 +701,7 @@ function AddPaymentModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Amount"
+            label="Shuma"
             type="number"
             required
             step="0.01"
@@ -702,7 +716,7 @@ function AddPaymentModal({
             placeholder="0.00"
           />
           <Input
-            label="Date"
+            label="Data"
             type="date"
             required
             value={formData.date}
@@ -716,7 +730,7 @@ function AddPaymentModal({
         </div>
 
         <Select
-          label="Payment Method"
+          label="Metoda e pagesës"
           required
           value={formData.method}
           onChange={(e) =>
@@ -726,14 +740,14 @@ function AddPaymentModal({
             })
           }
           options={[
-            { value: 'bank', label: 'Bank Transfer' },
-            { value: 'cash', label: 'Cash' },
+            { value: 'bank', label: 'Transfer bankar' },
+            { value: 'cash', label: 'Para në dorë' },
           ]}
         />
 
 
         <TextArea
-          label="Notes"
+          label="Shënime"
           value={formData.notes}
           onChange={(e) =>
             setFormData({
@@ -741,7 +755,7 @@ function AddPaymentModal({
               notes: e.target.value,
             })
           }
-          placeholder="Optional notes about this payment..."
+          placeholder="Shënime opsionale për këtë pagesë..."
           rows={3}
         />
       </form>
@@ -818,11 +832,11 @@ function EditPaymentModal({
       if (ok) {
         onSuccess();
       } else {
-        toast('error', (data as any)?.message || 'Failed to update payment');
+        toast('error', (data as any)?.message || 'Dështoi përditësimi i pagesës');
       }
     } catch (error) {
       console.error('Error updating payment:', error);
-      toast('error', 'Failed to update payment');
+      toast('error', 'Dështoi përditësimi i pagesës');
     } finally {
       setLoading(false);
     }
@@ -834,16 +848,16 @@ function EditPaymentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit Payment"
-      description="Update the payment details."
+      title="Ndrysho pagesën"
+      description="Përditësoni detajet e pagesës."
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            Anulo
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            Update Payment
+            Përditëso pagesën
           </Button>
         </div>
       }
@@ -851,11 +865,11 @@ function EditPaymentModal({
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="p-4 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-500">
-            Candidate:{' '}
+            Kandidati:{' '}
             <span className="font-medium text-gray-900">
               {selectedCandidate 
                 ? `${selectedCandidate.firstName} ${selectedCandidate.lastName}`
-                : 'Unknown'}
+                : 'I panjohur'}
             </span>
           </p>
         </div>
@@ -867,13 +881,13 @@ function EditPaymentModal({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-blue-900">
-                    Candidate's Package
+                    Paketa e kandidatit
                   </p>
                   <p className="text-lg font-semibold text-blue-900 mt-1">
                     {packageInfo.name}
                   </p>
                   <p className="text-sm text-blue-700 mt-1">
-                    {packageInfo.numberOfHours} hours • €{packageInfo.price.toLocaleString()}
+                    {packageInfo.numberOfHours} orë • €{packageInfo.price.toLocaleString()}
                   </p>
                 </div>
                 <Badge variant="info">{packageInfo.category}</Badge>
@@ -882,7 +896,7 @@ function EditPaymentModal({
           ) : selectedCandidate.packageId ? (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                Package ID: {selectedCandidate.packageId} (not found in system)
+                ID e paketës: {selectedCandidate.packageId} (nuk u gjet në sistem)
               </p>
             </div>
           ) : null;
@@ -890,7 +904,7 @@ function EditPaymentModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Amount"
+            label="Shuma"
             type="number"
             required
             step="0.01"
@@ -905,7 +919,7 @@ function EditPaymentModal({
             placeholder="0.00"
           />
           <Input
-            label="Date"
+            label="Data"
             type="date"
             required
             value={formData.date}
@@ -919,7 +933,7 @@ function EditPaymentModal({
         </div>
 
         <Select
-          label="Payment Method"
+          label="Metoda e pagesës"
           required
           value={formData.method}
           onChange={(e) =>
@@ -929,13 +943,13 @@ function EditPaymentModal({
             })
           }
           options={[
-            { value: 'bank', label: 'Bank Transfer' },
-            { value: 'cash', label: 'Cash' },
+            { value: 'bank', label: 'Transfer bankar' },
+            { value: 'cash', label: 'Para në dorë' },
           ]}
         />
 
         <TextArea
-          label="Notes"
+          label="Shënime"
           value={formData.notes}
           onChange={(e) =>
             setFormData({
@@ -943,7 +957,7 @@ function EditPaymentModal({
               notes: e.target.value,
             })
           }
-          placeholder="Optional notes about this payment..."
+          placeholder="Shënime opsionale për këtë pagesë..."
           rows={3}
         />
       </form>
@@ -976,45 +990,45 @@ function DeleteConfirmationModal({
   const candidate = getCandidateInfo(payment.candidateId);
   const candidateName = candidate && 'firstName' in candidate
     ? `${candidate.firstName} ${candidate.lastName}`
-    : 'Unknown';
+    : 'I panjohur';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Delete Payment"
-      description="Are you sure you want to delete this payment? This action cannot be undone."
+      title="Fshi pagesën"
+      description="Jeni të sigurt që dëshironi të fshini këtë pagesë? Ky veprim nuk mund të kthehet."
       size="sm"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            Anulo
           </Button>
           <Button
             variant="danger"
             onClick={onConfirm}
           >
-            Delete
+            Fshi
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm font-medium text-red-800">Warning: This action cannot be undone.</p>
+          <p className="text-sm font-medium text-red-800">Paralajmërim: Ky veprim nuk mund të kthehet.</p>
         </div>
         <div className="space-y-2">
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Candidate:</span> {candidateName}
+            <span className="font-medium">Kandidati:</span> {candidateName}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Amount:</span> €{payment.amount.toLocaleString()}
+            <span className="font-medium">Shuma:</span> €{payment.amount.toLocaleString()}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Date:</span> {new Date(payment.date).toLocaleDateString()}
+            <span className="font-medium">Data:</span> {new Date(payment.date).toLocaleDateString()}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Method:</span> {payment.method.charAt(0).toUpperCase() + payment.method.slice(1)}
+            <span className="font-medium">Metoda:</span> {payment.method === 'bank' ? 'Transfer bankar' : 'Para në dorë'}
           </p>
         </div>
       </div>

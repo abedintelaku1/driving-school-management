@@ -30,7 +30,12 @@ export function LoginPage() {
         if (userRole === 0 || userRole === '0' || userRole === 'admin' || String(userRole).toLowerCase() === 'admin') {
           navigate('/admin', { replace: true });
           return;
-        } 
+        }
+        // Check for staff (2, '2', or 'staff') – limited admin area (e.g. payments add-only)
+        if (userRole === 2 || userRole === '2' || userRole === 'staff' || String(userRole).toLowerCase() === 'staff') {
+          navigate('/admin', { replace: true });
+          return;
+        }
         // Check for instructor (1, '1', or 'instructor')
         if (userRole === 1 || userRole === '1' || userRole === 'instructor' || String(userRole).toLowerCase() === 'instructor') {
           navigate('/instructor', { replace: true });
@@ -50,7 +55,7 @@ export function LoginPage() {
       }
     } catch (err) {
       console.error('Login exception:', err);
-      setError('An error occurred. Please check if the backend server is running.');
+      setError('Ndodhi një gabim. Kontrolloni nëse serveri është duke punuar.');
     } finally {
       setLoading(false);
     }
@@ -68,14 +73,14 @@ export function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
             <CarIcon className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Drivers Hub</h1>
-          <p className="text-gray-400 mt-2">Driving School Management System</p>
+          <h1 className="text-3xl font-bold text-white">AutoFlex</h1>
+          <p className="text-gray-400 mt-2">Sistemi i menaxhimit të Autoshkollës</p>
         </div>
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            Sign in to your account
+            Hyni në llogarinë tuaj
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -86,18 +91,18 @@ export function LoginPage() {
               </label>
               <div className="relative">
                 <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email" className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
+                <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Vendosni emailin tuaj" className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
               </div>
             </div>
 
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Password
+                Fjalëkalimi
               </label>
               <div className="relative">
                 <LockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
+                <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Vendosni fjalëkalimin" className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                 </button>
@@ -119,7 +124,7 @@ export function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-6">
-          © 2024 Drivers Hub. All rights reserved.
+          © 2026 AutoFlex. Të gjitha të drejtat e rezervuara.
         </p>
       </div>
     </div>;

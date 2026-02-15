@@ -27,10 +27,14 @@ import { MyCandidatesPage } from './pages/instructor/MyCandidatesPage';
 import { MyReportsPage } from './pages/instructor/MyReportsPage';
 function ProtectedRoute({
   children,
-  allowedRole
+  allowedRole,
+  allowedRoles
 }: {
   children: React.ReactNode;
-  allowedRole?: 0 | 1; // 0 = Admin, 1 = Instructor
+  /** Single role allowed (backward compatible) */
+  allowedRole?: 0 | 1 | 2;
+  /** Multiple roles allowed (e.g. Admin + Staff for admin area) */
+  allowedRoles?: (0 | 1 | 2)[];
 }) {
   const {
     user,
@@ -42,7 +46,7 @@ function ProtectedRoute({
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">Duke u ngarkuar...</p>
       </div>
     );
   }
@@ -51,8 +55,11 @@ function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
   
-  if (allowedRole !== undefined && user?.role !== allowedRole) {
-    return <Navigate to={user?.role === 0 ? '/admin' : '/instructor'} replace />;
+  const role = user?.role;
+  const allowed = allowedRoles ?? (allowedRole !== undefined ? [allowedRole] : undefined);
+  if (allowed !== undefined && role !== undefined && !allowed.includes(role)) {
+    const to = role === 0 || role === 2 ? '/admin' : '/instructor';
+    return <Navigate to={to} replace />;
   }
   
   return <>{children}</>;
@@ -69,8 +76,8 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<ProtectedRoute allowedRole={0}>
+          {/* Admin Routes (Admin + Staff; Staff has limited permissions e.g. payments add-only) */}
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={[0, 2]}>
                 <AdminLayout title="Admin Panel" />
               </ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
@@ -86,7 +93,7 @@ function AppContent() {
 
           {/* Instructor Routes */}
           <Route path="/instructor" element={<ProtectedRoute allowedRole={1}>
-                <InstructorLayout title="Instructor Panel" />
+                <InstructorLayout title="Paneli i instruktorit" />
               </ProtectedRoute>}>
             <Route index element={<InstructorDashboard />} />
             <Route path="profile" element={<InstructorProfilePage />} />

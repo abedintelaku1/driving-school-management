@@ -17,7 +17,7 @@ const authenticate = async (req, res, next) => {
         
         // If token has role as number, use it; otherwise use role from DB
         // This ensures backward compatibility
-        if (payload.role !== undefined && (payload.role === 0 || payload.role === 1)) {
+        if (payload.role !== undefined && (payload.role === 0 || payload.role === 1 || payload.role === 2)) {
             user.role = payload.role; // Override with role from token (already converted to number)
         }
         
@@ -58,13 +58,13 @@ const authorize = (...roles) => (req, res, next) => {
     let userRole = req.user.role;
     if (typeof req.user.role === 'string') {
         const roleLower = req.user.role.toLowerCase().trim();
-        userRole = roleLower === 'admin' ? 0 : roleLower === 'instructor' ? 1 : req.user.role;
+        userRole = roleLower === 'admin' ? 0 : roleLower === 'instructor' ? 1 : roleLower === 'staff' ? 2 : req.user.role;
     }
     
     // Convert allowed roles to numbers for comparison
     const allowedRoles = roles.map(r => {
         if (typeof r === 'string') {
-            return r === 'admin' ? 0 : r === 'instructor' ? 1 : null;
+            return r === 'admin' ? 0 : r === 'instructor' ? 1 : r === 'staff' ? 2 : null;
         }
         return r;
     });

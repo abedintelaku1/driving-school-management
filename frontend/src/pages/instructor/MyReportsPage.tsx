@@ -76,7 +76,7 @@ export function MyReportsPage() {
           }));
           setAppointments(transformedAppointments);
         } else {
-          toast('error', 'Failed to load appointments');
+          toast('error', 'Dështoi ngarkimi i takimeve');
         }
 
         if (candidatesRes.ok && candidatesRes.data) {
@@ -88,11 +88,11 @@ export function MyReportsPage() {
           }));
           setCandidates(transformedCandidates);
         } else {
-          toast('error', 'Failed to load candidates');
+          toast('error', 'Dështoi ngarkimi i kandidatëve');
         }
       } catch (error) {
         console.error('Error fetching reports data:', error);
-        toast('error', 'Failed to load reports data');
+        toast('error', 'Dështoi ngarkimi i të dhënave të raporteve');
       } finally {
         setLoading(false);
       }
@@ -163,12 +163,12 @@ export function MyReportsPage() {
   const appointmentColumns = [
     {
       key: 'date',
-      label: 'Date',
+      label: 'Data',
       sortable: true
     },
     {
       key: 'time',
-      label: 'Time',
+      label: 'Ora',
       render: (_: unknown, apt: Appointment) => (
         <span>
           {apt.startTime} - {apt.endTime}
@@ -177,7 +177,7 @@ export function MyReportsPage() {
     },
     {
       key: 'candidateId',
-      label: 'Student',
+      label: 'Nxënësi',
       render: (value: unknown, apt: Appointment) => {
         // Try to get candidate name from populated data or lookup
         if (apt.candidate) {
@@ -188,14 +188,14 @@ export function MyReportsPage() {
     },
     {
       key: 'hours',
-      label: 'Hours',
+      label: 'Orë',
       render: (value: unknown) => (
         <span className="font-semibold">{value as number}h</span>
       )
     },
     {
       key: 'status',
-      label: 'Status',
+      label: 'Statusi',
       render: (value: unknown) => {
         const status = value as string;
         const variants: Record<string, 'success' | 'warning' | 'danger'> = {
@@ -215,7 +215,7 @@ export function MyReportsPage() {
   const candidateColumns = [
     {
       key: 'name',
-      label: 'Student',
+      label: 'Nxënësi',
       sortable: true,
       render: (_: unknown, item: CandidateStat) => (
         <div>
@@ -228,17 +228,17 @@ export function MyReportsPage() {
     },
     {
       key: 'completedLessons',
-      label: 'Completed',
+      label: 'Të përfunduara',
       sortable: true
     },
     {
       key: 'totalLessons',
-      label: 'Total Lessons',
+      label: 'Mësime gjithsej',
       sortable: true
     },
     {
       key: 'hours',
-      label: 'Hours',
+      label: 'Orë',
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{value as number}h</span>
@@ -246,10 +246,10 @@ export function MyReportsPage() {
     },
     {
       key: 'status',
-      label: 'Status',
+      label: 'Statusi',
       render: (value: unknown) => (
         <Badge variant={value === 'active' ? 'success' : 'danger'} dot size="sm">
-          {value as string}
+          {value === 'active' ? 'Aktiv' : (value as string)}
         </Badge>
       )
     }
@@ -268,35 +268,35 @@ export function MyReportsPage() {
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `instructor_reports_${dateRange}_${timestamp}.csv`;
 
-      let csvContent = 'Instructor Reports Export\n';
-      csvContent += `Generated: ${new Date().toLocaleString()}\n`;
+      let csvContent = 'Eksport raportesh instruktori\n';
+      csvContent += `Gjeneruar: ${new Date().toLocaleString('sq-AL')}\n`;
       if (dateFrom || dateTo) {
-        csvContent += `Date Range: ${dateFrom || 'All'} to ${dateTo || 'All'}\n`;
+        csvContent += `Periudha: ${dateFrom || 'Të gjitha'} deri ${dateTo || 'Të gjitha'}\n`;
       }
       csvContent += '\n';
 
       // 1. Summary Statistics
-      csvContent += '=== SUMMARY STATISTICS ===\n';
-      csvContent += `Metric,Value\n`;
-      csvContent += `Total Lessons,${filteredAppointments.length}\n`;
-      csvContent += `Completed Lessons,${completedAppointments.length}\n`;
-      csvContent += `Hours Taught,${totalHours}h\n`;
-      csvContent += `Cancelled Lessons,${cancelledCount}\n`;
-      csvContent += `Total Students,${candidates.length}\n`;
-      csvContent += `Completion Rate,${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
+      csvContent += '=== STATISTIKA PËRMBLEDHËSE ===\n';
+      csvContent += `Treguesi,Vlera\n`;
+      csvContent += `Mësime gjithsej,${filteredAppointments.length}\n`;
+      csvContent += `Mësime të përfunduara,${completedAppointments.length}\n`;
+      csvContent += `Orë të mësuara,${totalHours}h\n`;
+      csvContent += `Mësime të anuluara,${cancelledCount}\n`;
+      csvContent += `Nxënës gjithsej,${candidates.length}\n`;
+      csvContent += `Shkalla e përfundimit,${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
       csvContent += '\n';
 
       // 2. Student Performance
-      csvContent += '=== STUDENT PERFORMANCE ===\n';
-      csvContent += 'Student Name,Client Number,Total Lessons,Completed Lessons,Hours Completed,Status\n';
+      csvContent += '=== PERFORMANCA E NXËNËSVE ===\n';
+      csvContent += 'Emri i nxënësit,Numri i klientit,Mësime gjithsej,Mësime të përfunduara,Orë të përfunduara,Statusi\n';
       candidateStats.forEach(stat => {
         csvContent += `"${stat.name}","${stat.clientNumber || ''}",${stat.totalLessons},${stat.completedLessons},${stat.hours},${stat.status}\n`;
       });
       csvContent += '\n';
 
       // 3. Lesson History
-      csvContent += '=== LESSON HISTORY ===\n';
-      csvContent += 'Date,Time,Student,Hours,Status\n';
+      csvContent += '=== HISTORIKU I MËSIMEVE ===\n';
+      csvContent += 'Data,Ora,Nxënësi,Orë,Statusi\n';
       filteredAppointments
         .sort((a, b) => {
           const dateA = a.date?.split('T')[0] || a.date || '';
@@ -321,17 +321,17 @@ export function MyReportsPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast('success', 'Report exported successfully');
+      toast('success', 'Raporti u eksportua me sukses');
     } catch (error) {
       console.error('Error exporting report:', error);
-      toast('error', 'Failed to export report');
+      toast('error', 'Dështoi eksportimi i raportit');
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-gray-500">Loading reports...</div>
+        <div className="text-gray-500">Duke ngarkuar raportet...</div>
       </div>
     );
   }
@@ -341,9 +341,9 @@ export function MyReportsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Reports</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Raportet e mia</h1>
           <p className="text-gray-500 mt-1">
-            View your teaching statistics and performance.
+            Shikoni statistikat dhe performancën tuaj të mësimdhënies.
           </p>
         </div>
         <Button 
@@ -351,7 +351,7 @@ export function MyReportsPage() {
           icon={<DownloadIcon className="w-4 h-4" />}
           onClick={handleExportReport}
         >
-          Export Report
+          Eksporto raportin
         </Button>
       </div>
 
@@ -360,7 +360,7 @@ export function MyReportsPage() {
         <div className="flex flex-wrap gap-4 items-end">
           <div className="w-40">
             <Input 
-              label="From Date" 
+              label="Nga data" 
               type="date" 
               value={dateFrom} 
               onChange={e => setDateFrom(e.target.value)} 
@@ -368,7 +368,7 @@ export function MyReportsPage() {
           </div>
           <div className="w-40">
             <Input 
-              label="To Date" 
+              label="Deri në datë" 
               type="date" 
               value={dateTo} 
               onChange={e => setDateTo(e.target.value)} 
@@ -383,7 +383,7 @@ export function MyReportsPage() {
                 setDateTo('');
               }}
             >
-              Clear
+              Pastro
             </Button>
           )}
         </div>
@@ -410,7 +410,7 @@ export function MyReportsPage() {
               <ClockIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Hours Taught</p>
+              <p className="text-sm text-gray-500">Orë të mësuara</p>
               <p className="text-2xl font-bold text-gray-900">{totalHours}h</p>
             </div>
           </div>
@@ -421,7 +421,7 @@ export function MyReportsPage() {
               <UsersIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Students</p>
+              <p className="text-sm text-gray-500">Nxënës</p>
               <p className="text-2xl font-bold text-gray-900">
                 {candidates.length}
               </p>
@@ -434,7 +434,7 @@ export function MyReportsPage() {
               <TrendingUpIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Completion Rate</p>
+              <p className="text-sm text-gray-500">Shkalla e përfundimit</p>
               <p className="text-2xl font-bold text-gray-900">
                 {filteredAppointments.length > 0 
                   ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) 
@@ -448,7 +448,7 @@ export function MyReportsPage() {
       {/* Student Performance */}
       <Card>
         <CardHeader>
-          <CardTitle>Student Performance</CardTitle>
+          <CardTitle>Performanca e nxënësve</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <DataTable 
@@ -464,7 +464,7 @@ export function MyReportsPage() {
       {/* Recent Lessons */}
       <Card>
         <CardHeader>
-          <CardTitle>Lesson History</CardTitle>
+          <CardTitle>Historiku i mësimeve</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <DataTable 

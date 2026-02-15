@@ -28,7 +28,13 @@ const login = async (req, res, next) => {
         const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
             console.log('Login failed: User not found');
-            return res.status(400).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        const storedPassword = user.password;
+        if (!storedPassword || typeof storedPassword !== 'string') {
+            console.error('User has no password set:', user._id);
+            return res.status(500).json({ message: 'Account configuration error. Contact support.' });
         }
         
         // Get raw document to see actual role value in DB (before Mongoose casting)
@@ -38,30 +44,27 @@ const login = async (req, res, next) => {
         console.log('User found:', { id: user._id, email: user.email });
         console.log('Role from Mongoose model:', user.role, 'Type:', typeof user.role);
         console.log('Role from raw DB document:', rawRole, 'Type:', typeof rawRole);
-        console.log('Password in DB (full):', user.password);
-        console.log('Password in DB length:', user.password.length);
-        console.log('Password is hashed:', user.password.startsWith('$2a$') || user.password.startsWith('$2b$'));
-        console.log('Password from request:', password);
-        console.log('Password from request length:', password.length);
         
         // Check if password is hashed or plain text
-        const isHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$');
+        const isHashed = storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$');
         let valid = false;
         
-        if (isHashed) {
-            // Use bcrypt comparison
-            valid = await user.comparePassword(password);
-            console.log('Using bcrypt comparison, result:', valid);
-        } else {
-            // Plain text comparison
-            valid = user.password === password;
-            console.log('Using plain text comparison, result:', valid);
-            console.log('DB password === Request password?', user.password === password);
+        try {
+            if (isHashed) {
+                valid = await user.comparePassword(password);
+                console.log('Using bcrypt comparison, result:', valid);
+            } else {
+                valid = storedPassword === password;
+                console.log('Using plain text comparison, result:', valid);
+            }
+        } catch (compareErr) {
+            console.error('Password comparison error:', compareErr);
+            return res.status(500).json({ message: 'Login failed. Please try again.' });
         }
         
         if (!valid) {
             console.log('Login failed: Invalid password');
-            return res.status(400).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
         
         console.log('Login successful for user:', user.email);
@@ -78,14 +81,16 @@ const login = async (req, res, next) => {
                 roleNum = 0;
             } else if (roleLower === 'instructor') {
                 roleNum = 1;
+            } else if (roleLower === 'staff') {
+                roleNum = 2;
             } else {
                 console.error('⚠️ Unknown role string:', roleToConvert);
                 roleNum = 0; // Default to admin
             }
             console.log('Converted role from string to number:', roleNum);
         } else if (typeof roleToConvert === 'number') {
-            // Already a number, just ensure it's 0 or 1
-            if (roleToConvert !== 0 && roleToConvert !== 1) {
+            // Already a number, just ensure it's 0, 1 or 2
+            if (roleToConvert !== 0 && roleToConvert !== 1 && roleToConvert !== 2) {
                 console.error('⚠️ Invalid role number:', roleToConvert, 'Defaulting to 0 (admin)');
                 roleNum = 0;
             }
@@ -106,7 +111,7 @@ const login = async (req, res, next) => {
             user: { 
                 id: user._id.toString(), 
                 email: user.email, 
-                role: roleNum, // 0 or 1
+                role: roleNum, // 0 = Admin, 1 = Instructor, 2 = Staff
                 firstName: user.firstName, 
                 lastName: user.lastName 
             },
@@ -116,7 +121,8 @@ const login = async (req, res, next) => {
         res.json(response);
     } catch (err) {
         console.error('Login error:', err);
-        next(err);
+        // Return 500 with generic message so frontend doesn't see stack/details
+        return res.status(500).json({ message: 'Login failed. Please try again.' });
     }
 };
 
@@ -126,14 +132,14 @@ const me = async (req, res) => {
     // Convert role to number if it's a string (for backward compatibility)
     let roleNum = user.role;
     if (typeof user.role === 'string') {
-        roleNum = user.role === 'admin' ? 0 : user.role === 'instructor' ? 1 : user.role;
+        roleNum = user.role === 'admin' ? 0 : user.role === 'instructor' ? 1 : user.role === 'staff' ? 2 : user.role;
     }
     
     res.json({
         user: { 
             id: user._id.toString(), 
             email: user.email, 
-            role: roleNum, // 0 or 1
+            role: roleNum, // 0 = Admin, 1 = Instructor, 2 = Staff
             firstName: user.firstName, 
             lastName: user.lastName 
         }
