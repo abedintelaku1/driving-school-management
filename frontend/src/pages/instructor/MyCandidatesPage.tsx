@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MailIcon, PhoneIcon, ClockIcon, CalendarIcon, XIcon, MapPinIcon, PackageIcon } from 'lucide-react';
+import { MailIcon, PhoneIcon, ClockIcon, CalendarIcon, XIcon, MapPinIcon, PackageIcon, DownloadIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
@@ -13,6 +13,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import type { Candidate } from '../../types';
+import jsPDF from 'jspdf';
 
 type Appointment = {
   _id?: string;
@@ -71,6 +72,7 @@ export function MyCandidatesPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [preSelectedCandidateId, setPreSelectedCandidateId] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -247,14 +249,117 @@ export function MyCandidatesPage() {
     }
   };
 
+  const handleExport = () => {
+    if (!candidatesWithStats.length) {
+      toast('info', 'Nuk ka kandidatë për eksport');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    if (exportFormat === 'csv') {
+      const headers = ['Emri', 'Mbiemri', 'Numri i klientit', 'Email', 'Telefon', 'Mësime gjithsej', 'Mësime të përfunduara', 'Orë të përfunduara', 'Ecuria %', 'Statusi'];
+      const rows = candidatesWithStats.map(c => [
+        c.firstName || '',
+        c.lastName || '',
+        c.uniqueClientNumber || '',
+        c.email || '',
+        c.phone || '',
+        c.totalLessons.toString(),
+        c.completedLessons.toString(),
+        c.completedHours.toString(),
+        `${c.progress}%`,
+        c.status === 'active' ? 'Aktiv' : 'Jo aktiv'
+      ]);
+
+      const csv = [headers, ...rows]
+        .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `kandidatet-e-mi_${timestamp}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast('success', 'Kandidatët u eksportuan në CSV');
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Nxënësit e mi', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`Total: ${candidatesWithStats.length} nxënës`, 14, 37);
+      
+      let yPos = 50;
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.text('Emri', 14, yPos);
+      doc.text('Mbiemri', 50, yPos);
+      doc.text('Nr. Klientit', 85, yPos);
+      doc.text('Mësime', 120, yPos);
+      doc.text('Orë', 145, yPos);
+      doc.text('Ecuria', 165, yPos);
+      doc.text('Statusi', 190, yPos);
+      
+      yPos += 7;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8);
+      
+      candidatesWithStats.forEach((c) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.text((c.firstName || '').substring(0, 15), 14, yPos);
+        doc.text((c.lastName || '').substring(0, 15), 50, yPos);
+        doc.text((c.uniqueClientNumber || 'N/A').substring(0, 12), 85, yPos);
+        doc.text(c.totalLessons.toString(), 120, yPos);
+        doc.text(c.completedHours.toString(), 145, yPos);
+        doc.text(`${c.progress}%`, 165, yPos);
+        doc.text(c.status === 'active' ? 'Aktiv' : 'Jo aktiv', 190, yPos);
+        yPos += 6;
+      });
+      
+      doc.save(`kandidatet-e-mi_${timestamp}.pdf`);
+      toast('success', 'Kandidatët u eksportuan në PDF');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Nxënësit e mi</h1>
-        <p className="text-gray-500 mt-1">
-          Shikoni dhe ndiqni progresin e nxënësve që ju janë caktuar.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Nxënësit e mi</h1>
+          <p className="text-gray-500 mt-1">
+            Shikoni dhe ndiqni progresin e nxënësve që ju janë caktuar.
+          </p>
+        </div>
+        <div className="flex gap-2 items-center">
+          <Select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+            options={[
+              { value: 'csv', label: 'CSV' },
+              { value: 'pdf', label: 'PDF' },
+            ]}
+            className="w-24"
+          />
+          <Button 
+            variant="outline" 
+            onClick={handleExport} 
+            icon={<DownloadIcon className="w-4 h-4" />}
+            disabled={candidatesWithStats.length === 0}
+          >
+            Eksporto {exportFormat.toUpperCase()}
+          </Button>
+        </div>
       </div>
 
       {/* Students Grid */}

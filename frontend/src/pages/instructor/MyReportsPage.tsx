@@ -3,11 +3,13 @@ import { DownloadIcon, CalendarIcon, ClockIcon, UsersIcon, TrendingUpIcon } from
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge } from '../../components/ui/Badge';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
+import jsPDF from 'jspdf';
 
 type Appointment = {
   _id?: string;
@@ -54,6 +56,7 @@ export function MyReportsPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   // Fetch data on mount
   useEffect(() => {
@@ -255,7 +258,7 @@ export function MyReportsPage() {
     }
   ];
 
-  // Export report to CSV
+  // Export report to CSV or PDF
   const handleExportReport = () => {
     try {
       const dateRange = dateFrom && dateTo 
@@ -266,62 +269,130 @@ export function MyReportsPage() {
         ? `to_${dateTo}` 
         : 'all';
       const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `instructor_reports_${dateRange}_${timestamp}.csv`;
 
-      let csvContent = 'Eksport raportesh instruktori\n';
-      csvContent += `Gjeneruar: ${new Date().toLocaleString('sq-AL')}\n`;
-      if (dateFrom || dateTo) {
-        csvContent += `Periudha: ${dateFrom || 'Të gjitha'} deri ${dateTo || 'Të gjitha'}\n`;
-      }
-      csvContent += '\n';
+      if (exportFormat === 'csv') {
+        const filename = `raportet-e-mi_${dateRange}_${timestamp}.csv`;
 
-      // 1. Summary Statistics
-      csvContent += '=== STATISTIKA PËRMBLEDHËSE ===\n';
-      csvContent += `Treguesi,Vlera\n`;
-      csvContent += `Mësime gjithsej,${filteredAppointments.length}\n`;
-      csvContent += `Mësime të përfunduara,${completedAppointments.length}\n`;
-      csvContent += `Orë të mësuara,${totalHours}h\n`;
-      csvContent += `Mësime të anuluara,${cancelledCount}\n`;
-      csvContent += `Nxënës gjithsej,${candidates.length}\n`;
-      csvContent += `Shkalla e përfundimit,${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
-      csvContent += '\n';
+        let csvContent = 'Eksport raportesh instruktori\n';
+        csvContent += `Gjeneruar: ${new Date().toLocaleString('sq-AL')}\n`;
+        if (dateFrom || dateTo) {
+          csvContent += `Periudha: ${dateFrom || 'Të gjitha'} deri ${dateTo || 'Të gjitha'}\n`;
+        }
+        csvContent += '\n';
 
-      // 2. Student Performance
-      csvContent += '=== PERFORMANCA E NXËNËSVE ===\n';
-      csvContent += 'Emri i nxënësit,Numri i klientit,Mësime gjithsej,Mësime të përfunduara,Orë të përfunduara,Statusi\n';
-      candidateStats.forEach(stat => {
-        csvContent += `"${stat.name}","${stat.clientNumber || ''}",${stat.totalLessons},${stat.completedLessons},${stat.hours},${stat.status}\n`;
-      });
-      csvContent += '\n';
+        // 1. Summary Statistics
+        csvContent += '=== STATISTIKA PËRMBLEDHËSE ===\n';
+        csvContent += `Treguesi,Vlera\n`;
+        csvContent += `Mësime gjithsej,${filteredAppointments.length}\n`;
+        csvContent += `Mësime të përfunduara,${completedAppointments.length}\n`;
+        csvContent += `Orë të mësuara,${totalHours}h\n`;
+        csvContent += `Mësime të anuluara,${cancelledCount}\n`;
+        csvContent += `Nxënës gjithsej,${candidates.length}\n`;
+        csvContent += `Shkalla e përfundimit,${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
+        csvContent += '\n';
 
-      // 3. Lesson History
-      csvContent += '=== HISTORIKU I MËSIMEVE ===\n';
-      csvContent += 'Data,Ora,Nxënësi,Orë,Statusi\n';
-      filteredAppointments
-        .sort((a, b) => {
-          const dateA = a.date?.split('T')[0] || a.date || '';
-          const dateB = b.date?.split('T')[0] || b.date || '';
-          return dateB.localeCompare(dateA);
-        })
-        .forEach(apt => {
-          const studentName = apt.candidate 
-            ? `${apt.candidate.firstName} ${apt.candidate.lastName}`
-            : getCandidateName(apt.candidateId);
-          csvContent += `"${apt.date?.split('T')[0] || apt.date || ''}","${apt.startTime || ''} - ${apt.endTime || ''}","${studentName}",${apt.hours || 0},${apt.status}\n`;
+        // 2. Student Performance
+        csvContent += '=== PERFORMANCA E NXËNËSVE ===\n';
+        csvContent += 'Emri i nxënësit,Numri i klientit,Mësime gjithsej,Mësime të përfunduara,Orë të përfunduara,Statusi\n';
+        candidateStats.forEach(stat => {
+          csvContent += `"${stat.name}","${stat.clientNumber || ''}",${stat.totalLessons},${stat.completedLessons},${stat.hours},${stat.status}\n`;
         });
+        csvContent += '\n';
 
-      // Download CSV
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+        // 3. Lesson History
+        csvContent += '=== HISTORIKU I MËSIMEVE ===\n';
+        csvContent += 'Data,Ora,Nxënësi,Orë,Statusi\n';
+        filteredAppointments
+          .sort((a, b) => {
+            const dateA = a.date?.split('T')[0] || a.date || '';
+            const dateB = b.date?.split('T')[0] || b.date || '';
+            return dateB.localeCompare(dateA);
+          })
+          .forEach(apt => {
+            const studentName = apt.candidate 
+              ? `${apt.candidate.firstName} ${apt.candidate.lastName}`
+              : getCandidateName(apt.candidateId);
+            csvContent += `"${apt.date?.split('T')[0] || apt.date || ''}","${apt.startTime || ''} - ${apt.endTime || ''}","${studentName}",${apt.hours || 0},${apt.status}\n`;
+          });
 
-      toast('success', 'Raporti u eksportua me sukses');
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast('success', 'Raporti u eksportua në CSV');
+      } else {
+        // PDF Export
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text('Raportet e mia', 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+        if (dateFrom || dateTo) {
+          doc.text(`Periudha: ${dateFrom || 'Të gjitha'} deri ${dateTo || 'Të gjitha'}`, 14, 37);
+        }
+        
+        let yPos = 50;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Statistika përmbledhëse', 14, yPos);
+        yPos += 8;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        doc.text(`Mësime gjithsej: ${filteredAppointments.length}`, 14, yPos);
+        yPos += 6;
+        doc.text(`Mësime të përfunduara: ${completedAppointments.length}`, 14, yPos);
+        yPos += 6;
+        doc.text(`Orë të mësuara: ${totalHours}h`, 14, yPos);
+        yPos += 6;
+        doc.text(`Mësime të anuluara: ${cancelledCount}`, 14, yPos);
+        yPos += 6;
+        doc.text(`Nxënës gjithsej: ${candidates.length}`, 14, yPos);
+        yPos += 6;
+        doc.text(`Shkalla e përfundimit: ${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%`, 14, yPos);
+        yPos += 10;
+        
+        // Student Performance
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.text('Performanca e nxënësve', 14, yPos);
+        yPos += 8;
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.text('Emri', 14, yPos);
+        doc.text('Nr. Klientit', 60, yPos);
+        doc.text('Mësime', 110, yPos);
+        doc.text('Orë', 140, yPos);
+        doc.text('Statusi', 165, yPos);
+        yPos += 6;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(8);
+        
+        candidateStats.forEach((stat) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(stat.name.substring(0, 20), 14, yPos);
+          doc.text((stat.clientNumber || 'N/A').substring(0, 12), 60, yPos);
+          doc.text(stat.totalLessons.toString(), 110, yPos);
+          doc.text(stat.hours.toString(), 140, yPos);
+          doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 165, yPos);
+          yPos += 6;
+        });
+        
+        doc.save(`raportet-e-mi_${dateRange}_${timestamp}.pdf`);
+        toast('success', 'Raporti u eksportua në PDF');
+      }
     } catch (error) {
       console.error('Error exporting report:', error);
       toast('error', 'Dështoi eksportimi i raportit');
@@ -346,13 +417,24 @@ export function MyReportsPage() {
             Shikoni statistikat dhe performancën tuaj të mësimdhënies.
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          icon={<DownloadIcon className="w-4 h-4" />}
-          onClick={handleExportReport}
-        >
-          Eksporto raportin
-        </Button>
+        <div className="flex gap-2 items-center">
+          <Select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+            options={[
+              { value: 'csv', label: 'CSV' },
+              { value: 'pdf', label: 'PDF' },
+            ]}
+            className="w-24"
+          />
+          <Button 
+            variant="outline" 
+            icon={<DownloadIcon className="w-4 h-4" />}
+            onClick={handleExportReport}
+          >
+            Eksporto {exportFormat.toUpperCase()}
+          </Button>
+        </div>
       </div>
 
       {/* Date Filter */}

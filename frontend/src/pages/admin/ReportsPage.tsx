@@ -12,8 +12,11 @@ import { Input } from "../../components/ui/Input";
 import { Tabs, TabList, Tab, TabPanel } from "../../components/ui/Tabs";
 import { DataTable } from "../../components/ui/DataTable";
 import { Badge } from "../../components/ui/Badge";
+import { Select } from "../../components/ui/Select";
 import { api } from "../../utils/api";
 import { toast } from "../../hooks/useToast";
+import { ReportExportModal } from "../../components/ui/ReportExportModal";
+import jsPDF from "jspdf";
 
 // Helper function to format numbers: max 2 decimals, but if whole number, no .00
 const formatNumber = (num: number): string => {
@@ -96,6 +99,8 @@ export function ReportsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCandidateExportModal, setShowCandidateExportModal] = useState(false);
+  const [showInstructorExportModal, setShowInstructorExportModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -482,13 +487,29 @@ export function ReportsPage() {
             Shikoni dhe eksportoni raporte për të gjitha entitetet.
           </p>
         </div>
-        <Button
-          variant="outline"
-          icon={<DownloadIcon className="w-4 h-4" />}
-          onClick={handleExportAll}
-        >
-          Eksporto të gjitha
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            icon={<DownloadIcon className="w-4 h-4" />}
+            onClick={handleExportAll}
+          >
+            Eksporto CSV
+          </Button>
+          <Button
+            variant="primary"
+            icon={<DownloadIcon className="w-4 h-4" />}
+            onClick={() => setShowCandidateExportModal(true)}
+          >
+            Eksporto Kandidat
+          </Button>
+          <Button
+            variant="primary"
+            icon={<DownloadIcon className="w-4 h-4" />}
+            onClick={() => setShowInstructorExportModal(true)}
+          >
+            Eksporto Instruktor
+          </Button>
+        </div>
       </div>
 
       {/* Summary Stats */}
@@ -624,6 +645,31 @@ export function ReportsPage() {
           <PaymentSummaryReport filteredPayments={filteredPayments} />
         </TabPanel>
       </Tabs>
+
+      {/* Export Modals */}
+      <ReportExportModal
+        isOpen={showCandidateExportModal}
+        onClose={() => setShowCandidateExportModal(false)}
+        type="candidate"
+        candidates={candidates.map(c => ({
+          id: c._id || c.id || '',
+          firstName: c.firstName,
+          lastName: c.lastName,
+          uniqueClientNumber: c.uniqueClientNumber
+        }))}
+      />
+
+      <ReportExportModal
+        isOpen={showInstructorExportModal}
+        onClose={() => setShowInstructorExportModal(false)}
+        type="instructor"
+        instructors={instructors.map(i => ({
+          id: i._id || i.id || '',
+          firstName: i.firstName || i.user?.firstName,
+          lastName: i.lastName || i.user?.lastName,
+          user: i.user
+        }))}
+      />
     </div>
   );
 }
@@ -636,6 +682,8 @@ function InstructorPerformanceReport({
   instructors: Instructor[];
   candidates: Candidate[];
 }) {
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  
   const instructorStats = instructors
     .filter((instructor) => instructor != null)
     .map((instructor) => {
@@ -679,6 +727,69 @@ function InstructorPerformanceReport({
         status: instructor.status || "active",
       };
     });
+
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().split("T")[0];
+    
+    if (exportFormat === 'csv') {
+      const BOM = "\uFEFF";
+      let csvContent = BOM + "=== PERFORMANCA E INSTRUKTORËVE ===\n";
+      csvContent += "Instruktori,Orë të mësuara,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
+      instructorStats.forEach((stat) => {
+        csvContent += `"${stat.name}",${formatNumber(stat.totalHours)},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
+      });
+
+      const filename = `performanca-instruktoreve_${timestamp}.csv`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Performanca e Instruktorëve', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      
+      let yPos = 40;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text('Instruktori', 14, yPos);
+      doc.text('Orë', 70, yPos);
+      doc.text('Mësime', 90, yPos);
+      doc.text('Nxënës aktivë', 120, yPos);
+      doc.text('Nxënës gjithsej', 160, yPos);
+      doc.text('Statusi', 190, yPos);
+      
+      yPos += 8;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      
+      instructorStats.forEach((stat) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(stat.name.substring(0, 25), 14, yPos);
+        doc.text(formatNumber(stat.totalHours), 70, yPos);
+        doc.text(stat.completedLessons.toString(), 90, yPos);
+        doc.text(stat.activeCandidates.toString(), 120, yPos);
+        doc.text(stat.totalCandidates.toString(), 160, yPos);
+        doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 190, yPos);
+        yPos += 7;
+      });
+      
+      doc.save(`performanca-instruktoreve_${timestamp}.pdf`);
+    }
+    
+    toast("success", "Raporti u eksportua me sukses");
+  };
   const columns = [
     {
       key: "name",
@@ -719,15 +830,35 @@ function InstructorPerformanceReport({
     },
   ];
   return (
-    <Card padding="none">
-      <DataTable
-        data={instructorStats}
-        columns={columns}
-        keyExtractor={(item) => item.id}
-        searchable={false}
-        pagination={false}
-      />
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-end gap-3 items-center">
+        <Select
+          value={exportFormat}
+          onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+          options={[
+            { value: 'csv', label: 'CSV' },
+            { value: 'pdf', label: 'PDF' },
+          ]}
+          className="w-32"
+        />
+        <Button
+          variant="outline"
+          icon={<DownloadIcon className="w-4 h-4" />}
+          onClick={handleExport}
+        >
+          Eksporto {exportFormat.toUpperCase()}
+        </Button>
+      </div>
+      <Card padding="none">
+        <DataTable
+          data={instructorStats}
+          columns={columns}
+          keyExtractor={(item) => item.id}
+          searchable={false}
+          pagination={false}
+        />
+      </Card>
+    </div>
   );
 }
 function CandidateProgressReport({
@@ -739,6 +870,8 @@ function CandidateProgressReport({
   filteredPayments: Payment[];
   candidates: Candidate[];
 }) {
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  
   const candidateStats = candidates
     .filter(
       (candidate) =>
@@ -820,17 +953,100 @@ function CandidateProgressReport({
       ),
     },
   ];
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().split("T")[0];
+    
+    if (exportFormat === 'csv') {
+      const BOM = "\uFEFF";
+      let csvContent = BOM + "=== ECURIA E KANDIDATËVE ===\n";
+      csvContent += "Kandidati,Numri i klientit,Orë të përfunduara,Mësime të planifikuara,Totali i paguar,Statusi\n";
+      candidateStats.forEach((stat) => {
+        csvContent += `"${stat.name}","${stat.clientNumber}",${formatNumber(stat.completedHours)},${stat.scheduledLessons},${formatCurrency(stat.totalPaid)},${stat.status}\n`;
+      });
+
+      const filename = `ecuria-kandidateve_${timestamp}.csv`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Ecuria e Kandidatëve', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      
+      let yPos = 40;
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text('Kandidati', 14, yPos);
+      doc.text('Nr. Klientit', 60, yPos);
+      doc.text('Orë', 95, yPos);
+      doc.text('Mësime', 110, yPos);
+      doc.text('Totali', 130, yPos);
+      doc.text('Statusi', 170, yPos);
+      
+      yPos += 8;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      
+      candidateStats.forEach((stat) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(stat.name.substring(0, 20), 14, yPos);
+        doc.text(stat.clientNumber || 'N/A', 60, yPos);
+        doc.text(formatNumber(stat.completedHours), 95, yPos);
+        doc.text(stat.scheduledLessons.toString(), 110, yPos);
+        doc.text(formatCurrency(stat.totalPaid), 130, yPos);
+        doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 170, yPos);
+        yPos += 7;
+      });
+      
+      doc.save(`ecuria-kandidateve_${timestamp}.pdf`);
+    }
+    
+    toast("success", "Raporti u eksportua me sukses");
+  };
+
   return (
-    <Card padding="none">
-      <DataTable
-        data={candidateStats}
-        columns={columns}
-        keyExtractor={(item) => item.id}
-        searchable
-        searchPlaceholder="Kërko kandidatë..."
-        searchKeys={["name", "clientNumber"]}
-      />
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-end gap-3 items-center">
+        <Select
+          value={exportFormat}
+          onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+          options={[
+            { value: 'csv', label: 'CSV' },
+            { value: 'pdf', label: 'PDF' },
+          ]}
+          className="w-32"
+        />
+        <Button
+          variant="outline"
+          icon={<DownloadIcon className="w-4 h-4" />}
+          onClick={handleExport}
+        >
+          Eksporto {exportFormat.toUpperCase()}
+        </Button>
+      </div>
+      <Card padding="none">
+        <DataTable
+          data={candidateStats}
+          columns={columns}
+          keyExtractor={(item) => item.id}
+          searchable
+          searchPlaceholder="Kërko kandidatë..."
+          searchKeys={["name", "clientNumber"]}
+        />
+      </Card>
+    </div>
   );
 }
 function CarUsageReport({
@@ -840,6 +1056,8 @@ function CarUsageReport({
   filteredAppointments: Appointment[];
   cars: Car[];
 }) {
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  
   const carStats = cars
     .filter((car) => car != null && car.model && car.licensePlate)
     .map((car) => {
@@ -907,16 +1125,99 @@ function CarUsageReport({
       ),
     },
   ];
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().split("T")[0];
+    
+    if (exportFormat === 'csv') {
+      const BOM = "\uFEFF";
+      let csvContent = BOM + "=== PËRDORIMI I MAKINAVE ===\n";
+      csvContent += "Modeli,Targat,Orë gjithsej,Përdorim i fundit,Inspektimi tjetër,Statusi\n";
+      carStats.forEach((stat) => {
+        csvContent += `"${stat.model}","${stat.licensePlate}",${formatNumber(stat.totalHours)},${formatNumber(stat.recentUsage)},"${stat.nextInspection}",${stat.status}\n`;
+      });
+
+      const filename = `perdorimi-makinave_${timestamp}.csv`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Përdorimi i Makinave', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      
+      let yPos = 40;
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text('Modeli', 14, yPos);
+      doc.text('Targat', 60, yPos);
+      doc.text('Orë gjithsej', 95, yPos);
+      doc.text('Përdorim', 130, yPos);
+      doc.text('Inspektimi', 160, yPos);
+      doc.text('Statusi', 190, yPos);
+      
+      yPos += 8;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      
+      carStats.forEach((stat) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(stat.model.substring(0, 20), 14, yPos);
+        doc.text(stat.licensePlate, 60, yPos);
+        doc.text(formatNumber(stat.totalHours), 95, yPos);
+        doc.text(formatNumber(stat.recentUsage), 130, yPos);
+        doc.text(stat.nextInspection || 'N/A', 160, yPos);
+        doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 190, yPos);
+        yPos += 7;
+      });
+      
+      doc.save(`perdorimi-makinave_${timestamp}.pdf`);
+    }
+    
+    toast("success", "Raporti u eksportua me sukses");
+  };
+
   return (
-    <Card padding="none">
-      <DataTable
-        data={carStats}
-        columns={columns}
-        keyExtractor={(item) => item.id}
-        searchable={false}
-        pagination={false}
-      />
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-end gap-3 items-center">
+        <Select
+          value={exportFormat}
+          onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+          options={[
+            { value: 'csv', label: 'CSV' },
+            { value: 'pdf', label: 'PDF' },
+          ]}
+          className="w-32"
+        />
+        <Button
+          variant="outline"
+          icon={<DownloadIcon className="w-4 h-4" />}
+          onClick={handleExport}
+        >
+          Eksporto {exportFormat.toUpperCase()}
+        </Button>
+      </div>
+      <Card padding="none">
+        <DataTable
+          data={carStats}
+          columns={columns}
+          keyExtractor={(item) => item.id}
+          searchable={false}
+          pagination={false}
+        />
+      </Card>
+    </div>
   );
 }
 function PaymentSummaryReport({
@@ -924,6 +1225,8 @@ function PaymentSummaryReport({
 }: {
   filteredPayments: Payment[];
 }) {
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  
   // Group payments by month
   const paymentsByMonth: Record<
     string,
@@ -1003,15 +1306,110 @@ function PaymentSummaryReport({
       render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
   ];
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().split("T")[0];
+    
+    if (exportFormat === 'csv') {
+      const BOM = "\uFEFF";
+      let csvContent = BOM + "=== PËRMBLEDHJE PAGESASH SIPAS MUAJIT ===\n";
+      csvContent += "Muaji,Totali,Transaksione,Bankë,Para në dorë\n";
+      monthlyData.forEach((data) => {
+        const monthName = new Date(data.month + "-01").toLocaleDateString(
+          "sq-AL",
+          {
+            year: "numeric",
+            month: "long",
+          }
+        );
+        csvContent += `"${monthName}",${formatCurrency(data.total)},${data.count},${formatCurrency(data.bank)},${formatCurrency(data.cash)}\n`;
+      });
+
+      const filename = `permbledhje-pagesash_${timestamp}.csv`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Përmbledhje Pagesash', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      
+      let yPos = 40;
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text('Muaji', 14, yPos);
+      doc.text('Totali', 70, yPos);
+      doc.text('Transaksione', 100, yPos);
+      doc.text('Bankë', 140, yPos);
+      doc.text('Para në dorë', 170, yPos);
+      
+      yPos += 8;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      
+      monthlyData.forEach((data) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const monthName = new Date(data.month + "-01").toLocaleDateString(
+          "sq-AL",
+          {
+            year: "numeric",
+            month: "long",
+          }
+        );
+        doc.text(monthName, 14, yPos);
+        doc.text(formatCurrency(data.total), 70, yPos);
+        doc.text(data.count.toString(), 100, yPos);
+        doc.text(formatCurrency(data.bank), 140, yPos);
+        doc.text(formatCurrency(data.cash), 170, yPos);
+        yPos += 7;
+      });
+      
+      doc.save(`permbledhje-pagesash_${timestamp}.pdf`);
+    }
+    
+    toast("success", "Raporti u eksportua me sukses");
+  };
+
   return (
-    <Card padding="none">
-      <DataTable
-        data={monthlyData}
-        columns={columns}
-        keyExtractor={(item) => item.id}
-        searchable={false}
-        pagination={false}
-      />
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-end gap-3 items-center">
+        <Select
+          value={exportFormat}
+          onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+          options={[
+            { value: 'csv', label: 'CSV' },
+            { value: 'pdf', label: 'PDF' },
+          ]}
+          className="w-32"
+        />
+        <Button
+          variant="outline"
+          icon={<DownloadIcon className="w-4 h-4" />}
+          onClick={handleExport}
+        >
+          Eksporto {exportFormat.toUpperCase()}
+        </Button>
+      </div>
+      <Card padding="none">
+        <DataTable
+          data={monthlyData}
+          columns={columns}
+          keyExtractor={(item) => item.id}
+          searchable={false}
+          pagination={false}
+        />
+      </Card>
+    </div>
   );
 }

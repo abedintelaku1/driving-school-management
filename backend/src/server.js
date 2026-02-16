@@ -17,6 +17,7 @@ const carRoutes = require("./routes/car.routes");
 const packageRoutes = require("./routes/package.routes");
 const appointmentRoutes = require("./routes/appointment.routes");
 const notificationRoutes = require("./routes/notification.routes");
+const exportRoutes = require("./routes/export.routes");
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use("/api/cars", carRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/export", exportRoutes);
 
 // 404 + errors
 app.use(notFoundHandler);
