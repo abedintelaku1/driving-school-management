@@ -590,4 +590,18 @@ export const api = {
       return { ok: false, status: 500 };
     }
   },
+
+  // Export functions
+  async exportCandidateReport(candidateId: string, format: 'excel' | 'csv' | 'pdf'): Promise<void> {
+    const { exportApi } = await import('./api/export');
+    return exportApi.exportCandidateReport(candidateId, format);
+  },
+
+  async exportInstructorReport(instructorId: string, format: 'excel' | 'csv' | 'pdf'): Promise<void> {
+    const { exportApi } = await import('./api/export');
+    return exportApi.exportInstructorReport(instructorId, format);
+  },
 };
+
+// Re-export exportApi for direct use if needed
+export { exportApi } from './api/index';

@@ -4,6 +4,7 @@ import { instructorsApi } from './instructors';
 import { carsApi } from './cars';
 import { packagesApi } from './packages';
 import { notificationsApi } from './notifications';
+import { exportApi } from './export';
 
 
 // Main API object that exports all API modules
@@ -52,8 +53,26 @@ export const api = {
 
 };
 
+// Add export functions using Object.assign to ensure they're properly bound
+Object.assign(api, {
+  exportCandidateReport: exportApi.exportCandidateReport,
+  exportInstructorReport: exportApi.exportInstructorReport,
+});
+
+// Debug: Verify export functions are available (only in development)
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  console.log('Export API loaded:', {
+    hasExportCandidateReport: typeof exportApi.exportCandidateReport === 'function',
+    hasExportInstructorReport: typeof exportApi.exportInstructorReport === 'function',
+    exportApiKeys: Object.keys(exportApi),
+    apiHasExportCandidateReport: typeof api.exportCandidateReport === 'function',
+    apiHasExportInstructorReport: typeof api.exportInstructorReport === 'function',
+    apiKeys: Object.keys(api)
+  });
+}
+
 // Export individual APIs for direct use if needed
-export { authApi, candidatesApi, instructorsApi, carsApi, packagesApi, notificationsApi };
+export { authApi, candidatesApi, instructorsApi, carsApi, packagesApi, notificationsApi, exportApi };
 
 // Export types
 export type { ApiResponse } from './config';

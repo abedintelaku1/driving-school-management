@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlusIcon, EditIcon, XIcon, CheckIcon } from 'lucide-react';
+import { PlusIcon, EditIcon, XIcon, CheckIcon, DownloadIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
@@ -13,6 +13,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import { ConfirmModal } from '../../components/ui/Modal';
+import jsPDF from 'jspdf';
 
 type Appointment = {
   _id?: string;
@@ -59,6 +60,7 @@ export function AppointmentsPage() {
   const [cancellingAppointment, setCancellingAppointment] = useState<Appointment | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [instructorId, setInstructorId] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   // Get instructor ID for filtering
   useEffect(() => {
@@ -241,19 +243,127 @@ export function AppointmentsPage() {
     }
   };
 
+  const handleExport = () => {
+    if (!filteredAppointments.length) {
+      toast('info', 'Nuk ka takime për eksport');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    if (exportFormat === 'csv') {
+      const headers = ['Data', 'Ora fillimit', 'Ora mbarimit', 'Kandidati', 'Makina', 'Orët', 'Statusi', 'Shënime'];
+      const rows = filteredAppointments.map(apt => {
+        const candidate = getCandidateById(apt.candidateId || '');
+        const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName}` : 'I panjohur';
+        const car = getCarById(apt.carId || '');
+        const carInfo = car ? `${car.model} (${car.licensePlate})` : '-';
+        
+        return [
+          apt.date || '',
+          apt.startTime || '',
+          apt.endTime || '',
+          candidateName,
+          carInfo,
+          (apt.hours || 0).toString(),
+          apt.status === 'scheduled' ? 'E planifikuar' : apt.status === 'completed' ? 'Përfunduar' : apt.status === 'cancelled' ? 'Anuluar' : apt.status || '',
+          (apt.notes || '').replace(/"/g, '""')
+        ];
+      });
+
+      const csv = [headers, ...rows]
+        .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `takimet-e-mi_${timestamp}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast('success', 'Takimet u eksportuan në CSV');
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Takimet e mia', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`Total: ${filteredAppointments.length} takime`, 14, 37);
+      
+      let yPos = 50;
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'bold');
+      doc.text('Data', 14, yPos);
+      doc.text('Ora', 50, yPos);
+      doc.text('Kandidati', 80, yPos);
+      doc.text('Makina', 130, yPos);
+      doc.text('Orë', 170, yPos);
+      doc.text('Statusi', 185, yPos);
+      
+      yPos += 6;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(7);
+      
+      filteredAppointments.forEach((apt) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        const candidate = getCandidateById(apt.candidateId || '');
+        const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName}` : 'I panjohur';
+        const car = getCarById(apt.carId || '');
+        const carInfo = car ? `${car.model.substring(0, 10)}` : '-';
+        const status = apt.status === 'scheduled' ? 'Planifikuar' : apt.status === 'completed' ? 'Përfunduar' : apt.status === 'cancelled' ? 'Anuluar' : apt.status || '';
+        
+        doc.text((apt.date || '').substring(0, 10), 14, yPos);
+        doc.text(`${(apt.startTime || '').substring(0, 5)}-${(apt.endTime || '').substring(0, 5)}`, 50, yPos);
+        doc.text(candidateName.substring(0, 20), 80, yPos);
+        doc.text(carInfo, 130, yPos);
+        doc.text((apt.hours || 0).toString(), 170, yPos);
+        doc.text(status.substring(0, 10), 185, yPos);
+        yPos += 5;
+      });
+      
+      doc.save(`takimet-e-mi_${timestamp}.pdf`);
+      toast('success', 'Takimet u eksportuan në PDF');
+    }
+  };
+
   const columns = [
     {
       key: 'date',
       label: 'Data dhe ora',
       sortable: true,
-      render: (_: unknown, appointment: Appointment) => (
-        <div>
-          <p className="font-medium text-gray-900">{appointment.date}</p>
-          <p className="text-sm text-gray-500">
-            {appointment.startTime} - {appointment.endTime}
-          </p>
-        </div>
-      )
+      render: (_: unknown, appointment: Appointment) => {
+        // Format date nicely
+        const formatDate = (dateStr: string) => {
+          if (!dateStr) return '';
+          try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('sq-AL', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            });
+          } catch {
+            return dateStr;
+          }
+        };
+        
+        return (
+          <div className="min-w-[140px]">
+            <p className="font-semibold text-gray-900 text-sm leading-tight">{formatDate(appointment.date || '')}</p>
+            <p className="text-xs text-gray-600 font-medium mt-0.5">
+              {appointment.startTime} - {appointment.endTime}
+            </p>
+          </div>
+        );
+      }
     },
     {
       key: 'candidateId',
@@ -399,14 +509,35 @@ export function AppointmentsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Takimet</h1>
           <p className="text-gray-500 mt-1">
-            Manage your driving lessons and schedule.
+            Menaxhoni mësimet tuaja të drejtimit dhe orarin.
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
-          New Appointment
-        </Button>
+        <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+              options={[
+                { value: 'csv', label: 'CSV' },
+                { value: 'pdf', label: 'PDF' },
+              ]}
+              className="w-24"
+            />
+            <Button 
+              variant="outline" 
+              onClick={handleExport} 
+              icon={<DownloadIcon className="w-4 h-4" />}
+              disabled={filteredAppointments.length === 0}
+            >
+              Eksporto {exportFormat.toUpperCase()}
+            </Button>
+          </div>
+          <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
+            Takim i ri
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

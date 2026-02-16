@@ -15,6 +15,7 @@ import type { Package } from '../../types';
 import type { Candidate, Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
+import jsPDF from 'jspdf';
 export function CandidatesPage() {
   const navigate = useNavigate();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -25,6 +26,7 @@ export function CandidatesPage() {
   const [packageFilter, setPackageFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [instructors, setInstructors] = useState<{ id: string; name: string; assignedCarIds?: string[] }[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -204,39 +206,87 @@ export function CandidatesPage() {
       return;
     }
 
-    const headers = ['Emri', 'Mbiemri', 'Email', 'Telefon', 'Paketa', 'Instruktori', 'Statusi'];
-    const rows = filteredCandidates.map(c => {
-      const pkg = c.packageId ? getPackageById(c.packageId) : null;
-      const packageName = pkg ? pkg.name : 'Pa caktuar';
-      
-      const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
-      const instructorName = instructor ? instructor.name : 'Pa caktuar';
-      
-      return [
-        c.firstName || '',
-        c.lastName || '',
-        c.email || '',
-        c.phone || '',
-        packageName,
-        instructorName,
-        c.status || ''
-      ];
-    });
+    const timestamp = new Date().toISOString().split('T')[0];
 
-    const csv = [headers, ...rows]
-      .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
+    if (exportFormat === 'csv') {
+      const headers = ['Emri', 'Mbiemri', 'Email', 'Telefon', 'Paketa', 'Instruktori', 'Statusi'];
+      const rows = filteredCandidates.map(c => {
+        const pkg = c.packageId ? getPackageById(c.packageId) : null;
+        const packageName = pkg ? pkg.name : 'Pa caktuar';
+        
+        const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
+        const instructorName = instructor ? instructor.name : 'Pa caktuar';
+        
+        return [
+          c.firstName || '',
+          c.lastName || '',
+          c.email || '',
+          c.phone || '',
+          packageName,
+          instructorName,
+          c.status || ''
+        ];
+      });
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'candidates.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast('success', 'Kandidatët u eksportuan në CSV');
+      const csv = [headers, ...rows]
+        .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `kandidatet_${timestamp}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast('success', 'Kandidatët u eksportuan në CSV');
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Lista e Kandidatëve', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`Total: ${filteredCandidates.length} kandidatë`, 14, 37);
+      
+      let yPos = 50;
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.text('Emri', 14, yPos);
+      doc.text('Mbiemri', 50, yPos);
+      doc.text('Email', 85, yPos);
+      doc.text('Telefon', 130, yPos);
+      doc.text('Paketa', 160, yPos);
+      doc.text('Statusi', 190, yPos);
+      
+      yPos += 8;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      
+      filteredCandidates.forEach((c) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        const pkg = c.packageId ? getPackageById(c.packageId) : null;
+        const packageName = pkg ? pkg.name.substring(0, 15) : 'Pa caktuar';
+        const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
+        
+        doc.text((c.firstName || '').substring(0, 15), 14, yPos);
+        doc.text((c.lastName || '').substring(0, 15), 50, yPos);
+        doc.text((c.email || '').substring(0, 20), 85, yPos);
+        doc.text((c.phone || '').substring(0, 12), 130, yPos);
+        doc.text(packageName, 160, yPos);
+        doc.text(c.status === 'active' ? 'Aktiv' : (c.status || ''), 190, yPos);
+        yPos += 7;
+      });
+      
+      doc.save(`kandidatet_${timestamp}.pdf`);
+      toast('success', 'Kandidatët u eksportuan në PDF');
+    }
   };
   const clearFilters = () => {
     setStatusFilter('');
@@ -330,9 +380,20 @@ export function CandidatesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} icon={<DownloadIcon className="w-4 h-4" />} className="hidden sm:flex">
-            Eksporto
-          </Button>
+          <div className="hidden sm:flex gap-2 items-center">
+            <Select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+              options={[
+                { value: 'csv', label: 'CSV' },
+                { value: 'pdf', label: 'PDF' },
+              ]}
+              className="w-24"
+            />
+            <Button variant="outline" size="sm" onClick={handleExport} icon={<DownloadIcon className="w-4 h-4" />}>
+              Eksporto {exportFormat.toUpperCase()}
+            </Button>
+          </div>
           <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />} size="sm" className="flex-1 sm:flex-none">
             Shto kandidat
           </Button>

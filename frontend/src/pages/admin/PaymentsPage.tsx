@@ -13,6 +13,7 @@ import type { Payment, Candidate, Package } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../utils/api';
+import jsPDF from 'jspdf';
 
 type PaymentRow = {
   id: string;
@@ -46,6 +47,7 @@ export function PaymentsPage() {
   const [dateTo, setDateTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   // Fetch payments, candidates, and packages from API
   useEffect(() => {
@@ -224,48 +226,107 @@ export function PaymentsPage() {
 
   // Handle export
   const handleExport = () => {
-    // Create CSV content
-    const headers = ['Data', 'Emri i kandidatit', 'Numri i klientit', 'Paketa', 'Shuma', 'Metoda', 'Shënime'];
-    const rows = filteredPayments.map((payment) => {
-      const candidate = getCandidateInfo(payment.candidateId);
-      const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
-        ? `${candidate.firstName} ${candidate.lastName}`
-        : 'I panjohur';
-      const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
-        ? (candidate.uniqueClientNumber || '')
-        : '';
-      const pkg = getPackageInfo(payment.packageId);
-      const packageName = pkg ? pkg.name : '-';
-      
-      return [
-        payment.date,
-        candidateName,
-        candidateNumber,
-        packageName,
-        payment.amount.toString(),
-        payment.method.charAt(0).toUpperCase() + payment.method.slice(1),
-        (payment.notes || '').replace(/"/g, '""'), // Escape quotes in CSV
-      ];
-    });
-
-    // Convert to CSV format
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `payments_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const timestamp = new Date().toISOString().split('T')[0];
     
-    toast('success', 'Pagesat u eksportuan me sukses');
+    if (exportFormat === 'csv') {
+      // Create CSV content
+      const headers = ['Data', 'Emri i kandidatit', 'Numri i klientit', 'Paketa', 'Shuma', 'Metoda', 'Shënime'];
+      const rows = filteredPayments.map((payment) => {
+        const candidate = getCandidateInfo(payment.candidateId);
+        const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
+          ? `${candidate.firstName} ${candidate.lastName}`
+          : 'I panjohur';
+        const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
+          ? (candidate.uniqueClientNumber || '')
+          : '';
+        const pkg = getPackageInfo(payment.packageId);
+        const packageName = pkg ? pkg.name : '-';
+        
+        return [
+          payment.date,
+          candidateName,
+          candidateNumber,
+          packageName,
+          payment.amount.toString(),
+          payment.method.charAt(0).toUpperCase() + payment.method.slice(1),
+          (payment.notes || '').replace(/"/g, '""'), // Escape quotes in CSV
+        ];
+      });
+
+      // Convert to CSV format
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `pagesat_${timestamp}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast('success', 'Pagesat u eksportuan në CSV');
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Lista e Pagesave', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`Total: ${filteredPayments.length} pagesa`, 14, 37);
+      
+      // Calculate total amount
+      const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+      doc.text(`Shuma totale: ${totalAmount.toFixed(2)} EUR`, 14, 44);
+      
+      let yPos = 55;
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.text('Data', 14, yPos);
+      doc.text('Kandidati', 40, yPos);
+      doc.text('Nr. Klientit', 85, yPos);
+      doc.text('Paketa', 120, yPos);
+      doc.text('Shuma', 150, yPos);
+      doc.text('Metoda', 175, yPos);
+      
+      yPos += 7;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8);
+      
+      filteredPayments.forEach((payment) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        const candidate = getCandidateInfo(payment.candidateId);
+        const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
+          ? `${candidate.firstName} ${candidate.lastName}`
+          : 'I panjohur';
+        const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
+          ? (candidate.uniqueClientNumber || '')
+          : '';
+        const pkg = getPackageInfo(payment.packageId);
+        const packageName = pkg ? pkg.name.substring(0, 12) : '-';
+        const method = payment.method.charAt(0).toUpperCase() + payment.method.slice(1);
+        
+        doc.text(payment.date.substring(0, 10), 14, yPos);
+        doc.text(candidateName.substring(0, 20), 40, yPos);
+        doc.text(candidateNumber.substring(0, 12), 85, yPos);
+        doc.text(packageName, 120, yPos);
+        doc.text(`${payment.amount.toFixed(2)} EUR`, 150, yPos);
+        doc.text(method, 175, yPos);
+        yPos += 6;
+      });
+      
+      doc.save(`pagesat_${timestamp}.pdf`);
+      toast('success', 'Pagesat u eksportuan në PDF');
+    }
   };
 
   // Clear all filters
@@ -361,14 +422,25 @@ export function PaymentsPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            icon={<DownloadIcon className="w-4 h-4" />}
-            onClick={handleExport}
-            disabled={filteredPayments.length === 0}
-          >
-            Eksporto
-          </Button>
+          <div className="flex gap-2 items-center">
+            <Select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+              options={[
+                { value: 'csv', label: 'CSV' },
+                { value: 'pdf', label: 'PDF' },
+              ]}
+              className="w-24"
+            />
+            <Button 
+              variant="outline" 
+              icon={<DownloadIcon className="w-4 h-4" />}
+              onClick={handleExport}
+              disabled={filteredPayments.length === 0}
+            >
+              Eksporto {exportFormat.toUpperCase()}
+            </Button>
+          </div>
           {canAddPayment && (
             <Button
               onClick={() => setShowAddModal(true)}

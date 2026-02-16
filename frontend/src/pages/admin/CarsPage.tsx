@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlusIcon, EditIcon, TrashIcon, AlertTriangleIcon } from 'lucide-react';
+import { PlusIcon, EditIcon, TrashIcon, AlertTriangleIcon, DownloadIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
@@ -12,6 +12,7 @@ import { FilterBar } from '../../components/ui/FilterBar';
 import type { Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
+import jsPDF from 'jspdf';
 
 export function CarsPage() {
   const [cars, setCars] = useState<Car[]>([]);
@@ -22,6 +23,7 @@ export function CarsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [transmissionFilter, setTransmissionFilter] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   // Fetch cars from API
   useEffect(() => {
@@ -93,6 +95,93 @@ export function CarsPage() {
     const inspection = new Date(date);
     const today = new Date();
     return Math.ceil((inspection.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const handleExport = () => {
+    if (!filteredCars.length) {
+      toast('info', 'Nuk ka makina për eksport');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    if (exportFormat === 'csv') {
+      const headers = ['Modeli', 'Viti', 'Targat', 'Transmetimi', 'Lloji i karburantit', 'Pronësia', 'Orë totale', 'Statusi', 'Regjistrimi deri', 'Inspektimi i fundit', 'Inspektimi tjetër'];
+      const rows = filteredCars.map(car => [
+        car.model || '',
+        car.yearOfManufacture?.toString() || '',
+        car.licensePlate || '',
+        car.transmission === 'manual' ? 'Manual' : 'Automatik',
+        car.fuelType === 'petrol' ? 'Benzinë' : car.fuelType === 'diesel' ? 'Diesel' : car.fuelType === 'electric' ? 'Elektrik' : car.fuelType || '',
+        car.ownership === 'owned' ? 'E pronës' : 'E marrë me qira',
+        car.totalHours?.toString() || '0',
+        car.status === 'active' ? 'Aktiv' : 'Jo aktiv',
+        car.registrationExpiry || '',
+        car.lastInspection || '',
+        car.nextInspection || ''
+      ]);
+
+      const csv = [headers, ...rows]
+        .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `makinat_${timestamp}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast('success', 'Makinat u eksportuan në CSV');
+    } else {
+      // PDF Export
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text('Lista e Makinave', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`Total: ${filteredCars.length} makina`, 14, 37);
+      
+      let yPos = 50;
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.text('Modeli', 14, yPos);
+      doc.text('Viti', 50, yPos);
+      doc.text('Targat', 65, yPos);
+      doc.text('Trans.', 90, yPos);
+      doc.text('Karburant', 110, yPos);
+      doc.text('Orë', 145, yPos);
+      doc.text('Statusi', 165, yPos);
+      
+      yPos += 7;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8);
+      
+      filteredCars.forEach((car) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        const transmission = car.transmission === 'manual' ? 'Manual' : 'Auto';
+        const fuelType = car.fuelType === 'petrol' ? 'Benzinë' : car.fuelType === 'diesel' ? 'Diesel' : car.fuelType === 'electric' ? 'Elektrik' : car.fuelType || '';
+        const status = car.status === 'active' ? 'Aktiv' : 'Jo aktiv';
+        
+        doc.text((car.model || '').substring(0, 18), 14, yPos);
+        doc.text(car.yearOfManufacture?.toString() || '', 50, yPos);
+        doc.text((car.licensePlate || '').substring(0, 10), 65, yPos);
+        doc.text(transmission, 90, yPos);
+        doc.text(fuelType.substring(0, 12), 110, yPos);
+        doc.text((car.totalHours || 0).toString(), 145, yPos);
+        doc.text(status, 165, yPos);
+        yPos += 6;
+      });
+      
+      doc.save(`makinat_${timestamp}.pdf`);
+      toast('success', 'Makinat u eksportuan në PDF');
+    }
   };
 
   const handleDelete = async (car: Car) => {
@@ -225,9 +314,30 @@ export function CarsPage() {
             Menaxhoni mjetet e shkollës së makinës dhe mirëmbajtjen e tyre.
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
-          Shto makinë
-        </Button>
+        <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+              options={[
+                { value: 'csv', label: 'CSV' },
+                { value: 'pdf', label: 'PDF' },
+              ]}
+              className="w-24"
+            />
+            <Button 
+              variant="outline" 
+              onClick={handleExport} 
+              icon={<DownloadIcon className="w-4 h-4" />}
+              disabled={filteredCars.length === 0}
+            >
+              Eksporto {exportFormat.toUpperCase()}
+            </Button>
+          </div>
+          <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
+            Shto makinë
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
