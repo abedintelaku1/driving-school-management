@@ -1,6 +1,7 @@
 const Instructor = require('../models/Instructor');
 const User = require('../models/User');
 const Car = require('../models/Car');
+const Appointment = require('../models/Appointment');
 const notificationService = require('../services/notification.service');
 const emailService = require('../services/email.service');
 
@@ -9,6 +10,36 @@ const list = async (_req, res, next) => {
         const instructors = await Instructor.find()
             .populate('user', 'firstName lastName email role')
             .sort({ createdAt: -1 });
+        
+        // Calculate totalHours for all instructors using aggregation
+        const hoursByInstructor = await Appointment.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: {
+                _id: '$instructorId',
+                totalHours: { $sum: { $ifNull: ['$hours', 0] } }
+            }}
+        ]);
+        
+        // Create a map for quick lookup
+        const hoursMap = new Map();
+        hoursByInstructor.forEach(item => {
+            if (item._id) {
+                hoursMap.set(item._id.toString(), item.totalHours);
+            }
+        });
+        
+        // Update totalHours for each instructor if needed
+        const updatePromises = instructors.map(async (instructor) => {
+            const calculatedHours = hoursMap.get(instructor._id.toString()) || 0;
+            if (instructor.totalHours !== calculatedHours) {
+                instructor.totalHours = calculatedHours;
+                await instructor.save();
+            }
+            return instructor;
+        });
+        
+        await Promise.all(updatePromises);
+        
         res.json(instructors);
     } catch (err) {
         next(err);
@@ -43,7 +74,7 @@ const getMe = async (req, res, next) => {
 
 const create = async (req, res, next) => {
     try {
-        const { firstName, lastName, email = '', password, phone, address, dateOfBirth, personalNumber, specialties = [], assignedCarIds = [], personalCar } = req.body;
+        const { firstName, lastName, email = '', password, phone, address, dateOfBirth, personalNumber, specialties = [], assignedCarIds = [], personalCar, instructorType = 'insider', ratePerHour = 0, debtPerHour = 0 } = req.body;
         
         console.log('Creating instructor with data:', { firstName, lastName, email, phone, address, dateOfBirth, personalNumber });
         
@@ -80,6 +111,18 @@ const create = async (req, res, next) => {
             role: 1 // 1 = instructor
         });
         
+        // Validate instructor type
+        if (instructorType && !['insider', 'outsider'].includes(instructorType)) {
+            return res.status(400).json({ message: 'Instructor type must be "insider" or "outsider"' });
+        }
+        
+        // Validate rate for outsider
+        if (instructorType === 'outsider') {
+            if (typeof ratePerHour !== 'number' || ratePerHour < 0) {
+                return res.status(400).json({ message: 'Rate per hour must be a non-negative number for outsider instructors' });
+            }
+        }
+        
         // Create instructor profile
         const instructor = await Instructor.create({
             user: user._id,
@@ -89,7 +132,12 @@ const create = async (req, res, next) => {
             personalNumber,
             specialties,
             assignedCarIds,
-            personalCarIds: []
+            personalCarIds: [],
+            instructorType: instructorType || 'insider',
+            ratePerHour: instructorType === 'outsider' ? (ratePerHour || 0) : 0,
+            debtPerHour: 0,
+            totalCredits: 0,
+            totalDebt: 0
         });
         
         // Create personal car if provided
@@ -205,7 +253,7 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
-        const { phone, address, dateOfBirth, personalNumber, specialties, assignedCarIds, status, personalCarIds } = req.body;
+        const { phone, address, dateOfBirth, personalNumber, specialties, assignedCarIds, status, personalCarIds, instructorType, ratePerHour, debtPerHour } = req.body;
         
         const instructor = await Instructor.findById(req.params.id);
         if (!instructor) {
@@ -221,6 +269,32 @@ const update = async (req, res, next) => {
         if (assignedCarIds !== undefined) instructor.assignedCarIds = assignedCarIds;
         if (personalCarIds !== undefined) instructor.personalCarIds = personalCarIds;
         if (status !== undefined) instructor.status = status;
+        
+        // Update instructor type and payment fields
+        if (instructorType !== undefined) {
+            if (!['insider', 'outsider'].includes(instructorType)) {
+                return res.status(400).json({ message: 'Instructor type must be "insider" or "outsider"' });
+            }
+            instructor.instructorType = instructorType;
+            
+            // If changing to insider, reset rate and debt
+            if (instructorType === 'insider') {
+                instructor.ratePerHour = 0;
+                instructor.debtPerHour = 0;
+            }
+        }
+        
+        // Update rate only for outsider
+        if (instructor.instructorType === 'outsider') {
+            if (ratePerHour !== undefined) {
+                if (typeof ratePerHour !== 'number' || ratePerHour < 0) {
+                    return res.status(400).json({ message: 'Rate per hour must be a non-negative number' });
+                }
+                instructor.ratePerHour = ratePerHour;
+            }
+            // Always set debtPerHour to 0
+            instructor.debtPerHour = 0;
+        }
         
         await instructor.save();
         

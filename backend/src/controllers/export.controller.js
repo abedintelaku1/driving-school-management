@@ -299,7 +299,16 @@ const exportInstructorReport = async (req, res, next) => {
         
         const completedAppointments = appointments.filter(a => a.status === 'completed');
         const totalHours = completedAppointments.reduce((sum, a) => sum + (a.hours || 0), 0);
-        const totalEarnings = payments.reduce((sum, p) => sum + p.amount, 0);
+        
+        // Calculate total earnings based on instructor type
+        let totalEarnings = 0;
+        if (instructor.instructorType === 'outsider') {
+            // For outsider, use totalCredits (calculated from ratePerHour × hours)
+            totalEarnings = instructor.totalCredits || 0;
+        } else {
+            // For insider, use sum of payments from candidates (if needed, otherwise 0)
+            totalEarnings = 0; // Insider instructors don't have hourly earnings
+        }
         
         const instructorData = {
             ...instructor,

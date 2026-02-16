@@ -48,6 +48,9 @@ type Instructor = {
   firstName?: string;
   lastName?: string;
   status?: string;
+  instructorType?: 'insider' | 'outsider';
+  ratePerHour?: number;
+  totalCredits?: number;
   user?: {
     firstName?: string;
     lastName?: string;
@@ -286,6 +289,9 @@ export function ReportsPage() {
             instructor.firstName || instructor.user?.firstName || "";
           const lastName =
             instructor.lastName || instructor.user?.lastName || "";
+          const instructorType = instructor.instructorType || 'insider';
+          const ratePerHour = instructor.ratePerHour || 0;
+          const totalCredits = instructor.totalCredits || 0;
           return {
             name: `${firstName} ${lastName}`.trim() || "I panjohur",
             totalHours,
@@ -295,13 +301,20 @@ export function ReportsPage() {
             ).length,
             totalCandidates: instructorCandidates.length,
             status: instructor.status || "active",
+            instructorType,
+            ratePerHour,
+            totalCredits,
           };
         });
 
       csvContent +=
-        "Instruktori,Orë të mësuara,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
+        "Instruktori,Lloji,Orë të mësuara,Paga për orë,Pagesa totale,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
       instructorStats.forEach((stat) => {
-        csvContent += `"${stat.name}",${formatNumber(stat.totalHours)},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
+        const type = stat.instructorType === 'outsider' ? 'Me orë' : 'Rrogë fikse';
+        const ratePerHour = stat.instructorType === 'outsider' ? formatCurrency(stat.ratePerHour || 0) : '-';
+        const totalCredits = stat.instructorType === 'outsider' ? formatCurrency(stat.totalCredits || 0) : '-';
+        csvContent +=
+          `"${stat.name}","${type}",${formatNumber(stat.totalHours)},"${ratePerHour}","${totalCredits}",${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
       });
       csvContent += "\n";
 
@@ -715,6 +728,9 @@ function InstructorPerformanceReport({
       const firstName =
         instructor.firstName || instructor.user?.firstName || "";
       const lastName = instructor.lastName || instructor.user?.lastName || "";
+      const instructorType = instructor.instructorType || 'insider';
+      const ratePerHour = instructor.ratePerHour || 0;
+      const totalCredits = instructor.totalCredits || 0;
       return {
         id: instructorId,
         name: `${firstName} ${lastName}`.trim() || "I panjohur",
@@ -725,6 +741,9 @@ function InstructorPerformanceReport({
         ).length,
         totalCandidates: instructorCandidates.length,
         status: instructor.status || "active",
+        instructorType,
+        ratePerHour,
+        totalCredits,
       };
     });
 
@@ -734,9 +753,12 @@ function InstructorPerformanceReport({
     if (exportFormat === 'csv') {
       const BOM = "\uFEFF";
       let csvContent = BOM + "=== PERFORMANCA E INSTRUKTORËVE ===\n";
-      csvContent += "Instruktori,Orë të mësuara,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
+      csvContent += "Instruktori,Lloji,Orë të mësuara,Paga për orë,Pagesa totale,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
       instructorStats.forEach((stat) => {
-        csvContent += `"${stat.name}",${formatNumber(stat.totalHours)},${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
+        const type = stat.instructorType === 'outsider' ? 'Me orë' : 'Rrogë fikse';
+        const ratePerHour = stat.instructorType === 'outsider' ? formatCurrency(stat.ratePerHour || 0) : '-';
+        const totalCredits = stat.instructorType === 'outsider' ? formatCurrency(stat.totalCredits || 0) : '-';
+        csvContent += `"${stat.name}","${type}",${formatNumber(stat.totalHours)},"${ratePerHour}","${totalCredits}",${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
       });
 
       const filename = `performanca-instruktoreve_${timestamp}.csv`;
@@ -758,30 +780,53 @@ function InstructorPerformanceReport({
       doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
       
       let yPos = 40;
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
       doc.text('Instruktori', 14, yPos);
+      doc.text('Lloji', 50, yPos);
       doc.text('Orë', 70, yPos);
-      doc.text('Mësime', 90, yPos);
-      doc.text('Nxënës aktivë', 120, yPos);
-      doc.text('Nxënës gjithsej', 160, yPos);
-      doc.text('Statusi', 190, yPos);
+      doc.text('Paga/orë', 85, yPos);
+      doc.text('Pagesa', 110, yPos);
+      doc.text('Mësime', 135, yPos);
+      doc.text('Nx. aktivë', 155, yPos);
+      doc.text('Nx. gjithsej', 180, yPos);
       
       yPos += 8;
       doc.setFont(undefined, 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       
       instructorStats.forEach((stat) => {
         if (yPos > 270) {
           doc.addPage();
           yPos = 20;
+          // Redraw headers on new page
+          doc.setFontSize(11);
+          doc.setFont(undefined, 'bold');
+          doc.text('Instruktori', 14, yPos);
+          doc.text('Lloji', 50, yPos);
+          doc.text('Orë', 70, yPos);
+          doc.text('Paga/orë', 85, yPos);
+          doc.text('Pagesa', 110, yPos);
+          doc.text('Mësime', 135, yPos);
+          doc.text('Nx. aktivë', 155, yPos);
+          doc.text('Nx. gjithsej', 180, yPos);
+          yPos += 8;
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(9);
         }
-        doc.text(stat.name.substring(0, 25), 14, yPos);
+        doc.text(stat.name.substring(0, 15), 14, yPos);
+        doc.text(stat.instructorType === 'outsider' ? 'Me orë' : 'Rrogë', 50, yPos);
         doc.text(formatNumber(stat.totalHours), 70, yPos);
-        doc.text(stat.completedLessons.toString(), 90, yPos);
-        doc.text(stat.activeCandidates.toString(), 120, yPos);
-        doc.text(stat.totalCandidates.toString(), 160, yPos);
-        doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 190, yPos);
+        if (stat.instructorType === 'outsider') {
+          doc.text(formatCurrency(stat.ratePerHour || 0), 85, yPos);
+          doc.text(formatCurrency(stat.totalCredits || 0), 110, yPos);
+        } else {
+          doc.text('-', 85, yPos);
+          doc.text('-', 110, yPos);
+        }
+        doc.text(stat.completedLessons.toString(), 135, yPos);
+        doc.text(stat.activeCandidates.toString(), 155, yPos);
+        doc.text(stat.totalCandidates.toString(), 180, yPos);
         yPos += 7;
       });
       
@@ -797,12 +842,47 @@ function InstructorPerformanceReport({
       sortable: true,
     },
     {
+      key: "instructorType",
+      label: "Lloji",
+      sortable: true,
+      render: (value: unknown) => {
+        const type = value as 'insider' | 'outsider';
+        return (
+          <Badge variant={type === 'outsider' ? 'info' : 'outline'} size="sm">
+            {type === 'outsider' ? 'Me orë' : 'Rrogë fikse'}
+          </Badge>
+        );
+      },
+    },
+    {
       key: "totalHours",
       label: "Orë të mësuara",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
       ),
+    },
+    {
+      key: "ratePerHour",
+      label: "Paga për orë",
+      sortable: true,
+      render: (_: unknown, stat: any) => {
+        if (stat.instructorType !== 'outsider') {
+          return <span className="text-gray-400">-</span>;
+        }
+        return <span className="font-medium">{formatCurrency(stat.ratePerHour || 0)}</span>;
+      },
+    },
+    {
+      key: "totalCredits",
+      label: "Pagesa totale",
+      sortable: true,
+      render: (_: unknown, stat: any) => {
+        if (stat.instructorType !== 'outsider') {
+          return <span className="text-gray-400">-</span>;
+        }
+        return <span className="font-semibold text-green-600">{formatCurrency(stat.totalCredits || 0)}</span>;
+      },
     },
     {
       key: "completedLessons",

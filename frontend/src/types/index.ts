@@ -75,6 +75,11 @@ export type Instructor = {
   personalCarIds?: string[]; // Personal cars owned by this instructor
   status: EntityStatus;
   totalHours: number;
+  instructorType?: 'insider' | 'outsider';
+  ratePerHour?: number;
+  debtPerHour?: number;
+  totalCredits?: number;
+  totalDebt?: number;
   createdAt: string;
   updatedAt: string;
 };

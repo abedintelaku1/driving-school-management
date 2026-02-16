@@ -283,14 +283,51 @@ const update = async (req, res, next) => {
             appointment.notes = notes || '';
         }
 
+        // Track if status is being changed to completed
+        const wasCompleted = appointment.status === 'completed';
+        let statusChangedToCompleted = false;
+        
         if (status !== undefined) {
             if (!['scheduled', 'completed', 'cancelled'].includes(status)) {
                 return res.status(400).json({ message: 'Status must be "scheduled", "completed", or "cancelled"' });
+            }
+            // Check if status is being changed to completed
+            if (status === 'completed' && appointment.status !== 'completed') {
+                statusChangedToCompleted = true;
             }
             appointment.status = status;
         }
 
         await appointment.save();
+
+        // Update instructor totalHours and credits if appointment is marked as completed
+        if (statusChangedToCompleted && appointment.instructorId) {
+            try {
+                const Instructor = require('../models/Instructor');
+                const instructor = await Instructor.findById(appointment.instructorId);
+                
+                if (instructor) {
+                    const hours = appointment.hours || 0;
+                    
+                    // Update totalHours for all instructors
+                    instructor.totalHours = (instructor.totalHours || 0) + hours;
+                    
+                    // Update credits only for outsider instructors
+                    if (instructor.instructorType === 'outsider') {
+                        const creditsToAdd = (instructor.ratePerHour || 0) * hours;
+                        instructor.totalCredits = (instructor.totalCredits || 0) + creditsToAdd;
+                        console.log(`Updated instructor ${instructor._id} hours: +${hours}, credits: +${creditsToAdd.toFixed(2)}`);
+                    } else {
+                        console.log(`Updated instructor ${instructor._id} hours: +${hours}`);
+                    }
+                    
+                    await instructor.save();
+                }
+            } catch (err) {
+                console.error('Error updating instructor hours/credits:', err);
+                // Don't fail the appointment update if update fails
+            }
+        }
 
         // Populate and return
         const populated = await Appointment.findById(appointment._id)

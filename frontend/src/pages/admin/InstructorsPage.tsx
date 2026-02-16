@@ -11,7 +11,7 @@ import { Select } from "../../components/ui/Select";
 import { Checkbox } from "../../components/ui/Checkbox";
 import { FilterBar } from "../../components/ui/FilterBar";
 import { toast } from "../../hooks/useToast";
-import { api } from "../../utils/api";
+import { api } from "../../utils/api/index";
 import type { Car } from "../../types";
 
 type InstructorRow = {
@@ -28,6 +28,11 @@ type InstructorRow = {
   totalHours?: number;
   assignedCarIds: string[];
   personalCarIds?: string[];
+  instructorType?: 'insider' | 'outsider';
+  ratePerHour?: number;
+  debtPerHour?: number;
+  totalCredits?: number;
+  totalDebt?: number;
 };
 export function InstructorsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -92,6 +97,11 @@ export function InstructorsPage() {
               }
               return id?.toString() || id;
             }),
+            instructorType: item.instructorType || 'insider',
+            ratePerHour: item.ratePerHour || 0,
+            debtPerHour: item.debtPerHour || 0,
+            totalCredits: item.totalCredits || 0,
+            totalDebt: item.totalDebt || 0,
           };
         });
         setRows(mapped);
@@ -245,16 +255,45 @@ export function InstructorsPage() {
         return (
           <div className="flex flex-wrap gap-1">
             {personalCars.map((car) => (
-              <Badge key={car!.id} variant="info" size="sm" title="Personal Car">
+              <Badge key={car!.id} variant="info" size="sm">
                 {car!.licensePlate} (Personal)
               </Badge>
             ))}
             {assignedCars.map((car) => (
-              <Badge key={car!.id} variant="outline" size="sm" title="School Car">
+              <Badge key={car!.id} variant="outline" size="sm">
                 {car!.licensePlate}
               </Badge>
             ))}
           </div>
+        );
+      },
+    },
+    {
+      key: "instructorType",
+      label: "Lloji",
+      sortable: true,
+      render: (value: unknown) => {
+        const type = value as 'insider' | 'outsider';
+        return (
+          <Badge variant={type === 'outsider' ? 'info' : 'outline'} size="sm">
+            {type === 'outsider' ? 'Me orë' : 'Rrogë fikse'}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "balance",
+      label: "Kredite",
+      sortable: true,
+      render: (_: unknown, instructor: InstructorRow) => {
+        if (instructor.instructorType !== 'outsider') {
+          return <span className="text-gray-400">-</span>;
+        }
+        const balance = instructor.totalCredits || 0;
+        return (
+          <span className="font-semibold text-green-600">
+            €{balance.toFixed(2)}
+          </span>
         );
       },
     },
@@ -450,6 +489,9 @@ function AddInstructorModal({
     categories: [] as string[],
     assignedCarIds: [] as string[],
     status: "active" as "active" | "inactive",
+    instructorType: "insider" as "insider" | "outsider",
+    ratePerHour: 0,
+    debtPerHour: 0,
     hasPersonalCar: false,
     personalCar: {
       model: "",
@@ -532,6 +574,13 @@ function AddInstructorModal({
         "Numri personal duhet të ketë të paktën 6 karaktere";
     }
 
+    // Validate payment fields for outsider
+    if (formData.instructorType === 'outsider') {
+      if (formData.ratePerHour < 0) {
+        newErrors.ratePerHour = "Paga për orë duhet të jetë pozitive";
+      }
+    }
+
     if (formData.hasPersonalCar && !instructor) {
       if (!formData.personalCar.model.trim()) {
         newErrors.personalCarModel = "Modeli i makinës është i detyrueshëm";
@@ -574,6 +623,9 @@ function AddInstructorModal({
         categories: instructor.categories,
         assignedCarIds: instructor.assignedCarIds,
         status: instructor.status,
+            instructorType: (instructor as any).instructorType || "insider",
+            ratePerHour: (instructor as any).ratePerHour || 0,
+            debtPerHour: 0,
         hasPersonalCar: false, // Personal car editing not supported in edit mode for now
         personalCar: {
           model: "",
@@ -602,6 +654,9 @@ function AddInstructorModal({
         categories: [],
         assignedCarIds: [],
         status: "active",
+        instructorType: "insider",
+        ratePerHour: 0,
+        debtPerHour: 0,
         hasPersonalCar: false,
         personalCar: {
           model: "",
@@ -663,6 +718,9 @@ function AddInstructorModal({
           specialties: formData.categories,
           assignedCarIds: formData.assignedCarIds,
           status: formData.status,
+          instructorType: formData.instructorType,
+          ratePerHour: formData.instructorType === 'outsider' ? formData.ratePerHour : 0,
+          debtPerHour: 0,
         });
 
         if (!result.ok) {
@@ -698,6 +756,9 @@ function AddInstructorModal({
           personalNumber: formData.personalNumber,
           specialties: formData.categories,
           assignedCarIds: formData.assignedCarIds,
+          instructorType: formData.instructorType,
+          ratePerHour: formData.instructorType === 'outsider' ? formData.ratePerHour : 0,
+          debtPerHour: 0,
           personalCar: formData.hasPersonalCar ? formData.personalCar : undefined,
         });
 
@@ -901,6 +962,49 @@ function AddInstructorModal({
               />
             ))}
           </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Lloji i pagesës
+          </label>
+          <Select
+            value={formData.instructorType}
+            onChange={(e) => {
+              const newType = e.target.value as "insider" | "outsider";
+              setFormData((prev) => ({
+                ...prev,
+              instructorType: newType,
+              // Reset rate when switching to insider
+              ratePerHour: newType === "insider" ? 0 : prev.ratePerHour,
+              debtPerHour: 0,
+              }));
+            }}
+            options={[
+              { value: "insider", label: "Rrogë fikse (Insider)" },
+              { value: "outsider", label: "Me orë (Outsider)" },
+            ]}
+          />
+          {formData.instructorType === "outsider" && (
+            <div className="mt-4">
+              <Input
+                label="Paga për orë (€)"
+                type="number"
+                required
+                value={formData.ratePerHour.toString()}
+                error={errors.ratePerHour}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  setFormData((prev) => ({
+                    ...prev,
+                    ratePerHour: value >= 0 ? value : 0,
+                  }));
+                  if (errors.ratePerHour) setErrors({ ...errors, ratePerHour: "" });
+                }}
+                hint="Sa paguhet instruktori për çdo orë të përfunduar"
+              />
+            </div>
+          )}
         </div>
 
         {!instructor && (

@@ -43,6 +43,27 @@ const InstructorSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    instructorType: {
+        type: String,
+        enum: ['insider', 'outsider'],
+        default: 'insider'
+    },
+    ratePerHour: {
+        type: Number,
+        default: 0  // Sa paguhet instruktori për orë (vetëm për outsider)
+    },
+    debtPerHour: {
+        type: Number,
+        default: 0  // Sa duhet të paguajë instruktori autoshkollës për orë (vetëm për outsider)
+    },
+    totalCredits: {
+        type: Number,
+        default: 0  // Totali i krediteve të grumbulluara
+    },
+    totalDebt: {
+        type: Number,
+        default: 0  // Totali i borxhit ndaj autoshkollës
+    },
     status: {
         type: String,
         enum: ['active', 'inactive'],
