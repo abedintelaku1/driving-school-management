@@ -207,21 +207,21 @@ function PackageCard({
 
       {pkg.description && <p className="text-sm text-gray-500 mb-4">{pkg.description}</p>}
 
-      <div className="flex gap-2 pt-4 border-t border-gray-100 flex-wrap">
-        <Button variant="outline" size="sm" className="flex-1 min-w-0" onClick={onEdit} icon={<EditIcon className="w-4 h-4" />}>
-          <span className="truncate">Ndrysho</span>
+      <div className="flex gap-1 pt-4 border-t border-gray-100">
+        <Button variant="outline" size="sm" className="flex-1 px-2 py-1 text-xs" onClick={onEdit} icon={<EditIcon className="w-3.5 h-3.5" />}>
+          Ndrysho
         </Button>
-        <Button variant="ghost" size="sm" className="flex-1 min-w-0" onClick={onToggleStatus} icon={pkg.status === 'active' ? <ToggleRightIcon className="w-4 h-4" /> : <ToggleLeftIcon className="w-4 h-4" />}>
-          <span className="truncate">{pkg.status === 'active' ? 'Çaktivizo' : 'Aktivizo'}</span>
+        <Button variant="ghost" size="sm" className="flex-1 px-2 py-1 text-xs" onClick={onToggleStatus} icon={pkg.status === 'active' ? <ToggleRightIcon className="w-3.5 h-3.5" /> : <ToggleLeftIcon className="w-3.5 h-3.5" />}>
+          {pkg.status === 'active' ? 'Çaktivizo' : 'Aktivizo'}
         </Button>
         <Button 
           variant="ghost" 
           size="sm" 
-          className="flex-1 min-w-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="flex-1 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
           onClick={onDelete} 
-          icon={<TrashIcon className="w-4 h-4" />}
+          icon={<TrashIcon className="w-3.5 h-3.5" />}
         >
-          <span className="truncate">Fshi</span>
+          Fshi
         </Button>
       </div>
     </Card>;

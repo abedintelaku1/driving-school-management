@@ -145,7 +145,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       bg-white
                       ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}
                     `} onClick={onRowClick ? () => onRowClick(item) : undefined}>
-                    {columns.map(column => <td key={column.key} className="px-4 lg:px-6 py-4 text-sm text-gray-700">
+                    {columns.map(column => <td key={column.key} className="px-4 lg:px-6 py-4 text-sm text-gray-700" style={{ maxWidth: column.width }}>
                         {column.render ? column.render(item[column.key], item, index) : String(item[column.key] ?? '-')}
                       </td>)}
                     {actions && <td className="px-4 lg:px-6 py-4 text-right">

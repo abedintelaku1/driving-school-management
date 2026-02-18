@@ -236,6 +236,7 @@ export function InstructorsPage() {
     {
       key: "assignedCarIds",
       label: "Cars",
+      width: "200px",
       render: (value: unknown, instructor: InstructorRow) => {
         const assignedCarIds = value as string[];
         const personalCarIds = instructor.personalCarIds || [];
@@ -253,14 +254,14 @@ export function InstructorsPage() {
         }
         
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-col gap-1">
             {personalCars.map((car) => (
-              <Badge key={car!.id} variant="info" size="sm">
+              <Badge key={car!.id} variant="info" size="sm" className="w-fit whitespace-nowrap">
                 {car!.licensePlate} (Personal)
               </Badge>
             ))}
             {assignedCars.map((car) => (
-              <Badge key={car!.id} variant="outline" size="sm">
+              <Badge key={car!.id} variant="outline" size="sm" className="w-fit whitespace-nowrap">
                 {car!.licensePlate}
               </Badge>
             ))}
@@ -285,13 +286,14 @@ export function InstructorsPage() {
       key: "balance",
       label: "Kredite",
       sortable: true,
+      width: "100px",
       render: (_: unknown, instructor: InstructorRow) => {
         if (instructor.instructorType !== 'outsider') {
           return <span className="text-gray-400">-</span>;
         }
         const balance = instructor.totalCredits || 0;
         return (
-          <span className="font-semibold text-green-600">
+          <span className="font-semibold text-green-600 whitespace-nowrap">
             €{balance.toFixed(2)}
           </span>
         );
