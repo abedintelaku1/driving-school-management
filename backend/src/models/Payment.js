@@ -35,6 +35,11 @@ const PaymentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  addedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
 });
 
 // Index for faster queries

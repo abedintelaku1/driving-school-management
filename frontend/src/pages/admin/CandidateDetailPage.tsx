@@ -1,18 +1,29 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon, EditIcon, MailIcon, PhoneIcon, MapPinIcon, CalendarIcon, CreditCardIcon, ClockIcon, UserIcon, PackageIcon } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { Badge, StatusBadge } from '../../components/ui/Badge';
-import { Avatar } from '../../components/ui/Avatar';
-import { Tabs, TabList, Tab, TabPanel } from '../../components/ui/Tabs';
-import { DataTable } from '../../components/ui/DataTable';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { api } from '../../utils/api';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { Modal } from '../../components/ui/Modal';
-import type { Appointment } from '../../types';
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  ArrowLeftIcon,
+  EditIcon,
+  MailIcon,
+  PhoneIcon,
+  MapPinIcon,
+  CalendarIcon,
+  CreditCardIcon,
+  ClockIcon,
+  UserIcon,
+  PackageIcon,
+} from "lucide-react";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Badge, StatusBadge } from "../../components/ui/Badge";
+import { Avatar } from "../../components/ui/Avatar";
+import { Tabs, TabList, Tab, TabPanel } from "../../components/ui/Tabs";
+import { DataTable } from "../../components/ui/DataTable";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { api } from "../../utils/api";
+import { Input } from "../../components/ui/Input";
+import { Select } from "../../components/ui/Select";
+import { Modal } from "../../components/ui/Modal";
+import type { Appointment } from "../../types";
 
 type Candidate = {
   _id?: string;
@@ -47,7 +58,9 @@ export function CandidateDetailPage() {
   const [appointments, setAppointments] = useState<AppointmentEx[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
-  const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([]);
+  const [instructors, setInstructors] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [packageInfo, setPackageInfo] = useState<any>(null);
 
@@ -58,7 +71,7 @@ export function CandidateDetailPage() {
       const [candRes, instRes, paymentsRes] = await Promise.all([
         api.getCandidate(id),
         api.listInstructors(),
-        api.getPaymentsByCandidate(id)
+        api.getPaymentsByCandidate(id),
       ]);
 
       if (candRes.ok && candRes.data) {
@@ -66,16 +79,24 @@ export function CandidateDetailPage() {
         // Format dateOfBirth if it's a Date object
         let dateOfBirth = data.dateOfBirth;
         if (dateOfBirth instanceof Date) {
-          dateOfBirth = dateOfBirth.toISOString().split('T')[0];
-        } else if (typeof dateOfBirth === 'string' && dateOfBirth.includes('T')) {
-          dateOfBirth = dateOfBirth.split('T')[0];
+          dateOfBirth = dateOfBirth.toISOString().split("T")[0];
+        } else if (
+          typeof dateOfBirth === "string" &&
+          dateOfBirth.includes("T")
+        ) {
+          dateOfBirth = dateOfBirth.split("T")[0];
         }
-        
+
         setCandidate({
           ...data,
           id: data._id || data.id,
           dateOfBirth: dateOfBirth || data.dateOfBirth,
-          instructorId: data.instructorId?._id || data.instructorId || data.instructor?._id || data.instructor || ''
+          instructorId:
+            data.instructorId?._id ||
+            data.instructorId ||
+            data.instructor?._id ||
+            data.instructor ||
+            "",
         } as Candidate);
 
         // Fetch package if candidate has one
@@ -88,9 +109,9 @@ export function CandidateDetailPage() {
       }
 
       if (instRes?.ok && instRes.data) {
-        const mapped = (instRes.data as any[]).map(inst => ({
+        const mapped = (instRes.data as any[]).map((inst) => ({
           id: inst._id || inst.id,
-          name: `${inst.user?.firstName || ''} ${inst.user?.lastName || ''}`.trim()
+          name: `${inst.user?.firstName || ""} ${inst.user?.lastName || ""}`.trim(),
         }));
         setInstructors(mapped);
       }
@@ -99,14 +120,17 @@ export function CandidateDetailPage() {
         const mapped = (paymentsRes.data as any[]).map((item) => ({
           id: item._id || item.id,
           amount: item.amount || 0,
-          method: item.method || 'cash',
-          date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
-          notes: item.notes || '',
+          method: item.method || "cash",
+          date: item.date
+            ? new Date(item.date).toISOString().split("T")[0]
+            : "",
+          notes: item.notes || "",
+          addedBy: item.addedBy || null,
         }));
         setPayments(mapped);
       }
     } catch (err) {
-      console.error('Failed to load candidate detail', err);
+      console.error("Failed to load candidate detail", err);
     } finally {
       setLoading(false);
     }
@@ -117,19 +141,22 @@ export function CandidateDetailPage() {
   }, [loadData]);
 
   const completedHours = useMemo(
-    () => appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + (a.hours || 0), 0),
-    [appointments]
+    () =>
+      appointments
+        .filter((a) => a.status === "completed")
+        .reduce((sum, a) => sum + (a.hours || 0), 0),
+    [appointments],
   );
 
   const instructorName = useMemo(() => {
     if (candidate?.instructor?.user) {
-      return `${candidate.instructor.user.firstName || ''} ${candidate.instructor.user.lastName || ''}`.trim();
+      return `${candidate.instructor.user.firstName || ""} ${candidate.instructor.user.lastName || ""}`.trim();
     }
-    const aptWithInstructor = appointments.find(a => a.instructor?.user);
+    const aptWithInstructor = appointments.find((a) => a.instructor?.user);
     if (aptWithInstructor?.instructor?.user) {
-      return `${aptWithInstructor.instructor.user.firstName || ''} ${aptWithInstructor.instructor.user.lastName || ''}`.trim();
+      return `${aptWithInstructor.instructor.user.firstName || ""} ${aptWithInstructor.instructor.user.lastName || ""}`.trim();
     }
-    return 'Pa caktuar';
+    return "Pa caktuar";
   }, [candidate?.instructor, appointments]);
 
   const totalPaid = useMemo(() => {
@@ -138,7 +165,9 @@ export function CandidateDetailPage() {
 
   const packagePrice = packageInfo?.price || 0;
   const balance = packagePrice - totalPaid;
-  const balanceText = packageInfo ? `€${Math.abs(balance).toLocaleString()}` : '€0';
+  const balanceText = packageInfo
+    ? `€${Math.abs(balance).toLocaleString()}`
+    : "€0";
 
   if (loading) {
     return (
@@ -155,8 +184,8 @@ export function CandidateDetailPage() {
           title="Kandidati nuk u gjet"
           description="Kandidati që po kërkoni nuk ekziston ose është hequr."
           action={{
-            label: 'Kthehu te kandidatët',
-            onClick: () => navigate('/admin/candidates')
+            label: "Kthehu te kandidatët",
+            onClick: () => navigate("/admin/candidates"),
           }}
         />
       </div>
@@ -169,7 +198,7 @@ export function CandidateDetailPage() {
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
-          onClick={() => navigate('/admin/candidates')}
+          onClick={() => navigate("/admin/candidates")}
           icon={<ArrowLeftIcon className="w-4 h-4" />}
         >
           Kthehu
@@ -179,18 +208,33 @@ export function CandidateDetailPage() {
       {/* Profile Card */}
       <Card>
         <div className="flex flex-col md:flex-row md:items-start gap-6">
-          <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="xl" />
+          <Avatar
+            name={`${candidate.firstName} ${candidate.lastName}`}
+            size="xl"
+          />
           <div className="flex-1">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {candidate.firstName} {candidate.lastName}
                 </h1>
-                {candidate.uniqueClientNumber && <p className="text-gray-500">{candidate.uniqueClientNumber}</p>}
+                {candidate.uniqueClientNumber && (
+                  <p className="text-gray-500">
+                    {candidate.uniqueClientNumber}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-3">
-                <StatusBadge status={(candidate.status as 'active' | 'inactive') || 'active'} />
-                <Button variant="outline" icon={<EditIcon className="w-4 h-4" />} onClick={() => setEditOpen(true)}>
+                <StatusBadge
+                  status={
+                    (candidate.status as "active" | "inactive") || "active"
+                  }
+                />
+                <Button
+                  variant="outline"
+                  icon={<EditIcon className="w-4 h-4" />}
+                  onClick={() => setEditOpen(true)}
+                >
                   Ndrysho
                 </Button>
               </div>
@@ -199,19 +243,19 @@ export function CandidateDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
               <div className="flex items-center gap-3 text-gray-600">
                 <MailIcon className="w-5 h-5 text-gray-400" />
-                <span>{candidate.email || '-'}</span>
+                <span>{candidate.email || "-"}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <PhoneIcon className="w-5 h-5 text-gray-400" />
-                <span>{candidate.phone || '-'}</span>
+                <span>{candidate.phone || "-"}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />
-                <span>DOB: {candidate.dateOfBirth || '-'}</span>
+                <span>DOB: {candidate.dateOfBirth || "-"}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600 md:col-span-3">
                 <MapPinIcon className="w-5 h-5 text-gray-400" />
-                <span>{candidate.address || '-'}</span>
+                <span>{candidate.address || "-"}</span>
               </div>
             </div>
           </div>
@@ -228,7 +272,7 @@ export function CandidateDetailPage() {
             <div>
               <p className="text-sm text-gray-500">Paketa</p>
               <p className="font-semibold text-gray-900">
-                {packageInfo ? packageInfo.name : 'Nuk është caktuar'}
+                {packageInfo ? packageInfo.name : "Nuk është caktuar"}
               </p>
             </div>
           </div>
@@ -240,9 +284,7 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Instruktori</p>
-              <p className="font-semibold text-gray-900">
-                {instructorName}
-              </p>
+              <p className="font-semibold text-gray-900">{instructorName}</p>
             </div>
           </div>
         </Card>
@@ -288,8 +330,8 @@ export function CandidateDetailPage() {
         </TabPanel>
 
         <TabPanel value="payments">
-          <PaymentsTab 
-            candidateId={candidate.id || candidate._id || ''} 
+          <PaymentsTab
+            candidateId={candidate.id || candidate._id || ""}
             payments={payments}
             packageInfo={packageInfo}
             onPaymentAdded={loadData}
@@ -317,52 +359,54 @@ export function CandidateDetailPage() {
 function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
   const columns = [
     {
-      key: 'date',
-      label: 'Data',
-      sortable: true
+      key: "date",
+      label: "Data",
+      sortable: true,
     },
     {
-      key: 'time',
-      label: 'Ora',
+      key: "time",
+      label: "Ora",
       render: (_: unknown, appointment: AppointmentEx) => (
         <span>
           {appointment.startTime} - {appointment.endTime}
         </span>
-      )
+      ),
     },
     {
-      key: 'hours',
-      label: 'Orët'
+      key: "hours",
+      label: "Orët",
     },
     {
-      key: 'status',
-      label: 'Statusi',
+      key: "status",
+      label: "Statusi",
       render: (value: unknown) => {
         const status = value as string;
-        const variants: Record<string, 'success' | 'warning' | 'danger'> = {
-          completed: 'success',
-          scheduled: 'warning',
-          cancelled: 'danger'
+        const variants: Record<string, "success" | "warning" | "danger"> = {
+          completed: "success",
+          scheduled: "warning",
+          cancelled: "danger",
         };
         return (
-          <Badge variant={variants[status] || 'outline'} dot>
+          <Badge variant={variants[status] || "outline"} dot>
             {status?.charAt(0).toUpperCase() + status?.slice(1)}
           </Badge>
         );
-      }
+      },
     },
     {
-      key: 'notes',
-      label: 'Shënime',
-      render: (value: unknown) => <span className="text-gray-500">{(value as string) || '-'}</span>
-    }
+      key: "notes",
+      label: "Shënime",
+      render: (value: unknown) => (
+        <span className="text-gray-500">{(value as string) || "-"}</span>
+      ),
+    },
   ];
   return (
     <Card padding="none">
       <DataTable
         data={appointments}
         columns={columns}
-        keyExtractor={a => a._id || a.id || ''}
+        keyExtractor={(a) => a._id || a.id || ""}
         searchable={false}
         emptyMessage="Nuk ka takime të planifikuara"
       />
@@ -378,31 +422,45 @@ type EditModalProps = {
   onSaved: () => void;
 };
 
-function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: EditModalProps) {
+function EditCandidateModal({
+  open,
+  onClose,
+  candidate,
+  instructors,
+  onSaved,
+}: EditModalProps) {
   const [form, setForm] = useState({
-    firstName: candidate.firstName || '',
-    lastName: candidate.lastName || '',
-    email: candidate.email || '',
-    phone: candidate.phone || '',
-    dateOfBirth: candidate.dateOfBirth || '',
-    personalNumber: candidate.personalNumber || '',
-    address: candidate.address || '',
-    instructorId: candidate.instructorId || candidate.instructor?._id || candidate.instructor?.id || '',
-    status: (candidate.status as 'active' | 'inactive') || 'active'
+    firstName: candidate.firstName || "",
+    lastName: candidate.lastName || "",
+    email: candidate.email || "",
+    phone: candidate.phone || "",
+    dateOfBirth: candidate.dateOfBirth || "",
+    personalNumber: candidate.personalNumber || "",
+    address: candidate.address || "",
+    instructorId:
+      candidate.instructorId ||
+      candidate.instructor?._id ||
+      candidate.instructor?.id ||
+      "",
+    status: (candidate.status as "active" | "inactive") || "active",
   });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setForm({
-      firstName: candidate.firstName || '',
-      lastName: candidate.lastName || '',
-      email: candidate.email || '',
-      phone: candidate.phone || '',
-      dateOfBirth: candidate.dateOfBirth || '',
-      personalNumber: candidate.personalNumber || '',
-      address: candidate.address || '',
-      instructorId: candidate.instructorId || candidate.instructor?._id || candidate.instructor?.id || '',
-      status: (candidate.status as 'active' | 'inactive') || 'active'
+      firstName: candidate.firstName || "",
+      lastName: candidate.lastName || "",
+      email: candidate.email || "",
+      phone: candidate.phone || "",
+      dateOfBirth: candidate.dateOfBirth || "",
+      personalNumber: candidate.personalNumber || "",
+      address: candidate.address || "",
+      instructorId:
+        candidate.instructorId ||
+        candidate.instructor?._id ||
+        candidate.instructor?.id ||
+        "",
+      status: (candidate.status as "active" | "inactive") || "active",
     });
   }, [candidate]);
 
@@ -411,18 +469,23 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
     try {
       const payload = { ...form };
       // Convert empty string to null for instructorId
-      if (payload.instructorId === '') {
+      if (payload.instructorId === "") {
         payload.instructorId = null;
       }
-      const resp = await api.updateCandidate(candidate._id || candidate.id!, payload as any);
+      const resp = await api.updateCandidate(
+        candidate._id || candidate.id!,
+        payload as any,
+      );
       if (!resp.ok) {
-        alert((resp.data as any)?.message || 'Dështoi përditësimi i kandidatit');
+        alert(
+          (resp.data as any)?.message || "Dështoi përditësimi i kandidatit",
+        );
         return;
       }
       onSaved();
       onClose();
     } catch (err) {
-      alert('Dështoi përditësimi i kandidatit');
+      alert("Dështoi përditësimi i kandidatit");
     } finally {
       setSaving(false);
     }
@@ -437,10 +500,21 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
       size="lg"
       footer={
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} disabled={saving} fullWidth className="sm:w-auto">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={saving}
+            fullWidth
+            className="sm:w-auto"
+          >
             Anulo
           </Button>
-          <Button onClick={handleSave} loading={saving} fullWidth className="sm:w-auto">
+          <Button
+            onClick={handleSave}
+            loading={saving}
+            fullWidth
+            className="sm:w-auto"
+          >
             Ruaj ndryshimet
           </Button>
         </div>
@@ -448,41 +522,84 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
     >
       <form
         className="space-y-4 sm:space-y-6"
-        onSubmit={e => {
+        onSubmit={(e) => {
           e.preventDefault();
           handleSave();
         }}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Emri" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
-          <Input label="Mbiemri" required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+          <Input
+            label="Emri"
+            required
+            value={form.firstName}
+            onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+          />
+          <Input
+            label="Mbiemri"
+            required
+            value={form.lastName}
+            onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+          />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Emaili" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-          <Input label="Telefoni" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+          <Input
+            label="Emaili"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <Input
+            label="Telefoni"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Data e lindjes" type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} />
-          <Input label="Numri personal" value={form.personalNumber || ''} onChange={e => setForm({ ...form, personalNumber: e.target.value })} />
+          <Input
+            label="Data e lindjes"
+            type="date"
+            value={form.dateOfBirth}
+            onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+          />
+          <Input
+            label="Numri personal"
+            value={form.personalNumber || ""}
+            onChange={(e) =>
+              setForm({ ...form, personalNumber: e.target.value })
+            }
+          />
         </div>
-        <Input label="Adresa" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+        <Input
+          label="Adresa"
+          value={form.address}
+          onChange={(e) => setForm({ ...form, address: e.target.value })}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Instruktori"
             value={form.instructorId}
-            onChange={e => setForm({ ...form, instructorId: e.target.value })}
+            onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
             options={[
-              { value: '', label: 'Pa caktuar' },
-              ...instructors.map(i => ({ value: i.id, label: i.name || 'Instruktor' }))
+              { value: "", label: "Pa caktuar" },
+              ...instructors.map((i) => ({
+                value: i.id,
+                label: i.name || "Instruktor",
+              })),
             ]}
           />
           <Select
             label="Statusi"
             value={form.status}
-            onChange={e => setForm({ ...form, status: e.target.value as 'active' | 'inactive' })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                status: e.target.value as "active" | "inactive",
+              })
+            }
             options={[
-              { value: 'active', label: 'Aktive' },
-              { value: 'inactive', label: 'Joaktive' }
+              { value: "active", label: "Aktive" },
+              { value: "inactive", label: "Joaktive" },
             ]}
           />
         </div>
@@ -491,12 +608,12 @@ function EditCandidateModal({ open, onClose, candidate, instructors, onSaved }: 
   );
 }
 
-function PaymentsTab({ 
-  candidateId, 
-  payments: paymentsProp, 
+function PaymentsTab({
+  candidateId,
+  payments: paymentsProp,
   packageInfo: packageInfoProp,
-  onPaymentAdded 
-}: { 
+  onPaymentAdded,
+}: {
   candidateId: string;
   payments: any[];
   packageInfo: any;
@@ -512,16 +629,16 @@ function PaymentsTab({
 
   const paymentColumns = [
     {
-      key: 'date',
-      label: 'Data',
+      key: "date",
+      label: "Data",
       sortable: true,
       render: (value: unknown) => (
-        <span>{new Date(value as string).toLocaleDateString('sq-AL')}</span>
+        <span>{new Date(value as string).toLocaleDateString("sq-AL")}</span>
       ),
     },
     {
-      key: 'amount',
-      label: 'Shuma',
+      key: "amount",
+      label: "Shuma",
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">
@@ -530,20 +647,37 @@ function PaymentsTab({
       ),
     },
     {
-      key: 'method',
-      label: 'Metoda',
+      key: "method",
+      label: "Metoda",
       render: (value: unknown) => (
-        <Badge variant={value === 'bank' ? 'info' : 'default'}>
-          {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
+        <Badge variant={value === "bank" ? "info" : "default"}>
+          {(value as string).charAt(0).toUpperCase() +
+            (value as string).slice(1)}
         </Badge>
       ),
     },
     {
-      key: 'notes',
-      label: 'Shënime',
+      key: "addedBy",
+      label: "Shtuar nga",
+      render: (value: unknown) => {
+        const user = value as
+          | { firstName?: string; lastName?: string; email?: string }
+          | null
+          | undefined;
+        if (!user || typeof user !== "object")
+          return <span className="text-gray-400">—</span>;
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        return (
+          <span className="text-gray-700">{name || user.email || "—"}</span>
+        );
+      },
+    },
+    {
+      key: "notes",
+      label: "Shënime",
       render: (value: unknown) => (
         <span className="text-gray-500 truncate max-w-[200px] block">
-          {(value as string) || '-'}
+          {(value as string) || "-"}
         </span>
       ),
     },
@@ -558,10 +692,14 @@ function PaymentsTab({
           <div className="p-4">
             <p className="text-blue-100 text-sm">Çmimi i paketës</p>
             <p className="text-3xl font-bold mt-1">
-              {packageInfoProp ? `€${packagePrice.toLocaleString()}` : 'Pa paketë'}
+              {packageInfoProp
+                ? `€${packagePrice.toLocaleString()}`
+                : "Pa paketë"}
             </p>
             {packageInfoProp && (
-              <p className="text-blue-100 text-xs mt-1">{packageInfoProp.name}</p>
+              <p className="text-blue-100 text-xs mt-1">
+                {packageInfoProp.name}
+              </p>
             )}
           </div>
         </Card>
@@ -574,22 +712,28 @@ function PaymentsTab({
               €{totalPaid.toLocaleString()}
             </p>
             <p className="text-green-100 text-xs mt-1">
-              {paymentsProp.length} pagesë{paymentsProp.length !== 1 ? '' : ''}
+              {paymentsProp.length} pagesë{paymentsProp.length !== 1 ? "" : ""}
             </p>
           </div>
         </Card>
 
         {/* Balance (Remaining) */}
-        <Card className={`bg-gradient-to-r text-white ${
-          isFullyPaid 
-            ? 'from-green-500 to-green-600' 
-            : balance > 0 
-            ? 'from-orange-600 to-orange-700' 
-            : 'from-red-600 to-red-700'
-        }`}>
+        <Card
+          className={`bg-gradient-to-r text-white ${
+            isFullyPaid
+              ? "from-green-500 to-green-600"
+              : balance > 0
+                ? "from-orange-600 to-orange-700"
+                : "from-red-600 to-red-700"
+          }`}
+        >
           <div className="p-4">
             <p className="text-white/90 text-sm">
-              {isFullyPaid ? 'E paguar plotësisht' : balance > 0 ? 'E mbetur' : 'Më shumë se çmimi'}
+              {isFullyPaid
+                ? "E paguar plotësisht"
+                : balance > 0
+                  ? "E mbetur"
+                  : "Më shumë se çmimi"}
             </p>
             <p className="text-3xl font-bold mt-1">
               €{Math.abs(balance).toLocaleString()}
@@ -606,7 +750,9 @@ function PaymentsTab({
       {/* Payments Table */}
       <Card padding="none">
         <div className="p-4 sm:p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Historiku i pagesave</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Historiku i pagesave
+          </h3>
         </div>
         {paymentsProp.length === 0 ? (
           <div className="p-8 text-center text-gray-500">

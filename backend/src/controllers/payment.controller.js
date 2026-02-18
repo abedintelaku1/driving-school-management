@@ -5,10 +5,10 @@ const list = async (req, res, next) => {
   try {
     const payments = await Payment.find()
       .populate("candidateId", "firstName lastName uniqueClientNumber email")
-      // packageId populate removed - packages are mock for now
+      .populate("addedBy", "firstName lastName email")
       .sort({ date: -1, createdAt: -1 })
-      .lean(); // Use lean() for better performance
-    
+      .lean();
+
     res.json(payments);
   } catch (err) {
     console.error("Error listing payments:", err);
@@ -18,11 +18,9 @@ const list = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
   try {
-    const payment = await Payment.findById(req.params.id).populate(
-      "candidateId",
-      "firstName lastName uniqueClientNumber email"
-    );
-    // packageId populate removed - packages are mock for now
+    const payment = await Payment.findById(req.params.id)
+      .populate("candidateId", "firstName lastName uniqueClientNumber email")
+      .populate("addedBy", "firstName lastName email");
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -76,7 +74,7 @@ const create = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid date format" });
     }
 
-    // Create payment
+    // Create payment (who added it = current user)
     const payment = await Payment.create({
       candidateId,
       amount,
@@ -84,27 +82,28 @@ const create = async (req, res, next) => {
       date: paymentDate,
       packageId: packageId || null,
       notes: notes || "",
+      addedBy: req.user._id,
     });
 
-    // Populate and return (packageId populate removed - packages are mock for now)
-    const populated = await Payment.findById(payment._id).populate(
-      "candidateId",
-      "firstName lastName uniqueClientNumber email"
-    );
+    const populated = await Payment.findById(payment._id)
+      .populate("candidateId", "firstName lastName uniqueClientNumber email")
+      .populate("addedBy", "firstName lastName email");
 
     // Send payment confirmation email (async, don't wait for it)
-    const emailService = require('../services/email.service');
-    const notificationService = require('../services/notification.service');
-    
+    const emailService = require("../services/email.service");
+    const notificationService = require("../services/notification.service");
+
     if (populated.candidateId && populated.candidateId.email) {
-      emailService.sendPaymentConfirmation(populated, populated.candidateId).catch(err => {
-        console.error('Error sending payment confirmation email:', err);
-      });
+      emailService
+        .sendPaymentConfirmation(populated, populated.candidateId)
+        .catch((err) => {
+          console.error("Error sending payment confirmation email:", err);
+        });
     }
-    
+
     // Create notifications (async, don't wait for it)
-    notificationService.notifyPaymentCreated(populated).catch(err => {
-      console.error('Error creating payment notifications:', err);
+    notificationService.notifyPaymentCreated(populated).catch((err) => {
+      console.error("Error creating payment notifications:", err);
     });
 
     res.status(201).json(populated);
@@ -123,8 +122,8 @@ const update = async (req, res, next) => {
 
     // Prevent changing candidateId - payment should always belong to the same candidate
     if (candidateId !== undefined) {
-      return res.status(400).json({ 
-        message: "Cannot change the candidate associated with a payment" 
+      return res.status(400).json({
+        message: "Cannot change the candidate associated with a payment",
       });
     }
 
@@ -133,12 +132,17 @@ const update = async (req, res, next) => {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // Update fields if provided
+    // Update fields if provided (do not allow reducing the amount)
     if (amount !== undefined) {
       if (typeof amount !== "number" || amount <= 0) {
         return res
           .status(400)
           .json({ message: "Amount must be a positive number" });
+      }
+      if (amount < payment.amount) {
+        return res
+          .status(400)
+          .json({ message: "Nuk lejohet zvogëlimi i shumës së pagesës" });
       }
       payment.amount = amount;
     }
@@ -172,11 +176,9 @@ const update = async (req, res, next) => {
 
     await payment.save();
 
-    // Populate and return (packageId populate removed - packages are mock for now)
-    const populated = await Payment.findById(payment._id).populate(
-      "candidateId",
-      "firstName lastName uniqueClientNumber email"
-    );
+    const populated = await Payment.findById(payment._id)
+      .populate("candidateId", "firstName lastName uniqueClientNumber email")
+      .populate("addedBy", "firstName lastName email");
 
     res.json(populated);
   } catch (err) {
@@ -185,9 +187,9 @@ const update = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid ID format" });
     }
     if (err.name === "ValidationError") {
-      return res.status(400).json({ 
-        message: "Validation error", 
-        errors: err.errors 
+      return res.status(400).json({
+        message: "Validation error",
+        errors: err.errors,
       });
     }
     next(err);
@@ -202,13 +204,13 @@ const remove = async (req, res, next) => {
     }
 
     await Payment.findByIdAndDelete(req.params.id);
-    res.json({ 
+    res.json({
       message: "Payment deleted successfully",
       deletedPayment: {
         id: payment._id,
         amount: payment.amount,
-        date: payment.date
-      }
+        date: payment.date,
+      },
     });
   } catch (err) {
     console.error("Error deleting payment:", err);
@@ -224,7 +226,7 @@ const getByCandidate = async (req, res, next) => {
   try {
     const { candidateId } = req.params;
     const payments = await Payment.find({ candidateId })
-      // packageId populate removed - packages are mock for now
+      .populate("addedBy", "firstName lastName email")
       .sort({ date: -1 });
     res.json(payments);
   } catch (err) {

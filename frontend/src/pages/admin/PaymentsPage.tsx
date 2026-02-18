@@ -1,38 +1,51 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { PlusIcon, DownloadIcon, EditIcon, TrashIcon } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { DataTable } from '../../components/ui/DataTable';
-import { Badge } from '../../components/ui/Badge';
-import { Modal } from '../../components/ui/Modal';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { TextArea } from '../../components/ui/TextArea';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import type { Payment, Candidate, Package } from '../../types';
-import { toast } from '../../hooks/useToast';
-import { useAuth } from '../../hooks/useAuth';
-import { api } from '../../utils/api';
-import jsPDF from 'jspdf';
+import React, { useEffect, useMemo, useState } from "react";
+import { PlusIcon, DownloadIcon, EditIcon, TrashIcon } from "lucide-react";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { DataTable } from "../../components/ui/DataTable";
+import { Badge } from "../../components/ui/Badge";
+import { Modal } from "../../components/ui/Modal";
+import { Input } from "../../components/ui/Input";
+import { Select } from "../../components/ui/Select";
+import { TextArea } from "../../components/ui/TextArea";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import type { Payment, Candidate, Package } from "../../types";
+import { toast } from "../../hooks/useToast";
+import { useAuth } from "../../hooks/useAuth";
+import { api } from "../../utils/api";
+import jsPDF from "jspdf";
 
 type PaymentRow = {
   id: string;
-  candidateId: string | { _id: string; firstName: string; lastName: string; uniqueClientNumber?: string };
+  candidateId:
+    | string
+    | {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        uniqueClientNumber?: string;
+      };
   packageId?: string | { _id: string; name: string; price: number } | null;
   amount: number;
-  method: 'bank' | 'cash';
+  method: "bank" | "cash";
   date: string;
   notes?: string;
   createdAt: string;
+  addedBy?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  } | null;
 };
 
 export function PaymentsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 0;
   const isStaff = user?.role === 2;
-  const canAddPayment = isAdmin || isStaff;      // Staff: ✅ shtim pagesash
-  const canEditPayment = isAdmin;                // Staff: ❌ editim
-  const canDeletePayment = isAdmin;              // Staff: ❌ fshirje / minusim
+  const canAddPayment = isAdmin || isStaff; // Staff: ✅ shtim pagesash
+  const canEditPayment = isAdmin; // Staff: ❌ editim
+  const canDeletePayment = isAdmin; // Staff: ❌ fshirje / minusim
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -41,13 +54,15 @@ export function PaymentsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentRow | null>(null);
-  const [methodFilter, setMethodFilter] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRow | null>(
+    null,
+  );
+  const [methodFilter, setMethodFilter] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
 
   // Fetch payments, candidates, and packages from API
   useEffect(() => {
@@ -64,39 +79,48 @@ export function PaymentsPage() {
           // Transform MongoDB data to frontend format
           const mapped = (paymentsRes.data as any[]).map((item) => ({
             id: item._id || item.id,
-            candidateId: item.candidateId || '',
+            candidateId: item.candidateId || "",
             packageId: item.packageId || null,
             amount: item.amount || 0,
-            method: item.method || 'cash',
-            date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
-            notes: item.notes || '',
+            method: item.method || "cash",
+            date: item.date
+              ? new Date(item.date).toISOString().split("T")[0]
+              : "",
+            notes: item.notes || "",
             createdAt: item.createdAt
-              ? new Date(item.createdAt).toISOString().split('T')[0]
-              : '',
+              ? new Date(item.createdAt).toISOString().split("T")[0]
+              : "",
+            addedBy: item.addedBy || null,
           }));
           setPayments(mapped);
         } else {
-          toast('error', 'Dështoi ngarkimi i pagesave');
+          toast("error", "Dështoi ngarkimi i pagesave");
         }
 
         if (candidatesRes.ok && candidatesRes.data) {
           // Transform candidates data
-          const mappedCandidates = (candidatesRes.data as any[]).map((item) => ({
-            id: item._id || item.id,
-            firstName: item.firstName || '',
-            lastName: item.lastName || '',
-            email: item.email || '',
-            phone: item.phone || '',
-            dateOfBirth: item.dateOfBirth || '',
-            personalNumber: item.personalNumber || '',
-            address: item.address || '',
-            packageId: item.packageId || '',
-            carId: item.carId || '',
-            paymentFrequency: item.paymentFrequency || '',
-            status: item.status || 'active',
-            instructorId: item.instructor?._id || item.instructor || item.instructorId || '',
-            uniqueClientNumber: item.uniqueClientNumber || '',
-          }));
+          const mappedCandidates = (candidatesRes.data as any[]).map(
+            (item) => ({
+              id: item._id || item.id,
+              firstName: item.firstName || "",
+              lastName: item.lastName || "",
+              email: item.email || "",
+              phone: item.phone || "",
+              dateOfBirth: item.dateOfBirth || "",
+              personalNumber: item.personalNumber || "",
+              address: item.address || "",
+              packageId: item.packageId || "",
+              carId: item.carId || "",
+              paymentFrequency: item.paymentFrequency || "",
+              status: item.status || "active",
+              instructorId:
+                item.instructor?._id ||
+                item.instructor ||
+                item.instructorId ||
+                "",
+              uniqueClientNumber: item.uniqueClientNumber || "",
+            }),
+          );
           setCandidates(mappedCandidates as Candidate[]);
         }
 
@@ -104,20 +128,20 @@ export function PaymentsPage() {
           // Transform packages data
           const mappedPackages = (packagesRes.data as any[]).map((item) => ({
             id: item._id || item.id,
-            name: item.name || '',
-            category: item.category || '',
+            name: item.name || "",
+            category: item.category || "",
             numberOfHours: item.numberOfHours || 0,
             price: item.price || 0,
-            description: item.description || '',
-            status: item.status || 'active',
-            createdAt: item.createdAt || '',
-            updatedAt: item.updatedAt || '',
+            description: item.description || "",
+            status: item.status || "active",
+            createdAt: item.createdAt || "",
+            updatedAt: item.updatedAt || "",
           }));
           setPackages(mappedPackages as Package[]);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        toast('error', 'Dështoi ngarkimi i të dhënave');
+        console.error("Error fetching data:", error);
+        toast("error", "Dështoi ngarkimi i të dhënave");
       } finally {
         setLoading(false);
       }
@@ -127,22 +151,41 @@ export function PaymentsPage() {
   }, [refreshKey]);
 
   // Helper function to get candidate info
-  const getCandidateInfo = (candidateId: string | { _id: string; firstName: string; lastName: string; uniqueClientNumber?: string }) => {
-    if (typeof candidateId === 'object' && candidateId !== null) {
+  const getCandidateInfo = (
+    candidateId:
+      | string
+      | {
+          _id: string;
+          firstName: string;
+          lastName: string;
+          uniqueClientNumber?: string;
+        },
+  ) => {
+    if (typeof candidateId === "object" && candidateId !== null) {
       return candidateId;
     }
     return candidates.find((c) => c.id === candidateId);
   };
 
   // Helper function to get package info from API data
-  const getPackageInfo = (packageId: string | { _id: string; name: string; price: number } | null | undefined) => {
+  const getPackageInfo = (
+    packageId:
+      | string
+      | { _id: string; name: string; price: number }
+      | null
+      | undefined,
+  ) => {
     if (!packageId) return null;
     // If it's already an object (populated), use it
-    if (typeof packageId === 'object' && packageId !== null && 'name' in packageId) {
+    if (
+      typeof packageId === "object" &&
+      packageId !== null &&
+      "name" in packageId
+    ) {
       return packageId;
     }
     // Otherwise, get from packages state (from API)
-    if (typeof packageId === 'string') {
+    if (typeof packageId === "string") {
       return packages.find((pkg) => pkg.id === packageId) || null;
     }
     return null;
@@ -152,38 +195,42 @@ export function PaymentsPage() {
     return payments.filter((payment) => {
       // Method filter
       if (methodFilter && payment.method !== methodFilter) return false;
-      
+
       // Date filters
       if (dateFrom && payment.date < dateFrom) return false;
       if (dateTo && payment.date > dateTo) return false;
-      
+
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const candidate = getCandidateInfo(payment.candidateId);
-        const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
-          ? `${candidate.firstName} ${candidate.lastName}`.toLowerCase()
-          : '';
-        const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
-          ? (candidate.uniqueClientNumber || '').toLowerCase()
-          : '';
+        const candidateName =
+          candidate && typeof candidate === "object" && "firstName" in candidate
+            ? `${candidate.firstName} ${candidate.lastName}`.toLowerCase()
+            : "";
+        const candidateNumber =
+          candidate &&
+          typeof candidate === "object" &&
+          "uniqueClientNumber" in candidate
+            ? (candidate.uniqueClientNumber || "").toLowerCase()
+            : "";
         const pkg = getPackageInfo(payment.packageId);
-        const packageName = pkg ? pkg.name.toLowerCase() : '';
+        const packageName = pkg ? pkg.name.toLowerCase() : "";
         const amount = payment.amount.toString();
         const method = payment.method.toLowerCase();
-        const notes = (payment.notes || '').toLowerCase();
-        
-        const matchesSearch = 
+        const notes = (payment.notes || "").toLowerCase();
+
+        const matchesSearch =
           candidateName.includes(query) ||
           candidateNumber.includes(query) ||
           packageName.includes(query) ||
           amount.includes(query) ||
           method.includes(query) ||
           notes.includes(query);
-        
+
         if (!matchesSearch) return false;
       }
-      
+
       return true;
     });
   }, [payments, methodFilter, dateFrom, dateTo, searchQuery, candidates]);
@@ -207,41 +254,53 @@ export function PaymentsPage() {
   // Confirm delete
   const confirmDelete = async () => {
     if (!selectedPayment) return;
-    
+
     try {
       const { ok, data } = await api.deletePayment(selectedPayment.id);
       if (ok) {
-        toast('success', 'Pagesa u fshi me sukses');
+        toast("success", "Pagesa u fshi me sukses");
         setRefreshKey((prev) => prev + 1);
         setShowDeleteModal(false);
         setSelectedPayment(null);
       } else {
-        toast('error', (data as any)?.message || 'Dështoi fshirja e pagesës');
+        toast("error", (data as any)?.message || "Dështoi fshirja e pagesës");
       }
     } catch (error) {
-      console.error('Error deleting payment:', error);
-      toast('error', 'Dështoi fshirja e pagesës');
+      console.error("Error deleting payment:", error);
+      toast("error", "Dështoi fshirja e pagesës");
     }
   };
 
   // Handle export
   const handleExport = () => {
-    const timestamp = new Date().toISOString().split('T')[0];
-    
-    if (exportFormat === 'csv') {
+    const timestamp = new Date().toISOString().split("T")[0];
+
+    if (exportFormat === "csv") {
       // Create CSV content
-      const headers = ['Data', 'Emri i kandidatit', 'Numri i klientit', 'Paketa', 'Shuma', 'Metoda', 'Shënime'];
+      const headers = [
+        "Data",
+        "Emri i kandidatit",
+        "Numri i klientit",
+        "Paketa",
+        "Shuma",
+        "Metoda",
+        "Shënime",
+      ];
       const rows = filteredPayments.map((payment) => {
         const candidate = getCandidateInfo(payment.candidateId);
-        const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
-          ? `${candidate.firstName} ${candidate.lastName}`
-          : 'I panjohur';
-        const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
-          ? (candidate.uniqueClientNumber || '')
-          : '';
+        const candidateName =
+          candidate && typeof candidate === "object" && "firstName" in candidate
+            ? `${candidate.firstName} ${candidate.lastName}`
+            : "I panjohur";
+        const candidateNumber =
+          candidate &&
+          typeof candidate === "object" &&
+          "uniqueClientNumber" in candidate
+            ? candidate.uniqueClientNumber || ""
+            : "";
         const pkg = getPackageInfo(payment.packageId);
-        const packageName = pkg ? pkg.name : '-';
-        
+        const packageName = pkg ? pkg.name : "-";
+
         return [
           payment.date,
           candidateName,
@@ -249,72 +308,84 @@ export function PaymentsPage() {
           packageName,
           payment.amount.toString(),
           payment.method.charAt(0).toUpperCase() + payment.method.slice(1),
-          (payment.notes || '').replace(/"/g, '""'), // Escape quotes in CSV
+          (payment.notes || "").replace(/"/g, '""'), // Escape quotes in CSV
         ];
       });
 
       // Convert to CSV format
       const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-      ].join('\n');
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ].join("\n");
 
       // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `pagesat_${timestamp}.csv`);
-      link.style.visibility = 'hidden';
+      link.setAttribute("href", url);
+      link.setAttribute("download", `pagesat_${timestamp}.csv`);
+      link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      toast('success', 'Pagesat u eksportuan në CSV');
+
+      toast("success", "Pagesat u eksportuan në CSV");
     } else {
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Lista e Pagesave', 14, 20);
+      doc.text("Lista e Pagesave", 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(
+        `Data e eksportit: ${new Date().toLocaleDateString("sq-AL")}`,
+        14,
+        30,
+      );
       doc.text(`Total: ${filteredPayments.length} pagesa`, 14, 37);
-      
+
       // Calculate total amount
-      const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+      const totalAmount = filteredPayments.reduce(
+        (sum, p) => sum + p.amount,
+        0,
+      );
       doc.text(`Shuma totale: ${totalAmount.toFixed(2)} EUR`, 14, 44);
-      
+
       let yPos = 55;
       doc.setFontSize(9);
-      doc.setFont(undefined, 'bold');
-      doc.text('Data', 14, yPos);
-      doc.text('Kandidati', 40, yPos);
-      doc.text('Nr. Klientit', 85, yPos);
-      doc.text('Paketa', 120, yPos);
-      doc.text('Shuma', 150, yPos);
-      doc.text('Metoda', 175, yPos);
-      
+      doc.setFont(undefined, "bold");
+      doc.text("Data", 14, yPos);
+      doc.text("Kandidati", 40, yPos);
+      doc.text("Nr. Klientit", 85, yPos);
+      doc.text("Paketa", 120, yPos);
+      doc.text("Shuma", 150, yPos);
+      doc.text("Metoda", 175, yPos);
+
       yPos += 7;
-      doc.setFont(undefined, 'normal');
+      doc.setFont(undefined, "normal");
       doc.setFontSize(8);
-      
+
       filteredPayments.forEach((payment) => {
         if (yPos > 270) {
           doc.addPage();
           yPos = 20;
         }
-        
+
         const candidate = getCandidateInfo(payment.candidateId);
-        const candidateName = candidate && typeof candidate === 'object' && 'firstName' in candidate
-          ? `${candidate.firstName} ${candidate.lastName}`
-          : 'I panjohur';
-        const candidateNumber = candidate && typeof candidate === 'object' && 'uniqueClientNumber' in candidate
-          ? (candidate.uniqueClientNumber || '')
-          : '';
+        const candidateName =
+          candidate && typeof candidate === "object" && "firstName" in candidate
+            ? `${candidate.firstName} ${candidate.lastName}`
+            : "I panjohur";
+        const candidateNumber =
+          candidate &&
+          typeof candidate === "object" &&
+          "uniqueClientNumber" in candidate
+            ? candidate.uniqueClientNumber || ""
+            : "";
         const pkg = getPackageInfo(payment.packageId);
-        const packageName = pkg ? pkg.name.substring(0, 12) : '-';
-        const method = payment.method.charAt(0).toUpperCase() + payment.method.slice(1);
-        
+        const packageName = pkg ? pkg.name.substring(0, 12) : "-";
+        const method =
+          payment.method.charAt(0).toUpperCase() + payment.method.slice(1);
+
         doc.text(payment.date.substring(0, 10), 14, yPos);
         doc.text(candidateName.substring(0, 20), 40, yPos);
         doc.text(candidateNumber.substring(0, 12), 85, yPos);
@@ -323,39 +394,43 @@ export function PaymentsPage() {
         doc.text(method, 175, yPos);
         yPos += 6;
       });
-      
+
       doc.save(`pagesat_${timestamp}.pdf`);
-      toast('success', 'Pagesat u eksportuan në PDF');
+      toast("success", "Pagesat u eksportuan në PDF");
     }
   };
 
   // Clear all filters
   const clearAllFilters = () => {
-    setMethodFilter('');
-    setDateFrom('');
-    setDateTo('');
-    setSearchQuery('');
+    setMethodFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setSearchQuery("");
   };
 
   const columns = [
     {
-      key: 'date',
-      label: 'Data',
+      key: "date",
+      label: "Data",
       sortable: true,
     },
     {
-      key: 'candidateId',
-      label: 'Kandidati',
+      key: "candidateId",
+      label: "Kandidati",
       render: (value: unknown) => {
         const candidate = getCandidateInfo(value as any);
-        if (typeof candidate === 'object' && candidate !== null && 'firstName' in candidate) {
+        if (
+          typeof candidate === "object" &&
+          candidate !== null &&
+          "firstName" in candidate
+        ) {
           return (
             <div>
               <p className="font-medium text-gray-900">
                 {candidate.firstName} {candidate.lastName}
               </p>
               <p className="text-sm text-gray-500">
-                {candidate.uniqueClientNumber || ''}
+                {candidate.uniqueClientNumber || ""}
               </p>
             </div>
           );
@@ -364,8 +439,8 @@ export function PaymentsPage() {
       },
     },
     {
-      key: 'packageId',
-      label: 'Paketa',
+      key: "packageId",
+      label: "Paketa",
       render: (value: unknown) => {
         const pkg = getPackageInfo(value as any);
         return pkg ? (
@@ -376,28 +451,47 @@ export function PaymentsPage() {
       },
     },
     {
-      key: 'amount',
-      label: 'Shuma',
+      key: "amount",
+      label: "Shuma",
       sortable: true,
       render: (value: unknown) => (
-        <span className="font-semibold text-gray-900">€{(value as number).toLocaleString()}</span>
+        <span className="font-semibold text-gray-900">
+          €{(value as number).toLocaleString()}
+        </span>
       ),
     },
     {
-      key: 'method',
-      label: 'Metoda',
+      key: "method",
+      label: "Metoda",
       render: (value: unknown) => (
-        <Badge variant={value === 'bank' ? 'info' : 'default'}>
-          {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
+        <Badge variant={value === "bank" ? "info" : "default"}>
+          {(value as string).charAt(0).toUpperCase() +
+            (value as string).slice(1)}
         </Badge>
       ),
     },
     {
-      key: 'notes',
-      label: 'Shënime',
+      key: "addedBy",
+      label: "Shtuar nga",
+      render: (value: unknown) => {
+        const user = value as
+          | { firstName?: string; lastName?: string; email?: string }
+          | null
+          | undefined;
+        if (!user || typeof user !== "object")
+          return <span className="text-gray-400">—</span>;
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        return (
+          <span className="text-gray-700">{name || user.email || "—"}</span>
+        );
+      },
+    },
+    {
+      key: "notes",
+      label: "Shënime",
       render: (value: unknown) => (
         <span className="text-gray-500 truncate max-w-[200px] block">
-          {(value as string) || '-'}
+          {(value as string) || "-"}
         </span>
       ),
     },
@@ -425,15 +519,15 @@ export function PaymentsPage() {
           <div className="flex gap-2 items-center">
             <Select
               value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+              onChange={(e) => setExportFormat(e.target.value as "csv" | "pdf")}
               options={[
-                { value: 'csv', label: 'CSV' },
-                { value: 'pdf', label: 'PDF' },
+                { value: "csv", label: "CSV" },
+                { value: "pdf", label: "PDF" },
               ]}
               className="w-24"
             />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               icon={<DownloadIcon className="w-4 h-4" />}
               onClick={handleExport}
               disabled={filteredPayments.length === 0}
@@ -487,9 +581,9 @@ export function PaymentsPage() {
                 value={methodFilter}
                 onChange={(e) => setMethodFilter(e.target.value)}
                 options={[
-                  { value: '', label: 'Të gjitha metodat' },
-                  { value: 'bank', label: 'Transfer bankar' },
-                  { value: 'cash', label: 'Para në dorë' },
+                  { value: "", label: "Të gjitha metodat" },
+                  { value: "bank", label: "Transfer bankar" },
+                  { value: "cash", label: "Para në dorë" },
                 ]}
               />
             </div>
@@ -510,11 +604,7 @@ export function PaymentsPage() {
               />
             </div>
             {(methodFilter || dateFrom || dateTo || searchQuery) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllFilters}
-              >
+              <Button variant="ghost" size="sm" onClick={clearAllFilters}>
                 Pastro filtrat
               </Button>
             )}
@@ -530,37 +620,41 @@ export function PaymentsPage() {
           keyExtractor={(payment) => payment.id}
           searchable={false}
           emptyMessage="Nuk u gjetën pagesa"
-          actions={canEditPayment || canDeletePayment ? (payment) => (
-            <div className="flex items-center justify-end gap-2">
-              {canEditPayment && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEdit(payment);
-                  }}
-                  icon={<EditIcon className="w-4 h-4" />}
-                >
-                  <span className="hidden sm:inline">Ndrysho</span>
-                </Button>
-              )}
-              {canDeletePayment && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(payment);
-                  }}
-                  icon={<TrashIcon className="w-4 h-4" />}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <span className="hidden sm:inline">Fshi</span>
-                </Button>
-              )}
-            </div>
-          ) : undefined}
+          actions={
+            canEditPayment || canDeletePayment
+              ? (payment) => (
+                  <div className="flex items-center justify-end gap-2">
+                    {canEditPayment && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(payment);
+                        }}
+                        icon={<EditIcon className="w-4 h-4" />}
+                      >
+                        <span className="hidden sm:inline">Ndrysho</span>
+                      </Button>
+                    )}
+                    {canDeletePayment && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(payment);
+                        }}
+                        icon={<TrashIcon className="w-4 h-4" />}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <span className="hidden sm:inline">Fshi</span>
+                      </Button>
+                    )}
+                  </div>
+                )
+              : undefined
+          }
         />
       </Card>
 
@@ -570,7 +664,7 @@ export function PaymentsPage() {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast('success', 'Pagesa u regjistrua me sukses');
+          toast("success", "Pagesa u regjistrua me sukses");
           setShowAddModal(false);
         }}
         candidates={candidates}
@@ -586,7 +680,7 @@ export function PaymentsPage() {
         }}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast('success', 'Pagesa u përditësua me sukses');
+          toast("success", "Pagesa u përditësua me sukses");
           setShowEditModal(false);
           setSelectedPayment(null);
         }}
@@ -625,12 +719,12 @@ function AddPaymentModal({
   packages,
 }: AddPaymentModalProps) {
   const [formData, setFormData] = useState({
-    candidateId: '',
-    amount: '',
-    method: '',
-    date: new Date().toISOString().split('T')[0],
-    packageId: '',
-    notes: '',
+    candidateId: "",
+    amount: "",
+    method: "",
+    date: new Date().toISOString().split("T")[0],
+    packageId: "",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -638,12 +732,12 @@ function AddPaymentModal({
   useEffect(() => {
     if (!isOpen) {
       setFormData({
-        candidateId: '',
-        amount: '',
-        method: '',
-        date: new Date().toISOString().split('T')[0],
-        packageId: '',
-        notes: '',
+        candidateId: "",
+        amount: "",
+        method: "",
+        date: new Date().toISOString().split("T")[0],
+        packageId: "",
+        notes: "",
       });
     }
   }, [isOpen]);
@@ -654,22 +748,22 @@ function AddPaymentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.candidateId) {
-      toast('error', 'Ju lutemi zgjidhni një kandidat');
+      toast("error", "Ju lutemi zgjidhni një kandidat");
       return;
     }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      toast('error', 'Ju lutemi vendosni një shumë të vlefshme');
+      toast("error", "Ju lutemi vendosni një shumë të vlefshme");
       return;
     }
     if (!formData.method) {
-      toast('error', 'Ju lutemi zgjidhni një metodë pagese');
+      toast("error", "Ju lutemi zgjidhni një metodë pagese");
       return;
     }
     if (!formData.date) {
-      toast('error', 'Ju lutemi zgjidhni një datë');
+      toast("error", "Ju lutemi zgjidhni një datë");
       return;
     }
 
@@ -678,27 +772,32 @@ function AddPaymentModal({
       const paymentData = {
         candidateId: formData.candidateId,
         amount: parseFloat(formData.amount),
-        method: formData.method as 'bank' | 'cash',
+        method: formData.method as "bank" | "cash",
         date: formData.date,
         packageId: formData.packageId || selectedCandidate?.packageId || null,
-        notes: formData.notes || '',
+        notes: formData.notes || "",
       };
 
-      console.log('Creating payment with data:', paymentData);
+      console.log("Creating payment with data:", paymentData);
 
       const { ok, data, status } = await api.createPayment(paymentData);
-      
+
       if (ok) {
-        console.log('Payment created successfully:', data);
+        console.log("Payment created successfully:", data);
         onSuccess();
       } else {
-        console.error('Failed to create payment:', { status, data });
-        const errorMessage = (data as any)?.message || `Dështoi regjistrimi i pagesës (Status: ${status})`;
-        toast('error', errorMessage);
+        console.error("Failed to create payment:", { status, data });
+        const errorMessage =
+          (data as any)?.message ||
+          `Dështoi regjistrimi i pagesës (Status: ${status})`;
+        toast("error", errorMessage);
       }
     } catch (error) {
-      console.error('Error creating payment:', error);
-      toast('error', 'Dështoi regjistrimi i pagesës. Ju lutemi kontrolloni lidhjen.');
+      console.error("Error creating payment:", error);
+      toast(
+        "error",
+        "Dështoi regjistrimi i pagesës. Ju lutemi kontrolloni lidhjen.",
+      );
     } finally {
       setLoading(false);
     }
@@ -732,44 +831,52 @@ function AddPaymentModal({
             setFormData({
               ...formData,
               candidateId: e.target.value,
-              packageId: candidate?.packageId || '', // Auto-set package from candidate
+              packageId: candidate?.packageId || "", // Auto-set package from candidate
             });
           }}
           options={candidates.map((candidate) => ({
             value: candidate.id,
             label: `${candidate.firstName} ${candidate.lastName} ${
-              candidate.uniqueClientNumber ? `(${candidate.uniqueClientNumber})` : ''
+              candidate.uniqueClientNumber
+                ? `(${candidate.uniqueClientNumber})`
+                : ""
             }`,
           }))}
         />
 
-        {selectedCandidate && selectedCandidate.packageId && (() => {
-          const packageInfo = packages.find((pkg) => pkg.id === selectedCandidate.packageId);
-          return packageInfo ? (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">
-                    Paketa e kandidatit
-                  </p>
-                  <p className="text-lg font-semibold text-blue-900 mt-1">
-                    {packageInfo.name}
-                  </p>
-                  <p className="text-sm text-blue-700 mt-1">
-                    {packageInfo.numberOfHours} orë • €{packageInfo.price.toLocaleString()}
-                  </p>
+        {selectedCandidate &&
+          selectedCandidate.packageId &&
+          (() => {
+            const packageInfo = packages.find(
+              (pkg) => pkg.id === selectedCandidate.packageId,
+            );
+            return packageInfo ? (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      Paketa e kandidatit
+                    </p>
+                    <p className="text-lg font-semibold text-blue-900 mt-1">
+                      {packageInfo.name}
+                    </p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {packageInfo.numberOfHours} orë • €
+                      {packageInfo.price.toLocaleString()}
+                    </p>
+                  </div>
+                  <Badge variant="info">{packageInfo.category}</Badge>
                 </div>
-                <Badge variant="info">{packageInfo.category}</Badge>
               </div>
-            </div>
-          ) : selectedCandidate.packageId ? (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                ID e paketës: {selectedCandidate.packageId} (nuk u gjet në sistem)
-              </p>
-            </div>
-          ) : null;
-        })()}
+            ) : selectedCandidate.packageId ? (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  ID e paketës: {selectedCandidate.packageId} (nuk u gjet në
+                  sistem)
+                </p>
+              </div>
+            ) : null;
+          })()}
 
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -812,11 +919,10 @@ function AddPaymentModal({
             })
           }
           options={[
-            { value: 'bank', label: 'Transfer bankar' },
-            { value: 'cash', label: 'Para në dorë' },
+            { value: "bank", label: "Transfer bankar" },
+            { value: "cash", label: "Para në dorë" },
           ]}
         />
-
 
         <TextArea
           label="Shënime"
@@ -853,31 +959,35 @@ function EditPaymentModal({
   payment,
 }: EditPaymentModalProps) {
   const [formData, setFormData] = useState({
-    candidateId: '',
-    amount: '',
-    method: '',
-    date: new Date().toISOString().split('T')[0],
-    packageId: '',
-    notes: '',
+    candidateId: "",
+    amount: "",
+    method: "",
+    date: new Date().toISOString().split("T")[0],
+    packageId: "",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
 
   // Populate form when payment is provided
   useEffect(() => {
     if (payment && isOpen) {
-      const candidateId = typeof payment.candidateId === 'object' && payment.candidateId !== null && '_id' in payment.candidateId
-        ? payment.candidateId._id
-        : typeof payment.candidateId === 'string'
-        ? payment.candidateId
-        : '';
-      
+      const candidateId =
+        typeof payment.candidateId === "object" &&
+        payment.candidateId !== null &&
+        "_id" in payment.candidateId
+          ? payment.candidateId._id
+          : typeof payment.candidateId === "string"
+            ? payment.candidateId
+            : "";
+
       setFormData({
         candidateId,
         amount: payment.amount.toString(),
         method: payment.method,
         date: payment.date,
-        packageId: typeof payment.packageId === 'string' ? payment.packageId : '',
-        notes: payment.notes || '',
+        packageId:
+          typeof payment.packageId === "string" ? payment.packageId : "",
+        notes: payment.notes || "",
       });
     }
   }, [payment, isOpen]);
@@ -889,26 +999,29 @@ function EditPaymentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!payment) return;
-    
+
     setLoading(true);
     try {
       const paymentData = {
         amount: parseFloat(formData.amount),
-        method: formData.method as 'bank' | 'cash',
+        method: formData.method as "bank" | "cash",
         date: formData.date,
         packageId: formData.packageId || null,
-        notes: formData.notes || '',
+        notes: formData.notes || "",
       };
 
       const { ok, data } = await api.updatePayment(payment.id, paymentData);
       if (ok) {
         onSuccess();
       } else {
-        toast('error', (data as any)?.message || 'Dështoi përditësimi i pagesës');
+        toast(
+          "error",
+          (data as any)?.message || "Dështoi përditësimi i pagesës",
+        );
       }
     } catch (error) {
-      console.error('Error updating payment:', error);
-      toast('error', 'Dështoi përditësimi i pagesës');
+      console.error("Error updating payment:", error);
+      toast("error", "Dështoi përditësimi i pagesës");
     } finally {
       setLoading(false);
     }
@@ -937,42 +1050,48 @@ function EditPaymentModal({
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="p-4 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-500">
-            Kandidati:{' '}
+            Kandidati:{" "}
             <span className="font-medium text-gray-900">
-              {selectedCandidate 
+              {selectedCandidate
                 ? `${selectedCandidate.firstName} ${selectedCandidate.lastName}`
-                : 'I panjohur'}
+                : "I panjohur"}
             </span>
           </p>
         </div>
 
-        {selectedCandidate && selectedCandidate.packageId && (() => {
-          const packageInfo = packages.find((pkg) => pkg.id === selectedCandidate.packageId);
-          return packageInfo ? (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">
-                    Paketa e kandidatit
-                  </p>
-                  <p className="text-lg font-semibold text-blue-900 mt-1">
-                    {packageInfo.name}
-                  </p>
-                  <p className="text-sm text-blue-700 mt-1">
-                    {packageInfo.numberOfHours} orë • €{packageInfo.price.toLocaleString()}
-                  </p>
+        {selectedCandidate &&
+          selectedCandidate.packageId &&
+          (() => {
+            const packageInfo = packages.find(
+              (pkg) => pkg.id === selectedCandidate.packageId,
+            );
+            return packageInfo ? (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      Paketa e kandidatit
+                    </p>
+                    <p className="text-lg font-semibold text-blue-900 mt-1">
+                      {packageInfo.name}
+                    </p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {packageInfo.numberOfHours} orë • €
+                      {packageInfo.price.toLocaleString()}
+                    </p>
+                  </div>
+                  <Badge variant="info">{packageInfo.category}</Badge>
                 </div>
-                <Badge variant="info">{packageInfo.category}</Badge>
               </div>
-            </div>
-          ) : selectedCandidate.packageId ? (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                ID e paketës: {selectedCandidate.packageId} (nuk u gjet në sistem)
-              </p>
-            </div>
-          ) : null;
-        })()}
+            ) : selectedCandidate.packageId ? (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  ID e paketës: {selectedCandidate.packageId} (nuk u gjet në
+                  sistem)
+                </p>
+              </div>
+            ) : null;
+          })()}
 
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -1015,8 +1134,8 @@ function EditPaymentModal({
             })
           }
           options={[
-            { value: 'bank', label: 'Transfer bankar' },
-            { value: 'cash', label: 'Para në dorë' },
+            { value: "bank", label: "Transfer bankar" },
+            { value: "cash", label: "Para në dorë" },
           ]}
         />
 
@@ -1050,8 +1169,17 @@ function DeleteConfirmationModal({
   onConfirm,
   payment,
 }: DeleteConfirmationModalProps) {
-  const getCandidateInfo = (candidateId: string | { _id: string; firstName: string; lastName: string; uniqueClientNumber?: string }) => {
-    if (typeof candidateId === 'object' && candidateId !== null) {
+  const getCandidateInfo = (
+    candidateId:
+      | string
+      | {
+          _id: string;
+          firstName: string;
+          lastName: string;
+          uniqueClientNumber?: string;
+        },
+  ) => {
+    if (typeof candidateId === "object" && candidateId !== null) {
       return candidateId;
     }
     return null;
@@ -1060,9 +1188,10 @@ function DeleteConfirmationModal({
   if (!payment) return null;
 
   const candidate = getCandidateInfo(payment.candidateId);
-  const candidateName = candidate && 'firstName' in candidate
-    ? `${candidate.firstName} ${candidate.lastName}`
-    : 'I panjohur';
+  const candidateName =
+    candidate && "firstName" in candidate
+      ? `${candidate.firstName} ${candidate.lastName}`
+      : "I panjohur";
 
   return (
     <Modal
@@ -1076,10 +1205,7 @@ function DeleteConfirmationModal({
           <Button variant="secondary" onClick={onClose}>
             Anulo
           </Button>
-          <Button
-            variant="danger"
-            onClick={onConfirm}
-          >
+          <Button variant="danger" onClick={onConfirm}>
             Fshi
           </Button>
         </div>
@@ -1087,20 +1213,25 @@ function DeleteConfirmationModal({
     >
       <div className="space-y-4">
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm font-medium text-red-800">Paralajmërim: Ky veprim nuk mund të kthehet.</p>
+          <p className="text-sm font-medium text-red-800">
+            Paralajmërim: Ky veprim nuk mund të kthehet.
+          </p>
         </div>
         <div className="space-y-2">
           <p className="text-sm text-gray-600">
             <span className="font-medium">Kandidati:</span> {candidateName}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Shuma:</span> €{payment.amount.toLocaleString()}
+            <span className="font-medium">Shuma:</span> €
+            {payment.amount.toLocaleString()}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Data:</span> {new Date(payment.date).toLocaleDateString()}
+            <span className="font-medium">Data:</span>{" "}
+            {new Date(payment.date).toLocaleDateString()}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Metoda:</span> {payment.method === 'bank' ? 'Transfer bankar' : 'Para në dorë'}
+            <span className="font-medium">Metoda:</span>{" "}
+            {payment.method === "bank" ? "Transfer bankar" : "Para në dorë"}
           </p>
         </div>
       </div>
