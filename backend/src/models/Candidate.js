@@ -68,15 +68,41 @@ const CandidateSchema = new mongoose.Schema({
     },
     documents: {
         type: [{
-            name: String,
-            status: {
+            name: {
                 type: String,
-                enum: ['pending', 'submitted', 'approved', 'rejected'],
-                default: 'pending'
+                required: true,
+                trim: true
             },
-            submittedAt: Date,
-            approvedAt: Date,
-            notes: String
+            type: {
+                type: String,
+                enum: ['PDF', 'JPG', 'PNG', 'DOCX'],
+                required: true
+            },
+            uploadDate: {
+                type: Date,
+                default: Date.now
+            },
+            updatedDate: {
+                type: Date,
+                default: null
+            },
+            uploadedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                required: true
+            },
+            filePath: {
+                type: String,
+                required: true
+            },
+            fileSize: {
+                type: Number,
+                default: 0
+            },
+            originalName: {
+                type: String,
+                required: true
+            }
         }],
         default: []
     },

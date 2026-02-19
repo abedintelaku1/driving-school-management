@@ -18,6 +18,8 @@ const packageRoutes = require("./routes/package.routes");
 const appointmentRoutes = require("./routes/appointment.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const exportRoutes = require("./routes/export.routes");
+const documentRoutes = require("./routes/document.routes");
+const path = require("path");
 
 const app = express();
 
@@ -43,6 +45,9 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Logging middleware for debugging
 app.use((req, res, next) => {
@@ -82,6 +87,7 @@ app.use("/api/packages", packageRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/export", exportRoutes);
+app.use("/api/documents", documentRoutes);
 
 // 404 + errors
 app.use(notFoundHandler);

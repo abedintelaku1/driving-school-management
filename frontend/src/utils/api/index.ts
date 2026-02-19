@@ -5,6 +5,7 @@ import { carsApi } from './cars';
 import { packagesApi } from './packages';
 import { notificationsApi } from './notifications';
 import { exportApi } from './export';
+import { documentsApi } from './documents';
 
 
 // Main API object that exports all API modules
@@ -51,6 +52,14 @@ export const api = {
   markAllNotificationsAsRead: notificationsApi.markAllAsRead,
   deleteNotification: notificationsApi.delete,
 
+  // Documents
+  uploadDocument: documentsApi.upload,
+  listDocuments: documentsApi.list,
+  getDocument: documentsApi.get,
+  downloadDocument: documentsApi.download,
+  deleteDocument: documentsApi.delete,
+  updateDocument: documentsApi.update,
+
 };
 
 // Add export functions using Object.assign to ensure they're properly bound
@@ -72,7 +81,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
 }
 
 // Export individual APIs for direct use if needed
-export { authApi, candidatesApi, instructorsApi, carsApi, packagesApi, notificationsApi, exportApi };
+export { authApi, candidatesApi, instructorsApi, carsApi, packagesApi, notificationsApi, exportApi, documentsApi };
 
 // Export types
 export type { ApiResponse } from './config';

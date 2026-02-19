@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { PlusIcon, DownloadIcon, EditIcon, TrashIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PlusIcon, DownloadIcon, EditIcon, TrashIcon, FileTextIcon } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { DataTable } from "../../components/ui/DataTable";
@@ -41,6 +42,7 @@ type PaymentRow = {
 
 export function PaymentsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 0;
   const isStaff = user?.role === 2;
   const canAddPayment = isAdmin || isStaff; // Staff: ✅ shtim pagesash
@@ -77,21 +79,40 @@ export function PaymentsPage() {
 
         if (paymentsRes.ok && paymentsRes.data) {
           // Transform MongoDB data to frontend format
-          const mapped = (paymentsRes.data as any[]).map((item) => ({
-            id: item._id || item.id,
-            candidateId: item.candidateId || "",
-            packageId: item.packageId || null,
-            amount: item.amount || 0,
-            method: item.method || "cash",
-            date: item.date
-              ? new Date(item.date).toISOString().split("T")[0]
-              : "",
-            notes: item.notes || "",
-            createdAt: item.createdAt
-              ? new Date(item.createdAt).toISOString().split("T")[0]
-              : "",
-            addedBy: item.addedBy || null,
-          }));
+          const mapped = (paymentsRes.data as any[]).map((item) => {
+            // Handle candidateId - can be object (populated) or string
+            const candidateIdValue = typeof item.candidateId === 'object' && item.candidateId !== null
+              ? item.candidateId._id || item.candidateId.id || ""
+              : item.candidateId || "";
+            
+            // Handle packageId - keep as is (string or null)
+            const packageIdValue = item.packageId || null;
+            
+            // Handle addedBy - can be object (populated) or string/null
+            // Backend populates addedBy with firstName, lastName, email
+            // If addedBy is null or undefined, keep it as null
+            // If addedBy is an object with properties, keep it as object
+            const addedByValue = item.addedBy && typeof item.addedBy === 'object' && item.addedBy !== null && ('firstName' in item.addedBy || 'lastName' in item.addedBy || 'email' in item.addedBy)
+              ? item.addedBy
+              : null;
+            
+            return {
+              id: item._id || item.id,
+              candidateId: candidateIdValue,
+              candidate: typeof item.candidateId === 'object' && item.candidateId !== null ? item.candidateId : null, // Keep full candidate object if populated
+              packageId: packageIdValue,
+              amount: item.amount || 0,
+              method: item.method || "cash",
+              date: item.date
+                ? new Date(item.date).toISOString().split("T")[0]
+                : "",
+              notes: item.notes || "",
+              createdAt: item.createdAt
+                ? new Date(item.createdAt).toISOString().split("T")[0]
+                : "",
+              addedBy: addedByValue, // Keep full user object if populated
+            };
+          });
           setPayments(mapped);
         } else {
           toast("error", "Dështoi ngarkimi i pagesave");
@@ -474,15 +495,20 @@ export function PaymentsPage() {
       key: "addedBy",
       label: "Shtuar nga",
       render: (value: unknown) => {
-        const user = value as
-          | { firstName?: string; lastName?: string; email?: string }
-          | null
-          | undefined;
-        if (!user || typeof user !== "object")
+        // Check if value is a valid user object with at least one property
+        if (!value || typeof value !== "object" || value === null) {
           return <span className="text-gray-400">—</span>;
+        }
+        const user = value as { firstName?: string; lastName?: string; email?: string; _id?: string };
+        // Check if it has at least one user property
+        if (!('firstName' in user || 'lastName' in user || 'email' in user)) {
+          return <span className="text-gray-400">—</span>;
+        }
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return (
-          <span className="text-gray-700">{name || user.email || "—"}</span>
+          <span className="text-gray-700 font-medium">
+            {name || user.email || "E panjohur"}
+          </span>
         );
       },
     },
@@ -494,6 +520,55 @@ export function PaymentsPage() {
           {(value as string) || "-"}
         </span>
       ),
+    },
+    {
+      key: "actions",
+      label: "Veprime",
+      render: (_: unknown, payment: PaymentRow) => {
+        const candidate = getCandidateInfo(payment.candidateId);
+        const candidateId = payment.candidateId;
+        
+        return (
+          <div className="flex items-center gap-2">
+            {canEditPayment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<EditIcon className="w-4 h-4" />}
+                onClick={() => handleEdit(payment)}
+                title="Ndrysho"
+                className="text-blue-600 hover:text-blue-700"
+              >
+                Ndrysho
+              </Button>
+            )}
+            {canDeletePayment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<TrashIcon className="w-4 h-4" />}
+                onClick={() => handleDelete(payment)}
+                title="Fshi"
+                className="text-red-600 hover:text-red-700"
+              >
+                Fshi
+              </Button>
+            )}
+            {(isAdmin || isStaff) && candidateId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<FileTextIcon className="w-4 h-4" />}
+                onClick={() => navigate(`/admin/candidates/${candidateId}?tab=documents`)}
+                title="Dokumentet"
+                className="text-green-600 hover:text-green-700"
+              >
+                Dokumentet
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

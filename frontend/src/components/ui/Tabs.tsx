@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 type TabsContextType = {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -17,6 +17,11 @@ export function Tabs({
   onChange
 }: TabsProps) {
   const [activeTab, setActiveTab] = useState(defaultTab);
+  
+  // Update activeTab when defaultTab changes (for URL-based tab navigation)
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     onChange?.(tab);

@@ -35,10 +35,29 @@ export type Candidate = {
   createdAt: string;
   updatedAt: string;
 };
+export type DocumentType = "PDF" | "JPG" | "PNG" | "DOCX";
+
+export type DocumentUploadedBy = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: number; // 0 = Admin, 1 = Instructor, 2 = Staff
+};
+
 export type Document = {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
-  status: DocumentStatus;
+  type: DocumentType;
+  uploadDate: string;
+  updatedDate?: string;
+  uploadedBy: DocumentUploadedBy | string;
+  filePath: string;
+  fileSize?: number;
+  originalName: string;
+  // Legacy fields (for backward compatibility)
+  status?: DocumentStatus;
   submittedAt?: string;
   approvedAt?: string;
   notes?: string;

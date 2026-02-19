@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeftIcon,
   EditIcon,
@@ -11,6 +11,11 @@ import {
   ClockIcon,
   UserIcon,
   PackageIcon,
+  FileTextIcon,
+  UploadIcon,
+  DownloadIcon,
+  TrashIcon,
+  XIcon,
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -23,7 +28,8 @@ import { api } from "../../utils/api";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Modal } from "../../components/ui/Modal";
-import type { Appointment } from "../../types";
+import { useAuth } from "../../hooks/useAuth";
+import type { Appointment, Document } from "../../types";
 
 type Candidate = {
   _id?: string;
@@ -54,6 +60,9 @@ type AppointmentEx = Appointment & {
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const defaultTab = searchParams.get("tab") || "appointments";
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [appointments, setAppointments] = useState<AppointmentEx[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +72,8 @@ export function CandidateDetailPage() {
   >([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [packageInfo, setPackageInfo] = useState<any>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -230,13 +241,15 @@ export function CandidateDetailPage() {
                     (candidate.status as "active" | "inactive") || "active"
                   }
                 />
-                <Button
-                  variant="outline"
-                  icon={<EditIcon className="w-4 h-4" />}
-                  onClick={() => setEditOpen(true)}
-                >
-                  Ndrysho
-                </Button>
+                {user?.role === 0 && (
+                  <Button
+                    variant="outline"
+                    icon={<EditIcon className="w-4 h-4" />}
+                    onClick={() => setEditOpen(true)}
+                  >
+                    Ndrysho
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -318,10 +331,11 @@ export function CandidateDetailPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultTab="appointments">
+      <Tabs defaultTab={defaultTab}>
         <TabList>
           <Tab value="appointments">Takimet</Tab>
           <Tab value="payments">Pagesat</Tab>
+          <Tab value="documents">Dokumentet</Tab>
           <Tab value="package">Paketa</Tab>
         </TabList>
 
@@ -335,6 +349,17 @@ export function CandidateDetailPage() {
             payments={payments}
             packageInfo={packageInfo}
             onPaymentAdded={loadData}
+          />
+        </TabPanel>
+
+        <TabPanel value="documents">
+          <DocumentsTab
+            candidateId={candidate.id || candidate._id || ""}
+            documents={documents}
+            documentsLoading={documentsLoading}
+            onDocumentsChange={setDocuments}
+            onDocumentsLoadingChange={setDocumentsLoading}
+            userRole={user?.role}
           />
         </TabPanel>
 
@@ -779,3 +804,509 @@ function PackageTab() {
     </Card>
   );
 }
+
+type DocumentsTabProps = {
+  candidateId: string;
+  documents: Document[];
+  documentsLoading: boolean;
+  onDocumentsChange: (documents: Document[]) => void;
+  onDocumentsLoadingChange: (loading: boolean) => void;
+  userRole?: number;
+};
+
+function DocumentsTab({
+  candidateId,
+  documents,
+  documentsLoading,
+  onDocumentsChange,
+  onDocumentsLoadingChange,
+  userRole,
+}: DocumentsTabProps) {
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentName, setDocumentName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+  const [editDocumentName, setEditDocumentName] = useState("");
+  const [updating, setUpdating] = useState(false);
+
+  const isAdmin = userRole === 0;
+  const canUpload = userRole === 0 || userRole === 2; // Admin or Staff
+  const canDelete = isAdmin; // Only admin can delete
+  const canEdit = isAdmin; // Only admin can edit
+
+  const loadDocuments = useCallback(async () => {
+    if (!candidateId || !canUpload) return; // Admin and Staff can view documents
+    onDocumentsLoadingChange(true);
+    try {
+      const res = await api.listDocuments(candidateId);
+      if (res.ok && res.data) {
+        onDocumentsChange(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+    } finally {
+      onDocumentsLoadingChange(false);
+    }
+  }, [candidateId, canUpload, onDocumentsChange, onDocumentsLoadingChange]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const ext = file.name.split(".").pop()?.toUpperCase();
+      if (!["PDF", "JPG", "JPEG", "PNG", "DOCX"].includes(ext || "")) {
+        alert("Lloji i skedarit nuk është i lejuar. Lejohen: PDF, JPG, PNG, DOCX");
+        return;
+      }
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Skedari është shumë i madh. Maksimumi është 10MB");
+        return;
+      }
+      setSelectedFile(file);
+      if (!documentName) {
+        setDocumentName(file.name.replace(/\.[^/.]+$/, ""));
+      }
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !candidateId) return;
+
+    setUploading(true);
+    try {
+      const res = await api.uploadDocument(
+        candidateId,
+        selectedFile,
+        documentName || undefined
+      );
+      if (res.ok) {
+        setUploadOpen(false);
+        setSelectedFile(null);
+        setDocumentName("");
+        // Reload documents
+        loadDocuments();
+      } else {
+        const errorMessage = (res.data as any)?.message || "Dështoi ngarkimi i dokumentit";
+        console.error("Upload failed:", res.status, errorMessage, res.data);
+        alert(errorMessage);
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Dështoi ngarkimi i dokumentit. Ju lutem provoni përsëri.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (documentId: string) => {
+    if (!confirm("A jeni të sigurt që dëshironi të fshini këtë dokument?")) {
+      return;
+    }
+
+    setDeletingId(documentId);
+    try {
+      const res = await api.deleteDocument(candidateId, documentId);
+      if (res.ok) {
+        loadDocuments();
+      } else {
+        alert(
+          (res.data as any)?.message || "Dështoi fshirja e dokumentit"
+        );
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Dështoi fshirja e dokumentit");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleEdit = (doc: Document) => {
+    setEditingDocument(doc);
+    setEditDocumentName(doc.name);
+    setEditOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingDocument || !editDocumentName.trim()) {
+      alert("Emri i dokumentit është i detyrueshëm");
+      return;
+    }
+
+    const docId = editingDocument._id || editingDocument.id || "";
+    if (!docId) {
+      alert("ID e dokumentit nuk është e vlefshme");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const res = await api.updateDocument(candidateId, docId, editDocumentName.trim());
+      if (res.ok) {
+        setEditOpen(false);
+        setEditingDocument(null);
+        setEditDocumentName("");
+        loadDocuments();
+      } else {
+        const errorMessage = (res.data as any)?.message || "Dështoi përditësimi i dokumentit";
+        console.error("Update failed:", res.status, errorMessage, res.data);
+        alert(errorMessage);
+      }
+    } catch (err) {
+      console.error("Update error:", err);
+      alert("Dështoi përditësimi i dokumentit. Ju lutem provoni përsëri.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDownload = async (documentId: string) => {
+    try {
+      await api.downloadDocument(candidateId, documentId);
+    } catch (err) {
+      console.error("Download error:", err);
+      alert("Dështoi shkarkimi i dokumentit");
+    }
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return "-";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const formattedDate = date.toLocaleDateString("sq-AL", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const formattedTime = date.toLocaleTimeString("sq-AL", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      return `${formattedDate} në ${formattedTime}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getUploadedByName = (uploadedBy: Document["uploadedBy"]) => {
+    if (typeof uploadedBy === "object" && uploadedBy !== null) {
+      const name = [uploadedBy.firstName, uploadedBy.lastName]
+        .filter(Boolean)
+        .join(" ");
+      return name || uploadedBy.email || "E panjohur";
+    }
+    return "E panjohur";
+  };
+
+  const getUploaderRole = (uploadedBy: Document["uploadedBy"]) => {
+    if (typeof uploadedBy === "object" && uploadedBy !== null && uploadedBy.role !== undefined) {
+      if (uploadedBy.role === 0) return "Admin";
+      if (uploadedBy.role === 2) return "Staff";
+      if (uploadedBy.role === 1) return "Instructor";
+    }
+    return null;
+  };
+
+  const documentColumns = [
+    {
+      key: "name",
+      label: "Emri",
+      sortable: true,
+    },
+    {
+      key: "type",
+      label: "Tipi",
+      render: (value: unknown) => (
+        <Badge variant="outline">{value as string}</Badge>
+      ),
+    },
+    {
+      key: "uploadDate",
+      label: "Data e ngarkimit/modifikimit",
+      sortable: true,
+      render: (_: unknown, doc: Document) => {
+        const dateToShow = doc.updatedDate || doc.uploadDate;
+        const isModified = !!doc.updatedDate;
+        return (
+          <div className="flex flex-col">
+            <span className="text-gray-600">{formatDate(dateToShow as string)}</span>
+            <span className="text-xs text-gray-400 mt-1">
+              {isModified ? "(E modifikuar)" : "(Ngarkuar)"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "uploadedBy",
+      label: "Ngarkuar nga",
+      render: (value: unknown) => {
+        const uploadedBy = value as Document["uploadedBy"];
+        const name = getUploadedByName(uploadedBy);
+        const role = getUploaderRole(uploadedBy);
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-700">{name}</span>
+            {role && (
+              <Badge 
+                variant={role === "Admin" ? "info" : role === "Staff" ? "warning" : "outline"}
+                className="text-xs"
+              >
+                {role}
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "fileSize",
+      label: "Madhësia",
+      render: (value: unknown) => (
+        <span className="text-gray-500">{formatFileSize(value as number)}</span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Veprime",
+      render: (_: unknown, doc: Document) => {
+        const docId = doc._id || doc.id || "";
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<DownloadIcon className="w-4 h-4" />}
+              onClick={() => handleDownload(docId)}
+              title="Shkarko"
+            >
+              Shkarko
+            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<EditIcon className="w-4 h-4" />}
+                onClick={() => handleEdit(doc)}
+                title="Ndrysho"
+                className="text-blue-600 hover:text-blue-700"
+              >
+                Ndrysho
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<TrashIcon className="w-4 h-4" />}
+                onClick={() => handleDelete(docId)}
+                disabled={deletingId === docId}
+                title="Fshi"
+                className="text-red-600 hover:text-red-700"
+              >
+                Fshi
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Upload Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Dokumentet</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            {isAdmin
+              ? "Të gjitha dokumentet e kandidatit"
+              : "Ju mund të ngarkoni dhe shikoni dokumente, por jo t'i fshini ose t'i ndryshoni"}
+          </p>
+        </div>
+        {canUpload && (
+          <Button
+            icon={<UploadIcon className="w-4 h-4" />}
+            onClick={() => setUploadOpen(true)}
+          >
+            Ngarko dokument
+          </Button>
+        )}
+      </div>
+
+      {/* Documents Table */}
+      {documentsLoading ? (
+        <Card>
+          <div className="p-8 text-center text-gray-500">
+            Duke ngarkuar dokumentet...
+          </div>
+        </Card>
+      ) : documents.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="Nuk ka dokumente"
+            description={
+              canUpload
+                ? "Klikoni 'Ngarko dokument' për të shtuar dokumente të reja"
+                : "Nuk ka dokumente të ngarkuara për këtë kandidat"
+            }
+          />
+        </Card>
+      ) : (
+        <Card padding="none">
+          <DataTable
+            data={documents}
+            columns={documentColumns}
+            keyExtractor={(doc) => doc._id || doc.id || ""}
+            searchable={false}
+            emptyMessage="Nuk u gjetën dokumente"
+          />
+        </Card>
+      )}
+
+      {/* Upload Modal */}
+      <Modal
+        isOpen={uploadOpen}
+        onClose={() => {
+          setUploadOpen(false);
+          setSelectedFile(null);
+          setDocumentName("");
+        }}
+        title="Ngarko dokument"
+        description="Zgjidhni një skedar për të ngarkuar (PDF, JPG, PNG, DOCX - maksimumi 10MB)"
+        size="lg"
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setUploadOpen(false);
+                setSelectedFile(null);
+                setDocumentName("");
+              }}
+              disabled={uploading}
+              fullWidth
+              className="sm:w-auto"
+            >
+              Anulo
+            </Button>
+            <Button
+              onClick={handleUpload}
+              loading={uploading}
+              disabled={!selectedFile}
+              fullWidth
+              className="sm:w-auto"
+              icon={<UploadIcon className="w-4 h-4" />}
+            >
+              Ngarko
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Skedari
+            </label>
+            <div className="flex items-center gap-4">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.docx"
+                onChange={handleFileSelect}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+            {selectedFile && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                <FileTextIcon className="w-4 h-4" />
+                <span>{selectedFile.name}</span>
+                <span className="text-gray-400">
+                  ({formatFileSize(selectedFile.size)})
+                </span>
+              </div>
+            )}
+          </div>
+          <Input
+            label="Emri i dokumentit (opsionale)"
+            value={documentName}
+            onChange={(e) => setDocumentName(e.target.value)}
+            placeholder={selectedFile?.name.replace(/\.[^/.]+$/, "") || ""}
+          />
+          </div>
+        </Modal>
+
+        {/* Edit Document Modal */}
+        <Modal
+          isOpen={editOpen}
+          onClose={() => {
+            setEditOpen(false);
+            setEditingDocument(null);
+            setEditDocumentName("");
+          }}
+          title="Ndrysho emrin e dokumentit"
+          description="Përditësoni emrin e dokumentit"
+          size="lg"
+          footer={
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setEditOpen(false);
+                  setEditingDocument(null);
+                  setEditDocumentName("");
+                }}
+                disabled={updating}
+                fullWidth
+                className="sm:w-auto"
+              >
+                Anulo
+              </Button>
+              <Button
+                onClick={handleUpdate}
+                loading={updating}
+                disabled={!editDocumentName.trim()}
+                fullWidth
+                className="sm:w-auto"
+                icon={<EditIcon className="w-4 h-4" />}
+              >
+                Ruaj ndryshimet
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <Input
+              label="Emri i dokumentit"
+              required
+              value={editDocumentName}
+              onChange={(e) => setEditDocumentName(e.target.value)}
+              placeholder="Shkruani emrin e dokumentit"
+            />
+            {editingDocument && (
+              <div className="text-sm text-gray-500">
+                <p><strong>Tipi:</strong> {editingDocument.type}</p>
+                <p><strong>Madhësia:</strong> {formatFileSize(editingDocument.fileSize)}</p>
+                <p><strong>Ngarkuar:</strong> {formatDate(editingDocument.uploadDate)}</p>
+              </div>
+            )}
+          </div>
+        </Modal>
+      </div>
+    );
+  }

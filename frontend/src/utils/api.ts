@@ -601,6 +601,37 @@ export const api = {
     const { exportApi } = await import('./api/export');
     return exportApi.exportInstructorReport(instructorId, format);
   },
+
+  // Documents
+  async uploadDocument(candidateId: string, file: File, name?: string): Promise<ApiResponse<{ document: any }>> {
+    const { documentsApi } = await import('./api/documents');
+    return documentsApi.upload(candidateId, file, name);
+  },
+
+  async listDocuments(candidateId: string): Promise<ApiResponse<any[]>> {
+    const { documentsApi } = await import('./api/documents');
+    return documentsApi.list(candidateId);
+  },
+
+  async getDocument(candidateId: string, documentId: string): Promise<ApiResponse<any>> {
+    const { documentsApi } = await import('./api/documents');
+    return documentsApi.get(candidateId, documentId);
+  },
+
+  async downloadDocument(candidateId: string, documentId: string): Promise<void> {
+    const { documentsApi } = await import('./api/documents');
+    return documentsApi.download(candidateId, documentId);
+  },
+
+  async deleteDocument(candidateId: string, documentId: string): Promise<ApiResponse<{ message: string }>> {
+    const { documentsApi } = await import('./api/documents');
+    return documentsApi.delete(candidateId, documentId);
+  },
+
+  async updateDocument(candidateId: string, documentId: string, name: string): Promise<ApiResponse<{ document: any }>> {
+    const { documentsApi } = await import('./api/documents');
+    return documentsApi.update(candidateId, documentId, name);
+  },
 };
 
 // Re-export exportApi for direct use if needed
