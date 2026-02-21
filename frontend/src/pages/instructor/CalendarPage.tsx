@@ -9,6 +9,7 @@ import { useLanguage } from '../../hooks/useLanguage';
 import { translations } from '../../i18n/translations';
 import { api } from '../../utils/api';
 import type { Appointment } from '../../types';
+import { formatDateWithWeekday } from '../../utils/dateUtils';
 type AppointmentEx = Appointment & {
   _id?: string;
   candidate?: any;
@@ -280,15 +281,7 @@ export function CalendarPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base lg:text-lg">
-              {selectedDate ? (() => {
-                const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
-                const locale = localeMap[language] || 'sq-AL';
-                return new Date(selectedDate + 'T00:00:00').toLocaleDateString(locale, {
-                  weekday: 'long',
-                  month: 'long',
-                  day: 'numeric'
-                });
-              })() : t('calendar.selectDay')}
+              {selectedDate ? formatDateWithWeekday(selectedDate + 'T00:00:00', language === 'sq' ? 'sq-AL' : language === 'en' ? 'en-US' : 'sr-RS') : t('calendar.selectDay')}
             </CardTitle>
           </CardHeader>
           <CardContent>

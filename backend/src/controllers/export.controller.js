@@ -253,7 +253,6 @@ const exportCandidateReport = async (req, res, next) => {
             doc.end();
         }
     } catch (err) {
-        console.error('Error exporting candidate report:', err);
         next(err);
     }
 };
@@ -508,7 +507,6 @@ const exportInstructorReport = async (req, res, next) => {
             doc.end();
         }
     } catch (err) {
-        console.error('Error exporting instructor report:', err);
         next(err);
     }
 };

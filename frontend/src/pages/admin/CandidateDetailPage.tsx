@@ -32,6 +32,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../hooks/useLanguage";
 import { toast } from "../../hooks/useToast";
 import type { Appointment, Document } from "../../types";
+import { formatDateTime } from "../../utils/dateUtils";
 
 type Candidate = {
   _id?: string;
@@ -144,7 +145,7 @@ export function CandidateDetailPage() {
         setPayments(mapped);
       }
     } catch (err) {
-      console.error("Failed to load candidate detail", err);
+      // Silently handle errors
     } finally {
       setLoading(false);
     }
@@ -669,7 +670,7 @@ function PaymentsTab({
       label: t('payments.date'),
       sortable: true,
       render: (value: unknown) => (
-        <span>{new Date(value as string).toLocaleDateString()}</span>
+        <span>{formatDate(value as string, language === 'sq' ? 'sq-AL' : language === 'en' ? 'en-US' : 'sr-RS')}</span>
       ),
     },
     {
@@ -703,14 +704,14 @@ function PaymentsTab({
       label: t('candidates.addedBy'),
       render: (value: unknown) => {
         const user = value as
-          | { firstName?: string; lastName?: string; email?: string }
+          | { firstName?: string; lastName?: string }
           | null
           | undefined;
         if (!user || typeof user !== "object")
           return <span className="text-gray-400">—</span>;
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return (
-          <span className="text-gray-700">{name || user.email || "—"}</span>
+          <span className="text-gray-700">{name || "—"}</span>
         );
       },
     },
@@ -840,7 +841,7 @@ function DocumentsTab({
   onDocumentsLoadingChange,
   userRole,
 }: DocumentsTabProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
@@ -866,7 +867,7 @@ function DocumentsTab({
         onDocumentsChange(res.data);
       }
     } catch (err) {
-      console.error("Failed to load documents:", err);
+      // Silently handle errors
     } finally {
       onDocumentsLoadingChange(false);
     }
@@ -915,11 +916,9 @@ function DocumentsTab({
         loadDocuments();
       } else {
         const errorMessage = (res.data as any)?.message || t('documents.failedToUpload');
-        console.error("Upload failed:", res.status, errorMessage, res.data);
         alert(errorMessage);
       }
     } catch (err) {
-      console.error("Upload error:", err);
       alert(t('documents.failedToUpload'));
     } finally {
       setUploading(false);
@@ -942,7 +941,6 @@ function DocumentsTab({
         );
       }
     } catch (err) {
-      console.error("Delete error:", err);
       alert(t('documents.failedToDelete'));
     } finally {
       setDeletingId(null);
@@ -977,11 +975,9 @@ function DocumentsTab({
         loadDocuments();
       } else {
         const errorMessage = (res.data as any)?.message || t('documents.failedToUpdateDocumentMessage');
-        console.error("Update failed:", res.status, errorMessage, res.data);
         alert(errorMessage);
       }
     } catch (err) {
-      console.error("Update error:", err);
       alert(t('documents.failedToUpdateDocument'));
     } finally {
       setUpdating(false);
@@ -992,7 +988,6 @@ function DocumentsTab({
     try {
       await api.downloadDocument(candidateId, documentId);
     } catch (err) {
-      console.error("Download error:", err);
       const errorMessage = err instanceof Error ? err.message : t('documents.downloadError');
       toast('error', errorMessage);
     }
@@ -1005,23 +1000,67 @@ function DocumentsTab({
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    
+    // Direct formatting with Kosovo timezone
     try {
+      // Parse the date string - it should be in ISO format (UTC)
       const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return dateString;
+      }
+      
       const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
       const locale = localeMap[language] || 'sq-AL';
-      const formattedDate = date.toLocaleDateString(locale, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
+      
+      // Use Intl.DateTimeFormat for more reliable timezone conversion
+      const dateFormatter = new Intl.DateTimeFormat(locale, {
+        timeZone: 'Europe/Pristina',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
-      const formattedTime = date.toLocaleTimeString("sq-AL", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
+      
+      // Format time with Kosovo timezone using Intl.DateTimeFormat
+      const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Pristina',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
       });
-      return `${formattedDate} në ${formattedTime}`;
-    } catch {
+      
+      const formattedDate = dateFormatter.format(date);
+      const formattedTime = timeFormatter.format(date);
+      
+      // For Albanian, use "në" between date and time
+      if (locale.startsWith('sq')) {
+        return `${formattedDate} në ${formattedTime}`;
+      }
+      return `${formattedDate} ${formattedTime}`;
+    } catch (err) {
+      // If formatting fails, try basic formatting
+      try {
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+          const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+          const locale = localeMap[language] || 'sq-AL';
+          const formatter = new Intl.DateTimeFormat(locale, { 
+            timeZone: 'Europe/Pristina',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+          return formatter.format(date);
+        }
+      } catch (e) {
+        // Silently handle error
+      }
       return dateString;
     }
   };
@@ -1031,7 +1070,7 @@ function DocumentsTab({
       const name = [uploadedBy.firstName, uploadedBy.lastName]
         .filter(Boolean)
         .join(" ");
-      return name || uploadedBy.email || t('common.unknown');
+      return name || t('common.unknown');
     }
     return t('common.unknown');
   };
@@ -1072,9 +1111,17 @@ function DocumentsTab({
       render: (_: unknown, doc: Document) => {
         const dateToShow = doc.updatedDate || doc.uploadDate;
         const isModified = !!doc.updatedDate;
+        if (!dateToShow) {
+          return <span className="text-gray-400">—</span>;
+        }
+        
+        // Ensure dateToShow is a string
+        const dateString = typeof dateToShow === 'string' ? dateToShow : String(dateToShow);
+        const formatted = formatDate(dateString);
+        
         return (
           <div className="flex flex-col">
-            <span className="text-gray-600">{formatDate(dateToShow as string)}</span>
+            <span className="text-gray-600">{formatted}</span>
             <span className="text-xs text-gray-400 mt-1">
               {isModified ? `(${t('documents.modified')})` : `(${t('documents.uploaded')})`}
             </span>
@@ -1104,13 +1151,6 @@ function DocumentsTab({
           </div>
         );
       },
-    },
-    {
-      key: "fileSize",
-      label: t('documents.fileSize'),
-      render: (value: unknown) => (
-        <span className="text-gray-500">{formatFileSize(value as number)}</span>
-      ),
     },
     {
       key: "actions",
@@ -1332,7 +1372,6 @@ function DocumentsTab({
             {editingDocument && (
               <div className="text-sm text-gray-500">
                 <p><strong>{t('documents.documentType')}:</strong> {editingDocument.type}</p>
-                <p><strong>{t('documents.fileSize')}:</strong> {formatFileSize(editingDocument.fileSize)}</p>
                 <p><strong>{t('documents.uploaded')}:</strong> {formatDate(editingDocument.uploadDate)}</p>
               </div>
             )}

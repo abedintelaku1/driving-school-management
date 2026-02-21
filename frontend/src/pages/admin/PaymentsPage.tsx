@@ -16,6 +16,7 @@ import { toast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../utils/api";
 import jsPDF from "jspdf";
+import { formatCurrentDate, formatDate } from "../../utils/dateUtils";
 
 // Helper function to translate package names
 const getTranslatedPackageName = (packageName: string, t: (key: string) => string): string => {
@@ -56,7 +57,7 @@ type PaymentRow = {
     _id: string;
     firstName?: string;
     lastName?: string;
-    email?: string;
+    // email is not returned by the API for security
   } | null;
 };
 
@@ -110,10 +111,10 @@ export function PaymentsPage() {
             const packageIdValue = item.packageId || null;
             
             // Handle addedBy - can be object (populated) or string/null
-            // Backend populates addedBy with firstName, lastName, email
+            // Backend populates addedBy with firstName, lastName (email is excluded for security)
             // If addedBy is null or undefined, keep it as null
             // If addedBy is an object with properties, keep it as object
-            const addedByValue = item.addedBy && typeof item.addedBy === 'object' && item.addedBy !== null && ('firstName' in item.addedBy || 'lastName' in item.addedBy || 'email' in item.addedBy)
+            const addedByValue = item.addedBy && typeof item.addedBy === 'object' && item.addedBy !== null && ('firstName' in item.addedBy || 'lastName' in item.addedBy)
               ? item.addedBy
               : null;
             
@@ -383,7 +384,7 @@ export function PaymentsPage() {
       doc.text(t('payments.title'), 14, 20);
       doc.setFontSize(10);
       doc.text(
-        `${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`,
+        `${t('reports.exportDate')}: ${formatCurrentDate(locale)}`,
         14,
         30,
       );
@@ -526,15 +527,15 @@ export function PaymentsPage() {
         if (!value || typeof value !== "object" || value === null) {
           return <span className="text-gray-400">—</span>;
         }
-        const user = value as { firstName?: string; lastName?: string; email?: string; _id?: string };
+        const user = value as { firstName?: string; lastName?: string; _id?: string };
         // Check if it has at least one user property
-        if (!('firstName' in user || 'lastName' in user || 'email' in user)) {
+        if (!('firstName' in user || 'lastName' in user)) {
           return <span className="text-gray-400">—</span>;
         }
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return (
           <span className="text-gray-700 font-medium">
-            {name || user.email || t('payments.unknown')}
+            {name || t('payments.unknown')}
           </span>
         );
       },
@@ -851,8 +852,6 @@ function AddPaymentModal({
         packageId: formData.packageId || selectedCandidate?.packageId || null,
         notes: formData.notes || "",
       };
-
-      console.log("Creating payment with data:", paymentData);
 
       const { ok, data, status } = await api.createPayment(paymentData);
 
@@ -1304,7 +1303,7 @@ function DeleteConfirmationModal({
           </p>
           <p className="text-sm text-gray-600">
             <span className="font-medium">{t('payments.dateLabel')}</span>{" "}
-            {new Date(payment.date).toLocaleDateString()}
+            {formatDate(payment.date, language === 'sq' ? 'sq-AL' : language === 'en' ? 'en-US' : 'sr-RS')}
           </p>
           <p className="text-sm text-gray-600">
             <span className="font-medium">{t('payments.methodLabel')}</span>{" "}

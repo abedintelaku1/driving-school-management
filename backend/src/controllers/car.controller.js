@@ -18,7 +18,6 @@ const getMyCars = async (req, res, next) => {
 
     if (!instructor) {
       // Instructor profile not found, return empty array
-      console.log("No instructor found for user:", req.user._id);
       return res.json([]);
     }
 
@@ -51,7 +50,7 @@ const getMyCars = async (req, res, next) => {
             }
             return null;
           } catch (err) {
-            console.error("Error converting car ID:", id, err);
+            // Silently handle conversion errors
             return null;
           }
         })
@@ -85,7 +84,7 @@ const getMyCars = async (req, res, next) => {
             }
             return null;
           } catch (err) {
-            console.error("Error converting personal car ID:", id, err);
+            // Silently handle conversion errors
             return null;
           }
         })
@@ -101,17 +100,14 @@ const getMyCars = async (req, res, next) => {
     allCarIds.push(...personalCarIdsByLink);
 
     if (allCarIds.length === 0) {
-      console.log("No cars found for instructor:", instructor._id);
       return res.json([]);
     }
 
     const cars = await Car.find({ _id: { $in: allCarIds } }).sort({
       createdAt: -1,
     });
-    console.log("Found cars:", cars.length, "for instructor:", instructor._id);
     res.json(cars);
   } catch (err) {
-    console.error("Error in getMyCars:", err);
     next(err);
   }
 };
@@ -259,7 +255,6 @@ const create = async (req, res, next) => {
 
     res.status(201).json(car);
   } catch (err) {
-    console.error("Error creating car:", err);
     if (err.code === 11000) {
       // Check which field caused the duplicate
       if (err.keyPattern?.chassisNumber) {
@@ -452,7 +447,6 @@ const update = async (req, res, next) => {
 
     res.json(car);
   } catch (err) {
-    console.error("Error updating car:", err);
     if (err.code === 11000) {
       if (err.keyPattern?.chassisNumber) {
         return res

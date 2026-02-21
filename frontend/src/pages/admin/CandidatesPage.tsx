@@ -17,6 +17,7 @@ import type { Candidate, Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
 import jsPDF from 'jspdf';
+import { formatCurrentDate } from '../../utils/dateUtils';
 
 // Helper function to translate package names
 const getTranslatedPackageName = (packageName: string, t: (key: string) => string): string => {
@@ -274,7 +275,7 @@ export function CandidatesPage() {
       doc.setFontSize(10);
       const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
       const locale = localeMap[language] || 'sq-AL';
-      doc.text(`${t('common.date')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('common.date')}: ${formatCurrentDate(locale)}`, 14, 30);
       doc.text(`${t('common.total')}: ${filteredCandidates.length} ${t('candidates.title').toLowerCase()}`, 14, 37);
       
       let yPos = 50;
@@ -306,7 +307,7 @@ export function CandidatesPage() {
         doc.text((c.email || '').substring(0, 20), 85, yPos);
         doc.text((c.phone || '').substring(0, 12), 130, yPos);
         doc.text(packageName, 160, yPos);
-        doc.text(c.status === 'active' ? t('common.active') : (c.status || ''), 190, yPos);
+        doc.text(c.status === 'active' ? t('common.active') : (c.status === 'inactive' ? t('common.inactive') : (c.status || '')), 190, yPos);
         yPos += 7;
       });
       
@@ -783,11 +784,9 @@ function AddCandidateModal({
         payload.paymentFrequency = formData.paymentFrequency.trim();
       }
       
-      console.log('Sending payload:', payload);
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
         const errorMessage = (resp.data as any)?.message || t('candidates.failedToSave');
-        console.error('API Error Response:', resp.data);
         toast('error', errorMessage);
         return;
       }

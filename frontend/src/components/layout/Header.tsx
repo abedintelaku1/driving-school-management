@@ -6,6 +6,7 @@ import { LanguageSelector } from '../ui/LanguageSelector';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../hooks/useLanguage';
 import { notificationsApi, type Notification } from '../../utils/api/notifications';
+import { formatDate } from '../../utils/dateUtils';
 
 type HeaderProps = {
   title?: string;
@@ -136,7 +137,7 @@ export function Header({
       const days = Math.floor(diffInSeconds / 86400);
       return t('header.daysAgo', { days });
     }
-    return date.toLocaleDateString();
+    return formatDate(dateString, 'sq-AL');
   };
 
   // Get notification type label

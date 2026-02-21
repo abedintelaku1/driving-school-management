@@ -15,6 +15,7 @@ import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import { ConfirmModal } from '../../components/ui/Modal';
 import jsPDF from 'jspdf';
+import { formatDate as formatDateUtil, formatCurrentDate } from '../../utils/dateUtils';
 
 type Appointment = {
   _id?: string;
@@ -123,9 +124,7 @@ export function AppointmentsPage() {
           }
 
           // Instructor: get only assigned cars
-          console.log('Fetching cars for instructor...');
           carsRes = await api.getMyCars();
-          console.log('Cars API response:', carsRes);
         } else if (user?.role === 0) {
           // Admin: fetch all appointments and candidates
           appointmentsRes = await api.listAppointments();
@@ -149,8 +148,6 @@ export function AppointmentsPage() {
           if (carsRes.ok && carsRes.data) {
             setCars(carsRes.data);
           } else {
-            // Log error for debugging
-            console.log('Cars API response:', carsRes);
             setCars([]);
           }
         }
@@ -304,7 +301,9 @@ export function AppointmentsPage() {
       doc.setFontSize(18);
       doc.text(t('appointments.myAppointments'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString()}`, 14, 30);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       doc.text(`${t('common.total')}: ${filteredAppointments.length} ${t('appointments.appointments')}`, 14, 37);
       
       let yPos = 50;
@@ -353,26 +352,12 @@ export function AppointmentsPage() {
       label: t('appointments.dateAndTime'),
       sortable: true,
       render: (_: unknown, appointment: Appointment) => {
-        // Format date nicely
-        const formatDate = (dateStr: string) => {
-          if (!dateStr) return '';
-          try {
-            const date = new Date(dateStr);
-            const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
-            const locale = localeMap[language] || 'sq-AL';
-            return date.toLocaleDateString(locale, {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric'
-            });
-          } catch {
-            return dateStr;
-          }
-        };
+        const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+        const locale = localeMap[language] || 'sq-AL';
         
         return (
           <div className="min-w-[140px]">
-            <p className="font-semibold text-gray-900 text-sm leading-tight">{formatDate(appointment.date || '')}</p>
+            <p className="font-semibold text-gray-900 text-sm leading-tight">{formatDateUtil(appointment.date || '', locale)}</p>
             <p className="text-xs text-gray-600 font-medium mt-0.5">
               {appointment.startTime} - {appointment.endTime}
             </p>

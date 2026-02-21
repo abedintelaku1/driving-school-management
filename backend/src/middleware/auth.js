@@ -10,7 +10,7 @@ const authenticate = async (req, res, next) => {
         }
         const token = authHeader.split(' ')[1];
         const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-        const user = await User.findById(payload.id);
+        const user = await User.findById(payload.id).select('-password');
         if (!user) {
             return res.status(401).json({ message: 'User not found' });
         }
@@ -35,7 +35,7 @@ const authenticateOptional = async (req, _res, next) => {
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
             const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-            const user = await User.findById(payload.id);
+            const user = await User.findById(payload.id).select('-password');
             if (user) {
                 req.user = user;
             }
@@ -69,14 +69,10 @@ const authorize = (...roles) => (req, res, next) => {
         return r;
     });
     
-    console.log('Authorization check:', { userRole, allowedRoles, userEmail: req.user.email });
-    
     if (!allowedRoles.includes(userRole)) {
-        console.log('❌ Access denied. User role:', userRole, 'Allowed roles:', allowedRoles);
         return res.status(403).json({ message: 'Forbidden' });
     }
     
-    console.log('✅ Access granted. User role:', userRole);
     next();
 };
 

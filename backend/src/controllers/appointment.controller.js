@@ -11,10 +11,10 @@ const list = async (req, res, next) => {
                 select: 'user phone address',
                 populate: {
                     path: 'user',
-                    select: 'firstName lastName email'
+                    select: 'firstName lastName'
                 }
             })
-            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('candidateId', 'firstName lastName uniqueClientNumber phone')
             .populate('carId', 'model licensePlate transmission')
             .sort({ date: -1, startTime: -1 });
         res.json(appointments);
@@ -31,10 +31,10 @@ const getById = async (req, res, next) => {
                 select: 'user phone address',
                 populate: {
                     path: 'user',
-                    select: 'firstName lastName email'
+                    select: 'firstName lastName'
                 }
             })
-            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('candidateId', 'firstName lastName uniqueClientNumber phone')
             .populate('carId', 'model licensePlate transmission');
         if (!appointment) {
             return res.status(404).json({ message: 'Appointment not found' });
@@ -154,20 +154,19 @@ const create = async (req, res, next) => {
                 select: 'user phone address',
                 populate: {
                     path: 'user',
-                    select: 'firstName lastName email'
+                    select: 'firstName lastName'
                 }
             })
-            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('candidateId', 'firstName lastName uniqueClientNumber phone')
             .populate('carId', 'model licensePlate transmission');
 
         res.status(201).json(populated);
     } catch (err) {
-        console.error('Error creating appointment:', err);
         if (err.name === 'CastError') {
             return res.status(400).json({ message: 'Invalid instructor, candidate, or car ID' });
         }
         if (err.name === 'ValidationError') {
-            return res.status(400).json({ message: err.message });
+            return res.status(400).json({ message: 'Të dhënat e dërguara nuk janë të vlefshme' });
         }
         next(err);
     }
@@ -316,15 +315,12 @@ const update = async (req, res, next) => {
                     if (instructor.instructorType === 'outsider') {
                         const creditsToAdd = (instructor.ratePerHour || 0) * hours;
                         instructor.totalCredits = (instructor.totalCredits || 0) + creditsToAdd;
-                        console.log(`Updated instructor ${instructor._id} hours: +${hours}, credits: +${creditsToAdd.toFixed(2)}`);
-                    } else {
-                        console.log(`Updated instructor ${instructor._id} hours: +${hours}`);
                     }
                     
                     await instructor.save();
                 }
             } catch (err) {
-                console.error('Error updating instructor hours/credits:', err);
+                // Silently handle errors updating instructor hours/credits
                 // Don't fail the appointment update if update fails
             }
         }
@@ -336,20 +332,19 @@ const update = async (req, res, next) => {
                 select: 'user phone address',
                 populate: {
                     path: 'user',
-                    select: 'firstName lastName email'
+                    select: 'firstName lastName'
                 }
             })
-            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('candidateId', 'firstName lastName uniqueClientNumber phone')
             .populate('carId', 'model licensePlate transmission');
 
         res.json(populated);
     } catch (err) {
-        console.error('Error updating appointment:', err);
         if (err.name === 'CastError') {
             return res.status(400).json({ message: 'Invalid ID format' });
         }
         if (err.name === 'ValidationError') {
-            return res.status(400).json({ message: err.message });
+            return res.status(400).json({ message: 'Të dhënat e dërguara nuk janë të vlefshme' });
         }
         next(err);
     }
@@ -374,7 +369,7 @@ const getByInstructor = async (req, res, next) => {
     try {
         const { instructorId } = req.params;
         const appointments = await Appointment.find({ instructorId })
-            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('candidateId', 'firstName lastName uniqueClientNumber phone')
             .populate('carId', 'model licensePlate transmission')
             .sort({ date: -1, startTime: -1 });
         res.json(appointments);
@@ -393,7 +388,7 @@ const getByCandidate = async (req, res, next) => {
                 select: 'user phone address',
                 populate: {
                     path: 'user',
-                    select: 'firstName lastName email'
+                    select: 'firstName lastName'
                 }
             })
             .populate('carId', 'model licensePlate transmission')
@@ -417,7 +412,7 @@ const getMyAppointments = async (req, res, next) => {
         
         // Get appointments for this instructor
         const appointments = await Appointment.find({ instructorId: instructor._id })
-            .populate('candidateId', 'firstName lastName uniqueClientNumber email phone')
+            .populate('candidateId', 'firstName lastName uniqueClientNumber phone')
             .populate('carId', 'model licensePlate transmission')
             .sort({ date: -1, startTime: -1 });
         

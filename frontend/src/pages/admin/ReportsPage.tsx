@@ -18,6 +18,7 @@ import { api } from "../../utils/api";
 import { toast } from "../../hooks/useToast";
 import { ReportExportModal } from "../../components/ui/ReportExportModal";
 import jsPDF from "jspdf";
+import { formatCurrentDate, formatCurrentDateTime, formatDate, formatDateFull, formatMonthName } from "../../utils/dateUtils";
 
 // Helper function to format numbers: max 2 decimals, but if whole number, no .00
 const formatNumber = (num: number): string => {
@@ -240,7 +241,7 @@ export function ReportsPage() {
       const locale = localeMap[language] || 'sq-AL';
       
       let csvContent = `${t('reports.fullExportTitle')}\n`;
-      csvContent += `${t('reports.generated')}: ${new Date().toLocaleString(locale)}\n`;
+      csvContent += `${t('reports.generated')}: ${formatCurrentDateTime(locale)}\n`;
       if (dateFrom || dateTo) {
         csvContent += `${t('reports.period')}: ${dateFrom || t('reports.all')} ${t('common.to')} ${
           dateTo || t('reports.all')
@@ -456,13 +457,7 @@ export function ReportsPage() {
 
       csvContent += `${t('reports.monthColumn')},${t('reports.totalColumn')},${t('reports.transactionsColumn')},${t('reports.bankColumn')},${t('reports.cashColumn')}\n`;
       monthlyData.forEach((data) => {
-        const monthName = new Date(data.month + "-01").toLocaleDateString(
-          locale,
-          {
-            year: "numeric",
-            month: "long",
-          }
-        );
+        const monthName = formatMonthName(data.month + "-01", locale);
         csvContent += `"${monthName}",${formatCurrency(data.total)},${
           data.count
         },${formatCurrency(data.bank)},${formatCurrency(data.cash)}\n`;
@@ -783,7 +778,7 @@ function InstructorPerformanceReport({
       doc.setFontSize(18);
       doc.text(t('reports.instructorPerformanceTitle'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
@@ -910,7 +905,7 @@ function InstructorPerformanceReport({
       label: t('reports.statusColumn'),
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value === "active" ? t('common.active') : (value as string)}
+          {value === "active" ? t('common.active') : (value === "inactive" ? t('common.inactive') : (value as string))}
         </Badge>
       ),
     },
@@ -1036,7 +1031,7 @@ function CandidateProgressReport({
       label: t('reports.statusColumn'),
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value === "active" ? t('common.active') : (value as string)}
+          {value === "active" ? t('common.active') : (value === "inactive" ? t('common.inactive') : (value as string))}
         </Badge>
       ),
     },
@@ -1070,7 +1065,7 @@ function CandidateProgressReport({
       doc.setFontSize(10);
       const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
       const locale = localeMap[language] || 'sq-AL';
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
@@ -1096,7 +1091,7 @@ function CandidateProgressReport({
         doc.text(formatNumber(stat.completedHours), 95, yPos);
         doc.text(stat.scheduledLessons.toString(), 110, yPos);
         doc.text(formatCurrency(stat.totalPaid), 130, yPos);
-        doc.text(stat.status === 'active' ? t('common.active') : stat.status, 170, yPos);
+        doc.text(stat.status === 'active' ? t('common.active') : (stat.status === 'inactive' ? t('common.inactive') : stat.status || ''), 170, yPos);
         yPos += 7;
       });
       
@@ -1212,7 +1207,7 @@ function CarUsageReport({
       label: t('reports.statusColumn'),
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value === "active" ? t('common.active') : (value as string)}
+          {value === "active" ? t('common.active') : (value === "inactive" ? t('common.inactive') : (value as string))}
         </Badge>
       ),
     },
@@ -1246,7 +1241,7 @@ function CarUsageReport({
       doc.setFontSize(10);
       const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
       const locale = localeMap[language] || 'sq-AL';
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
@@ -1272,7 +1267,7 @@ function CarUsageReport({
         doc.text(formatNumber(stat.totalHours), 95, yPos);
         doc.text(formatNumber(stat.recentUsage), 130, yPos);
         doc.text(stat.nextInspection || t('common.n/a'), 160, yPos);
-        doc.text(stat.status === 'active' ? t('common.active') : stat.status, 190, yPos);
+        doc.text(stat.status === 'active' ? t('common.active') : (stat.status === 'inactive' ? t('common.inactive') : stat.status || ''), 190, yPos);
         yPos += 7;
       });
       
@@ -1373,11 +1368,7 @@ function PaymentSummaryReport({
       render: (value: unknown) => {
         const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
         const locale = localeMap[language] || 'sq-AL';
-        const date = new Date((value as string) + "-01");
-        return date.toLocaleDateString(locale, {
-          year: "numeric",
-          month: "long",
-        });
+        return formatMonthName((value as string) + "-01", locale);
       },
     },
     {
@@ -1414,13 +1405,7 @@ function PaymentSummaryReport({
       let csvContent = BOM + `=== ${t('reports.paymentSummaryByMonth')} ===\n`;
       csvContent += `${t('reports.monthColumn')},${t('reports.totalColumn')},${t('reports.transactionsColumn')},${t('reports.bankColumn')},${t('reports.cashColumn')}\n`;
       monthlyData.forEach((data) => {
-        const monthName = new Date(data.month + "-01").toLocaleDateString(
-          locale,
-          {
-            year: "numeric",
-            month: "long",
-          }
-        );
+        const monthName = formatMonthName(data.month + "-01", locale);
         csvContent += `"${monthName}",${formatCurrency(data.total)},${data.count},${formatCurrency(data.bank)},${formatCurrency(data.cash)}\n`;
       });
 
@@ -1440,7 +1425,7 @@ function PaymentSummaryReport({
       doc.setFontSize(18);
       doc.text(t('reports.paymentSummaryByMonth'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
@@ -1460,13 +1445,7 @@ function PaymentSummaryReport({
           doc.addPage();
           yPos = 20;
         }
-        const monthName = new Date(data.month + "-01").toLocaleDateString(
-          locale,
-          {
-            year: "numeric",
-            month: "long",
-          }
-        );
+        const monthName = formatMonthName(data.month + "-01", locale);
         doc.text(monthName, 14, yPos);
         doc.text(formatCurrency(data.total), 70, yPos);
         doc.text(data.count.toString(), 100, yPos);

@@ -159,7 +159,7 @@ export function CarsPage() {
       doc.setFontSize(10);
       const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
       const locale = localeMap[language] || 'sq-AL';
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       doc.text(`${t('common.total')}: ${filteredCars.length} ${t('cars.title').toLowerCase()}`, 14, 37);
       
       let yPos = 50;

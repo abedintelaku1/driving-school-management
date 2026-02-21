@@ -693,21 +693,13 @@ function AddInstructorModal({
     e.preventDefault();
     e.stopPropagation();
 
-    console.log("=== FORM SUBMISSION START ===");
-    console.log("Form submitted", { instructor, formData });
-
     // Validate form before submission
     const isValid = validateForm();
-    console.log("Validation result:", isValid);
-    console.log("Current errors:", errors);
 
     if (!isValid) {
-      console.log("❌ Validation failed, errors:", errors);
       toast("error", t('instructors.pleaseFixErrors'));
       return;
     }
-
-    console.log("✅ Validation passed, proceeding with submission...");
     setLoading(true);
     setErrors({}); // Clear errors on submit
 
@@ -737,18 +729,6 @@ function AddInstructorModal({
         onSuccess();
       } else {
         // Create new instructor via backend
-        console.log("Creating instructor with data:", {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          dateOfBirth: formData.dateOfBirth,
-          personalNumber: formData.personalNumber,
-          specialties: formData.categories,
-          assignedCarIds: formData.assignedCarIds,
-        });
-
         const result = await api.createInstructor({
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -766,15 +746,9 @@ function AddInstructorModal({
           personalCar: formData.hasPersonalCar ? formData.personalCar : undefined,
         });
 
-        console.log("Create instructor result:", result);
-        console.log("Result OK:", result.ok);
-        console.log("Result status:", result.status);
-        console.log("Result data:", result.data);
-
         if (!result.ok) {
           const errorMessage =
             result.data?.message || t('instructors.failedToCreate');
-          console.error("❌ Failed to create instructor:", errorMessage);
           toast("error", errorMessage);
 
           // Handle specific validation errors from backend
@@ -795,7 +769,6 @@ function AddInstructorModal({
           return;
         }
 
-        console.log("✅ Instructor created successfully!");
         toast(
           "success",
           t('instructors.instructorCreatedSuccess')
@@ -803,18 +776,11 @@ function AddInstructorModal({
         onSuccess();
       }
     } catch (error: any) {
-      console.error("❌ Exception caught while saving instructor:", error);
-      console.error("Error details:", {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name,
-      });
       toast(
         "error",
         error?.message || t('instructors.failedToSave')
       );
     } finally {
-      console.log("=== FORM SUBMISSION END ===");
       setLoading(false);
     }
   };

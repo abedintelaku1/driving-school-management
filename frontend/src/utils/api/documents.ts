@@ -47,7 +47,6 @@ export const documentsApi = {
       }
       return { ok: true, data, status: res.status };
     } catch (error) {
-      console.error('Upload error:', error);
       return { 
         ok: false, 
         status: 500,
@@ -95,7 +94,6 @@ export const documentsApi = {
         });
       } catch (fetchError) {
         // Handle network errors (server not running, CORS, etc.)
-        console.error('Network error during download:', fetchError);
         throw new Error('Network error: Unable to connect to server. Please check if the backend server is running.');
       }
       
@@ -150,7 +148,6 @@ export const documentsApi = {
       try {
         blob = await res.blob();
       } catch (blobError) {
-        console.error('Error reading response as blob:', blobError);
         throw new Error('Failed to read document data. The file may be corrupted or the server response is invalid.');
       }
       
@@ -177,7 +174,6 @@ export const documentsApi = {
         document.body.removeChild(a);
       }, 100);
     } catch (error) {
-      console.error('Error downloading document:', error);
       // Re-throw with more context if it's not already an Error
       if (error instanceof Error) {
         throw error;

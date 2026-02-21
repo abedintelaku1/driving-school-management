@@ -15,6 +15,7 @@ import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import type { Candidate } from '../../types';
 import jsPDF from 'jspdf';
+import { formatCurrentDate } from '../../utils/dateUtils';
 
 type Appointment = {
   _id?: string;
@@ -310,7 +311,9 @@ export function MyCandidatesPage() {
       doc.setFontSize(18);
       doc.text(t('candidates.myCandidates'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString()}`, 14, 30);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       doc.text(`${t('common.total')}: ${candidatesWithStats.length} ${t('candidates.candidates')}`, 14, 37);
       
       let yPos = 50;

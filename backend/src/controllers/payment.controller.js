@@ -4,14 +4,13 @@ const Candidate = require("../models/Candidate");
 const list = async (req, res, next) => {
   try {
     const payments = await Payment.find()
-      .populate("candidateId", "firstName lastName uniqueClientNumber email")
-      .populate("addedBy", "firstName lastName email")
+      .populate("candidateId", "firstName lastName uniqueClientNumber")
+      .populate("addedBy", "firstName lastName")
       .sort({ date: -1, createdAt: -1 })
       .lean();
 
     res.json(payments);
   } catch (err) {
-    console.error("Error listing payments:", err);
     next(err);
   }
 };
@@ -19,14 +18,13 @@ const list = async (req, res, next) => {
 const getById = async (req, res, next) => {
   try {
     const payment = await Payment.findById(req.params.id)
-      .populate("candidateId", "firstName lastName uniqueClientNumber email")
-      .populate("addedBy", "firstName lastName email");
+      .populate("candidateId", "firstName lastName uniqueClientNumber")
+      .populate("addedBy", "firstName lastName");
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
     res.json(payment);
   } catch (err) {
-    console.error("Error getting payment by ID:", err);
     if (err.name === "CastError") {
       return res.status(400).json({ message: "Invalid ID format" });
     }
@@ -85,7 +83,8 @@ const create = async (req, res, next) => {
       addedBy: req.user._id,
     });
 
-    const populated = await Payment.findById(payment._id)
+    // Populate with email for email service (internal use)
+    const populatedForEmail = await Payment.findById(payment._id)
       .populate("candidateId", "firstName lastName uniqueClientNumber email")
       .populate("addedBy", "firstName lastName email");
 
@@ -93,22 +92,26 @@ const create = async (req, res, next) => {
     const emailService = require("../services/email.service");
     const notificationService = require("../services/notification.service");
 
-    if (populated.candidateId && populated.candidateId.email) {
+    if (populatedForEmail.candidateId && populatedForEmail.candidateId.email) {
       emailService
-        .sendPaymentConfirmation(populated, populated.candidateId)
-        .catch((err) => {
-          console.error("Error sending payment confirmation email:", err);
+        .sendPaymentConfirmation(populatedForEmail, populatedForEmail.candidateId)
+        .catch(() => {
+          // Silently handle email errors
         });
     }
 
     // Create notifications (async, don't wait for it)
-    notificationService.notifyPaymentCreated(populated).catch((err) => {
-      console.error("Error creating payment notifications:", err);
+    notificationService.notifyPaymentCreated(populatedForEmail).catch(() => {
+      // Silently handle notification errors
     });
+
+    // Return response without email
+    const populated = await Payment.findById(payment._id)
+      .populate("candidateId", "firstName lastName uniqueClientNumber")
+      .populate("addedBy", "firstName lastName");
 
     res.status(201).json(populated);
   } catch (err) {
-    console.error("Error creating payment:", err);
     if (err.name === "CastError") {
       return res.status(400).json({ message: "Invalid candidate ID" });
     }
@@ -177,19 +180,17 @@ const update = async (req, res, next) => {
     await payment.save();
 
     const populated = await Payment.findById(payment._id)
-      .populate("candidateId", "firstName lastName uniqueClientNumber email")
-      .populate("addedBy", "firstName lastName email");
+      .populate("candidateId", "firstName lastName uniqueClientNumber")
+      .populate("addedBy", "firstName lastName");
 
     res.json(populated);
   } catch (err) {
-    console.error("Error updating payment:", err);
     if (err.name === "CastError") {
       return res.status(400).json({ message: "Invalid ID format" });
     }
     if (err.name === "ValidationError") {
       return res.status(400).json({
-        message: "Validation error",
-        errors: err.errors,
+        message: "Të dhënat e dërguara nuk janë të vlefshme",
       });
     }
     next(err);
@@ -213,7 +214,6 @@ const remove = async (req, res, next) => {
       },
     });
   } catch (err) {
-    console.error("Error deleting payment:", err);
     if (err.name === "CastError") {
       return res.status(400).json({ message: "Invalid ID format" });
     }
@@ -226,7 +226,7 @@ const getByCandidate = async (req, res, next) => {
   try {
     const { candidateId } = req.params;
     const payments = await Payment.find({ candidateId })
-      .populate("addedBy", "firstName lastName email")
+      .populate("addedBy", "firstName lastName")
       .sort({ date: -1 });
     res.json(payments);
   } catch (err) {

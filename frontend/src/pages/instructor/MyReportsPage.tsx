@@ -11,6 +11,7 @@ import { useLanguage } from '../../hooks/useLanguage';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import jsPDF from 'jspdf';
+import { formatCurrentDate, formatCurrentDateTime } from '../../utils/dateUtils';
 
 type Appointment = {
   _id?: string;
@@ -289,7 +290,7 @@ export function MyReportsPage() {
         const locale = localeMap[language] || 'sq-AL';
         
         let csvContent = `${t('reports.instructorReportsExport')}\n`;
-        csvContent += `${t('reports.generated')}: ${new Date().toLocaleString(locale)}\n`;
+        csvContent += `${t('reports.generated')}: ${formatCurrentDateTime(locale)}\n`;
         if (dateFrom || dateTo) {
           csvContent += `${t('reports.period')}: ${dateFrom || t('reports.all')} - ${dateTo || t('reports.all')}\n`;
         }
@@ -362,7 +363,7 @@ export function MyReportsPage() {
           sr: 'sr-RS'
         };
         const locale = localeMap[language] || 'sq-AL';
-        doc.text(`${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+        doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
         if (dateFrom || dateTo) {
           doc.text(`${t('reports.period')}: ${dateFrom || t('reports.all')} ${t('common.to')} ${dateTo || t('reports.all')}`, 14, 37);
         }

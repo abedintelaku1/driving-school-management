@@ -35,7 +35,6 @@ const createNotification = async ({
 
         return notification;
     } catch (error) {
-        console.error('Error creating notification:', error);
         throw error;
     }
 };
@@ -74,7 +73,6 @@ const getUserNotifications = async (userId, options = {}) => {
             unread: read === false ? total : await Notification.countDocuments({ userId, read: false })
         };
     } catch (error) {
-        console.error('Error getting user notifications:', error);
         throw error;
     }
 };
@@ -88,7 +86,6 @@ const getUnreadCount = async (userId) => {
     try {
         return await Notification.countDocuments({ userId, read: false });
     } catch (error) {
-        console.error('Error getting unread count:', error);
         throw error;
     }
 };
@@ -115,7 +112,6 @@ const markAsRead = async (notificationId, userId) => {
 
         return notification;
     } catch (error) {
-        console.error('Error marking notification as read:', error);
         throw error;
     }
 };
@@ -134,7 +130,6 @@ const markAllAsRead = async (userId) => {
 
         return result;
     } catch (error) {
-        console.error('Error marking all notifications as read:', error);
         throw error;
     }
 };
@@ -158,7 +153,6 @@ const deleteNotification = async (notificationId, userId) => {
 
         return { success: true };
     } catch (error) {
-        console.error('Error deleting notification:', error);
         throw error;
     }
 };
@@ -274,7 +268,6 @@ const notifyCarCreated = async (car) => {
         const adminUsers = await User.find({ role: 0 }).select('_id');
 
         if (adminUsers.length === 0) {
-            console.log('No admin users found to notify about new car');
             return;
         }
 
@@ -288,11 +281,9 @@ const notifyCarCreated = async (car) => {
         }));
 
         if (notifications.length > 0) {
-            const result = await Notification.insertMany(notifications);
-            console.log(`✅ Created ${result.length} notifications for new car: ${car.model} (${car.licensePlate})`);
+            await Notification.insertMany(notifications);
         }
     } catch (error) {
-        console.error('❌ Error in notifyCarCreated:', error);
         throw error;
     }
 };
@@ -309,7 +300,6 @@ const notifyPackageCreated = async (pkg) => {
         const adminUsers = await User.find({ role: 0 }).select('_id');
 
         if (adminUsers.length === 0) {
-            console.log('No admin users found to notify about new package');
             return;
         }
 
@@ -323,11 +313,9 @@ const notifyPackageCreated = async (pkg) => {
         }));
 
         if (notifications.length > 0) {
-            const result = await Notification.insertMany(notifications);
-            console.log(`✅ Created ${result.length} notifications for new package: ${pkg.name} (${pkg.category})`);
+            await Notification.insertMany(notifications);
         }
     } catch (error) {
-        console.error('❌ Error in notifyPackageCreated:', error);
         throw error;
     }
 };

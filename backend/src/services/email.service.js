@@ -13,20 +13,15 @@ const initializeTransporter = () => {
     
     if (hasSmtpConfig) {
         // Use SMTP configuration (production or development with SMTP)
-        console.log('📧 Initializing SMTP transporter...');
-        console.log('   Host:', process.env.SMTP_HOST);
-        console.log('   Port:', process.env.SMTP_PORT || '587');
-        console.log('   User:', process.env.SMTP_USER);
-        console.log('   Secure:', process.env.SMTP_SECURE === 'true');
+        // Don't log sensitive SMTP credentials in production
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📧 Initializing SMTP transporter...');
+        }
         
         // Check if using Gmail
         const isGmail = process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail.com');
-        if (isGmail) {
+        if (isGmail && process.env.NODE_ENV === 'development') {
             console.log('   ⚠️  Gmail detected. Make sure you are using an App Password, not your regular password.');
-            console.log('   To create an App Password:');
-            console.log('   1. Go to your Google Account settings');
-            console.log('   2. Security > 2-Step Verification > App passwords');
-            console.log('   3. Generate a new app password for "Mail"');
         }
         
         transporter = nodemailer.createTransport({
@@ -43,10 +38,14 @@ const initializeTransporter = () => {
             }
         });
         
-        console.log('✅ SMTP transporter initialized successfully');
+        if (process.env.NODE_ENV === 'development') {
+            console.log('✅ SMTP transporter initialized successfully');
+        }
     } else if (process.env.ETHEREAL_USER && process.env.ETHEREAL_PASS) {
         // Use Ethereal Email for testing
-        console.log('📧 Initializing Ethereal Email transporter...');
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📧 Initializing Ethereal Email transporter...');
+        }
         transporter = nodemailer.createTransport({
             host: 'smtp.ethereal.email',
             port: 587,
@@ -55,21 +54,21 @@ const initializeTransporter = () => {
                 pass: process.env.ETHEREAL_PASS
             }
         });
-        console.log('✅ Ethereal Email transporter initialized');
+        if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Ethereal Email transporter initialized');
+        }
     } else {
         // No email configuration - use mock
-        console.warn('⚠️  Email service: No SMTP credentials found. Emails will be logged but not sent.');
-        console.warn('   To enable email sending:');
-        console.warn('   Configure SMTP settings in .env (SMTP_HOST, SMTP_USER, SMTP_PASS, etc.)');
-        console.warn('   Or use Ethereal Email for testing (ETHEREAL_USER, ETHEREAL_PASS)');
+        if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️  Email service: No SMTP credentials found. Emails will be logged but not sent.');
+        }
         
         transporter = {
             sendMail: async (options) => {
-                console.log('📧 [MOCK EMAIL] Would send email:', {
-                    to: options.to,
-                    subject: options.subject,
-                    from: options.from
-                });
+                // Don't log email addresses in production
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('📧 [MOCK EMAIL] Would send email');
+                }
                 return {
                     messageId: 'mock-' + Date.now(),
                     accepted: [options.to],
@@ -106,8 +105,9 @@ const sendEmail = async ({ to, subject, html, text }) => {
         
         // If using Gmail and SMTP_FROM is different from SMTP_USER, use SMTP_USER
         if (isGmail && process.env.SMTP_FROM && process.env.SMTP_FROM !== process.env.SMTP_USER) {
-            console.warn('⚠️  Gmail detected: Using SMTP_USER as from address instead of SMTP_FROM');
-            console.warn('   Gmail requires the "from" address to match the authenticated user or be a verified alias');
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️  Gmail detected: Using SMTP_USER as from address instead of SMTP_FROM');
+            }
             fromEmail = process.env.SMTP_USER;
         }
         
@@ -119,22 +119,17 @@ const sendEmail = async ({ to, subject, html, text }) => {
             text: text || html.replace(/<[^>]*>/g, '') // Strip HTML tags for plain text
         };
 
-        console.log('📧 Attempting to send email:', {
-            to,
-            subject,
-            from: mailOptions.from,
-            host: process.env.SMTP_HOST
-        });
+        // Don't log email addresses in production
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📧 Attempting to send email');
+        }
 
         const info = await mailTransporter.sendMail(mailOptions);
 
-        console.log('✅ Email sent successfully:', {
-            messageId: info.messageId,
-            to,
-            subject,
-            accepted: info.accepted,
-            rejected: info.rejected
-        });
+        // Don't log email addresses in production
+        if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Email sent successfully');
+        }
 
         // In development with Ethereal, log the preview URL
         if (process.env.NODE_ENV === 'development' && info.messageId && !info.messageId.startsWith('mock-')) {
@@ -150,24 +145,21 @@ const sendEmail = async ({ to, subject, html, text }) => {
             previewUrl: nodemailer.getTestMessageUrl(info)
         };
     } catch (error) {
-        console.error('❌ Error sending email:', {
-            message: error.message,
-            code: error.code,
-            command: error.command,
-            response: error.response,
-            responseCode: error.responseCode,
-            to,
-            subject
-        });
-        
-        // More detailed error logging
-        if (error.code === 'EAUTH') {
-            console.error('   Authentication failed. Check SMTP_USER and SMTP_PASS.');
-            console.error('   For Gmail, you may need to use an App Password instead of your regular password.');
-        } else if (error.code === 'ECONNECTION') {
-            console.error('   Connection failed. Check SMTP_HOST and SMTP_PORT.');
-        } else if (error.code === 'ETIMEDOUT') {
-            console.error('   Connection timeout. Check your network and SMTP settings.');
+        // Don't log sensitive error details in production
+        if (process.env.NODE_ENV === 'development') {
+            console.error('❌ Error sending email:', {
+                message: error.message,
+                code: error.code
+            });
+            
+            // More detailed error logging only in development
+            if (error.code === 'EAUTH') {
+                console.error('   Authentication failed. Check SMTP_USER and SMTP_PASS.');
+            } else if (error.code === 'ECONNECTION') {
+                console.error('   Connection failed. Check SMTP_HOST and SMTP_PORT.');
+            } else if (error.code === 'ETIMEDOUT') {
+                console.error('   Connection timeout. Check your network and SMTP settings.');
+            }
         }
         
         throw error;
