@@ -23,7 +23,7 @@ router.post(
                 }
                 if (err.message && err.message.includes('File type not allowed')) {
                     return res.status(400).json({
-                        message: err.message
+                        message: 'Tipi i skedarit nuk lejohet. Tipet e lejuara: PDF, JPG, PNG, DOCX'
                     });
                 }
                 return next(err);

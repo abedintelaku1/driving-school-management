@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
+import { translations } from '../../i18n/translations';
 import { api } from '../../utils/api';
 import type { Appointment } from '../../types';
-const DAYS = ['Dië', 'Hën', 'Mar', 'Mër', 'Enj', 'Pre', 'Sht'];
-const MONTHS = ['Janar', 'Shkurt', 'Mars', 'Prill', 'Maj', 'Qershor', 'Korrik', 'Gusht', 'Shtator', 'Tetor', 'Nëntor', 'Dhjetor'];
+import { formatDateWithWeekday } from '../../utils/dateUtils';
 type AppointmentEx = Appointment & {
   _id?: string;
   candidate?: any;
@@ -17,6 +18,7 @@ type AppointmentEx = Appointment & {
 
 export function CalendarPage() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AppointmentEx[]>([]);
@@ -145,6 +147,8 @@ export function CalendarPage() {
   const month = currentDate.getMonth();
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const DAYS = (translations[language]?.calendar?.days || ['Dië', 'Hën', 'Mar', 'Mër', 'Enj', 'Pre', 'Sht']) as string[];
+  const MONTHS = (translations[language]?.calendar?.months || ['Janar', 'Shkurt', 'Mars', 'Prill', 'Maj', 'Qershor', 'Korrik', 'Gusht', 'Shtator', 'Tetor', 'Nëntor', 'Dhjetor']) as string[];
   const calendarDays = useMemo(() => {
     const days: (number | null)[] = [];
     // Add empty cells for days before the first day of the month
@@ -194,14 +198,14 @@ export function CalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Kalendari
+            {t('calendar.title')}
           </h1>
           <p className="text-sm lg:text-base text-gray-500 mt-1">
-            Shikoni dhe menaxhoni orarin tuaj.
+            {t('calendar.subtitle')}
           </p>
         </div>
         <Button variant="outline" onClick={goToToday} size="sm">
-          Sot
+          {t('calendar.today')}
         </Button>
       </div>
 
@@ -277,11 +281,7 @@ export function CalendarPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base lg:text-lg">
-              {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('sq-AL', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric'
-            }) : 'Zgjidhni një ditë'}
+              {selectedDate ? formatDateWithWeekday(selectedDate + 'T00:00:00', language === 'sq' ? 'sq-AL' : language === 'en' ? 'en-US' : 'sr-RS') : t('calendar.selectDay')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -302,7 +302,7 @@ export function CalendarPage() {
                             {appointment.startTime} - {appointment.endTime}
                           </span>
                           <Badge variant={appointment.status === 'completed' ? 'success' : appointment.status === 'scheduled' ? 'info' : 'danger'} size="sm">
-                            {appointment.status === 'completed' ? 'Përfunduar' : appointment.status === 'scheduled' ? 'E planifikuar' : 'Anuluar'}
+                            {appointment.status === 'completed' ? t('calendar.completed') : appointment.status === 'scheduled' ? t('calendar.scheduled') : t('calendar.cancelled')}
                           </Badge>
                         </div>
                         <p className="text-sm lg:text-base font-medium text-gray-900">
@@ -319,12 +319,12 @@ export function CalendarPage() {
                 </div> : <div className="text-center py-8">
                   <CalendarIcon className="w-10 h-10 lg:w-12 lg:h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">
-                    Nuk ka takime këtë ditë
+                    {t('calendar.noAppointmentsThisDay')}
                   </p>
                 </div> : <div className="text-center py-8">
                 <CalendarIcon className="w-10 h-10 lg:w-12 lg:h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-gray-500">
-                  Klikoni mbi një ditë për të parë takimet
+                  {t('calendar.clickDayToView')}
                 </p>
               </div>}
           </CardContent>

@@ -7,9 +7,11 @@ import { Select } from '../../components/ui/Select';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge } from '../../components/ui/Badge';
 import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import jsPDF from 'jspdf';
+import { formatCurrentDate, formatCurrentDateTime } from '../../utils/dateUtils';
 
 type Appointment = {
   _id?: string;
@@ -51,6 +53,7 @@ type CandidateStat = {
 
 export function MyReportsPage() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -79,7 +82,7 @@ export function MyReportsPage() {
           }));
           setAppointments(transformedAppointments);
         } else {
-          toast('error', 'Dështoi ngarkimi i takimeve');
+          toast('error', t('myReports.failedToLoadAppointments'));
         }
 
         if (candidatesRes.ok && candidatesRes.data) {
@@ -91,11 +94,11 @@ export function MyReportsPage() {
           }));
           setCandidates(transformedCandidates);
         } else {
-          toast('error', 'Dështoi ngarkimi i kandidatëve');
+          toast('error', t('myReports.failedToLoadCandidates'));
         }
       } catch (error) {
         console.error('Error fetching reports data:', error);
-        toast('error', 'Dështoi ngarkimi i të dhënave të raporteve');
+        toast('error', t('myReports.failedToLoadData'));
       } finally {
         setLoading(false);
       }
@@ -166,12 +169,12 @@ export function MyReportsPage() {
   const appointmentColumns = [
     {
       key: 'date',
-      label: 'Data',
+      label: t('appointments.date'),
       sortable: true
     },
     {
       key: 'time',
-      label: 'Ora',
+      label: t('appointments.time'),
       render: (_: unknown, apt: Appointment) => (
         <span>
           {apt.startTime} - {apt.endTime}
@@ -180,7 +183,7 @@ export function MyReportsPage() {
     },
     {
       key: 'candidateId',
-      label: 'Nxënësi',
+      label: t('appointments.student'),
       render: (value: unknown, apt: Appointment) => {
         // Try to get candidate name from populated data or lookup
         if (apt.candidate) {
@@ -191,14 +194,14 @@ export function MyReportsPage() {
     },
     {
       key: 'hours',
-      label: 'Orë',
+      label: t('appointments.hours'),
       render: (value: unknown) => (
         <span className="font-semibold">{value as number}h</span>
       )
     },
     {
       key: 'status',
-      label: 'Statusi',
+      label: t('common.status'),
       render: (value: unknown) => {
         const status = value as string;
         const variants: Record<string, 'success' | 'warning' | 'danger'> = {
@@ -206,9 +209,14 @@ export function MyReportsPage() {
           scheduled: 'warning',
           cancelled: 'danger'
         };
+        const statusLabels: Record<string, string> = {
+          completed: t('appointments.completed'),
+          scheduled: t('appointments.scheduled'),
+          cancelled: t('appointments.cancelled')
+        };
         return (
           <Badge variant={variants[status] || 'warning'} size="sm">
-            {status}
+            {statusLabels[status] || status}
           </Badge>
         );
       }
@@ -218,7 +226,7 @@ export function MyReportsPage() {
   const candidateColumns = [
     {
       key: 'name',
-      label: 'Nxënësi',
+      label: t('appointments.student'),
       sortable: true,
       render: (_: unknown, item: CandidateStat) => (
         <div>
@@ -231,17 +239,17 @@ export function MyReportsPage() {
     },
     {
       key: 'completedLessons',
-      label: 'Të përfunduara',
+      label: t('instructors.completedLessons'),
       sortable: true
     },
     {
       key: 'totalLessons',
-      label: 'Mësime gjithsej',
+      label: t('instructors.totalLessons'),
       sortable: true
     },
     {
       key: 'hours',
-      label: 'Orë',
+      label: t('appointments.hours'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{value as number}h</span>
@@ -249,10 +257,10 @@ export function MyReportsPage() {
     },
     {
       key: 'status',
-      label: 'Statusi',
+      label: t('common.status'),
       render: (value: unknown) => (
         <Badge variant={value === 'active' ? 'success' : 'danger'} dot size="sm">
-          {value === 'active' ? 'Aktiv' : (value as string)}
+          {value === 'active' ? t('common.active') : t('common.inactive')}
         </Badge>
       )
     }
@@ -271,37 +279,46 @@ export function MyReportsPage() {
       const timestamp = new Date().toISOString().split('T')[0];
 
       if (exportFormat === 'csv') {
-        const filename = `raportet-e-mi_${dateRange}_${timestamp}.csv`;
+        const filename = `${t('reports.csvFilenameMyReports')}_${dateRange}_${timestamp}.csv`;
 
-        let csvContent = 'Eksport raportesh instruktori\n';
-        csvContent += `Gjeneruar: ${new Date().toLocaleString('sq-AL')}\n`;
+        // Get locale for date formatting
+        const localeMap: Record<string, string> = {
+          sq: 'sq-AL',
+          en: 'en-US',
+          sr: 'sr-RS'
+        };
+        const locale = localeMap[language] || 'sq-AL';
+        
+        let csvContent = `${t('reports.instructorReportsExport')}\n`;
+        csvContent += `${t('reports.generated')}: ${formatCurrentDateTime(locale)}\n`;
         if (dateFrom || dateTo) {
-          csvContent += `Periudha: ${dateFrom || 'Të gjitha'} deri ${dateTo || 'Të gjitha'}\n`;
+          csvContent += `${t('reports.period')}: ${dateFrom || t('reports.all')} - ${dateTo || t('reports.all')}\n`;
         }
         csvContent += '\n';
 
         // 1. Summary Statistics
-        csvContent += '=== STATISTIKA PËRMBLEDHËSE ===\n';
-        csvContent += `Treguesi,Vlera\n`;
-        csvContent += `Mësime gjithsej,${filteredAppointments.length}\n`;
-        csvContent += `Mësime të përfunduara,${completedAppointments.length}\n`;
-        csvContent += `Orë të mësuara,${totalHours}h\n`;
-        csvContent += `Mësime të anuluara,${cancelledCount}\n`;
-        csvContent += `Nxënës gjithsej,${candidates.length}\n`;
-        csvContent += `Shkalla e përfundimit,${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
+        csvContent += `=== ${t('reports.summaryStatistics')} ===\n`;
+        csvContent += `${t('reports.indicator')},${t('reports.value')}\n`;
+        csvContent += `${t('instructors.totalLessons')},${filteredAppointments.length}\n`;
+        csvContent += `${t('instructors.completedLessons')},${completedAppointments.length}\n`;
+        csvContent += `${t('reports.hoursTaught')},${totalHours}h\n`;
+        csvContent += `${t('reports.cancelledLessons')},${cancelledCount}\n`;
+        csvContent += `${t('reports.totalStudents')},${candidates.length}\n`;
+        csvContent += `${t('reports.completionRate')},${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%\n`;
         csvContent += '\n';
 
         // 2. Student Performance
-        csvContent += '=== PERFORMANCA E NXËNËSVE ===\n';
-        csvContent += 'Emri i nxënësit,Numri i klientit,Mësime gjithsej,Mësime të përfunduara,Orë të përfunduara,Statusi\n';
+        csvContent += `=== ${t('reports.studentPerformance')} ===\n`;
+        csvContent += `${t('reports.studentName')},${t('candidates.clientNumberColumn')},${t('instructors.totalLessons')},${t('instructors.completedLessons')},${t('candidates.completedHours')},${t('reports.statusColumn')}\n`;
         candidateStats.forEach(stat => {
-          csvContent += `"${stat.name}","${stat.clientNumber || ''}",${stat.totalLessons},${stat.completedLessons},${stat.hours},${stat.status}\n`;
+          const statusText = stat.status === 'active' ? t('common.active') : t('common.inactive');
+          csvContent += `"${stat.name}","${stat.clientNumber || ''}",${stat.totalLessons},${stat.completedLessons},${stat.hours},"${statusText}"\n`;
         });
         csvContent += '\n';
 
         // 3. Lesson History
-        csvContent += '=== HISTORIKU I MËSIMEVE ===\n';
-        csvContent += 'Data,Ora,Nxënësi,Orë,Statusi\n';
+        csvContent += `=== ${t('reports.lessonHistory')} ===\n`;
+        csvContent += `${t('common.date')},${t('reports.time')},${t('reports.student')},${t('appointments.hours')},${t('reports.statusColumn')}\n`;
         filteredAppointments
           .sort((a, b) => {
             const dateA = a.date?.split('T')[0] || a.date || '';
@@ -312,11 +329,18 @@ export function MyReportsPage() {
             const studentName = apt.candidate 
               ? `${apt.candidate.firstName} ${apt.candidate.lastName}`
               : getCandidateName(apt.candidateId);
-            csvContent += `"${apt.date?.split('T')[0] || apt.date || ''}","${apt.startTime || ''} - ${apt.endTime || ''}","${studentName}",${apt.hours || 0},${apt.status}\n`;
+            const statusLabels: Record<string, string> = {
+              completed: t('appointments.completed'),
+              scheduled: t('appointments.scheduled'),
+              cancelled: t('appointments.cancelled')
+            };
+            const statusText = statusLabels[apt.status] || apt.status;
+            csvContent += `"${apt.date?.split('T')[0] || apt.date || ''}","${apt.startTime || ''} - ${apt.endTime || ''}","${studentName}",${apt.hours || 0},"${statusText}"\n`;
           });
 
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Download CSV with UTF-8 BOM for Excel compatibility
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -326,36 +350,42 @@ export function MyReportsPage() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        toast('success', 'Raporti u eksportua në CSV');
+        toast('success', t('reports.exportedToCSV'));
       } else {
         // PDF Export
         const doc = new jsPDF();
         doc.setFontSize(18);
-        doc.text('Raportet e mia', 14, 20);
+        doc.text(t('reports.myReports'), 14, 20);
         doc.setFontSize(10);
-        doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+        const localeMap: Record<string, string> = {
+          sq: 'sq-AL',
+          en: 'en-US',
+          sr: 'sr-RS'
+        };
+        const locale = localeMap[language] || 'sq-AL';
+        doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
         if (dateFrom || dateTo) {
-          doc.text(`Periudha: ${dateFrom || 'Të gjitha'} deri ${dateTo || 'Të gjitha'}`, 14, 37);
+          doc.text(`${t('reports.period')}: ${dateFrom || t('reports.all')} ${t('common.to')} ${dateTo || t('reports.all')}`, 14, 37);
         }
         
         let yPos = 50;
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.text('Statistika përmbledhëse', 14, yPos);
+        doc.text(t('reports.summaryStatistics'), 14, yPos);
         yPos += 8;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(10);
-        doc.text(`Mësime gjithsej: ${filteredAppointments.length}`, 14, yPos);
+        doc.text(`${t('instructors.totalLessons')}: ${filteredAppointments.length}`, 14, yPos);
         yPos += 6;
-        doc.text(`Mësime të përfunduara: ${completedAppointments.length}`, 14, yPos);
+        doc.text(`${t('instructors.completedLessons')}: ${completedAppointments.length}`, 14, yPos);
         yPos += 6;
-        doc.text(`Orë të mësuara: ${totalHours}h`, 14, yPos);
+        doc.text(`${t('reports.hoursTaught')}: ${totalHours}h`, 14, yPos);
         yPos += 6;
-        doc.text(`Mësime të anuluara: ${cancelledCount}`, 14, yPos);
+        doc.text(`${t('reports.cancelledLessons')}: ${cancelledCount}`, 14, yPos);
         yPos += 6;
-        doc.text(`Nxënës gjithsej: ${candidates.length}`, 14, yPos);
+        doc.text(`${t('reports.totalStudents')}: ${candidates.length}`, 14, yPos);
         yPos += 6;
-        doc.text(`Shkalla e përfundimit: ${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%`, 14, yPos);
+        doc.text(`${t('reports.completionRate')}: ${filteredAppointments.length > 0 ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) : 0}%`, 14, yPos);
         yPos += 10;
         
         // Student Performance
@@ -364,15 +394,16 @@ export function MyReportsPage() {
           yPos = 20;
         }
         doc.setFont(undefined, 'bold');
-        doc.text('Performanca e nxënësve', 14, yPos);
+        doc.text(t('reports.studentPerformanceTitle'), 14, yPos);
         yPos += 8;
         doc.setFontSize(9);
         doc.setFont(undefined, 'bold');
-        doc.text('Emri', 14, yPos);
-        doc.text('Nr. Klientit', 60, yPos);
-        doc.text('Mësime', 110, yPos);
-        doc.text('Orë', 140, yPos);
-        doc.text('Statusi', 165, yPos);
+        doc.text(t('reports.studentName'), 14, yPos);
+        doc.text(t('candidates.clientNumberColumn'), 60, yPos);
+        doc.text(t('instructors.totalLessons'), 110, yPos);
+        doc.text(t('instructors.completedLessons'), 130, yPos);
+        doc.text(t('candidates.completedHours'), 160, yPos);
+        doc.text(t('common.status'), 185, yPos);
         yPos += 6;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(8);
@@ -383,26 +414,27 @@ export function MyReportsPage() {
             yPos = 20;
           }
           doc.text(stat.name.substring(0, 20), 14, yPos);
-          doc.text((stat.clientNumber || 'N/A').substring(0, 12), 60, yPos);
+          doc.text((stat.clientNumber || t('common.n/a' as any)).substring(0, 12), 60, yPos);
           doc.text(stat.totalLessons.toString(), 110, yPos);
-          doc.text(stat.hours.toString(), 140, yPos);
-          doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 165, yPos);
+          doc.text(stat.completedLessons.toString(), 130, yPos);
+          doc.text(stat.hours.toString(), 160, yPos);
+          doc.text(stat.status === 'active' ? t('common.active') : t('common.inactive'), 185, yPos);
           yPos += 6;
         });
         
-        doc.save(`raportet-e-mi_${dateRange}_${timestamp}.pdf`);
-        toast('success', 'Raporti u eksportua në PDF');
+        doc.save(`${t('reports.csvFilenameMyReports')}_${dateRange}_${timestamp}.pdf`);
+        toast('success', t('reports.exportedToPDF'));
       }
     } catch (error) {
       console.error('Error exporting report:', error);
-      toast('error', 'Dështoi eksportimi i raportit');
+      toast('error', t('myReports.failedToExport'));
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-gray-500">Duke ngarkuar raportet...</div>
+        <div className="text-gray-500">{t('myReports.loading')}</div>
       </div>
     );
   }
@@ -412,9 +444,9 @@ export function MyReportsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Raportet e mia</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('myReports.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Shikoni statistikat dhe performancën tuaj të mësimdhënies.
+            {t('myReports.subtitle')}
           </p>
         </div>
         <div className="flex gap-2 items-center">
@@ -422,9 +454,10 @@ export function MyReportsPage() {
             value={exportFormat}
             onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
             options={[
-              { value: 'csv', label: 'CSV' },
-              { value: 'pdf', label: 'PDF' },
+              { value: 'csv', label: t('reports.csv') },
+              { value: 'pdf', label: t('reports.pdf') },
             ]}
+            placeholder={t('common.selectOption')}
             className="w-24"
           />
           <Button 
@@ -432,7 +465,7 @@ export function MyReportsPage() {
             icon={<DownloadIcon className="w-4 h-4" />}
             onClick={handleExportReport}
           >
-            Eksporto {exportFormat.toUpperCase()}
+            {t('myReports.export')} {exportFormat.toUpperCase()}
           </Button>
         </div>
       </div>
@@ -442,7 +475,7 @@ export function MyReportsPage() {
         <div className="flex flex-wrap gap-4 items-end">
           <div className="w-40">
             <Input 
-              label="Nga data" 
+              label={t('reports.fromDate')} 
               type="date" 
               value={dateFrom} 
               onChange={e => setDateFrom(e.target.value)} 
@@ -450,7 +483,7 @@ export function MyReportsPage() {
           </div>
           <div className="w-40">
             <Input 
-              label="Deri në datë" 
+              label={t('reports.toDate')} 
               type="date" 
               value={dateTo} 
               onChange={e => setDateTo(e.target.value)} 
@@ -465,7 +498,7 @@ export function MyReportsPage() {
                 setDateTo('');
               }}
             >
-              Pastro
+              {t('myReports.clear')}
             </Button>
           )}
         </div>
@@ -479,7 +512,7 @@ export function MyReportsPage() {
               <CalendarIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Lessons</p>
+              <p className="text-sm text-gray-500">{t('myReports.totalLessons')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {filteredAppointments.length}
               </p>
@@ -492,7 +525,7 @@ export function MyReportsPage() {
               <ClockIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Orë të mësuara</p>
+              <p className="text-sm text-gray-500">{t('myReports.hoursTaught')}</p>
               <p className="text-2xl font-bold text-gray-900">{totalHours}h</p>
             </div>
           </div>
@@ -503,7 +536,7 @@ export function MyReportsPage() {
               <UsersIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Nxënës</p>
+              <p className="text-sm text-gray-500">{t('myReports.students')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {candidates.length}
               </p>
@@ -516,7 +549,7 @@ export function MyReportsPage() {
               <TrendingUpIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Shkalla e përfundimit</p>
+              <p className="text-sm text-gray-500">{t('myReports.completionRate')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {filteredAppointments.length > 0 
                   ? Math.round((completedAppointments.length / filteredAppointments.length) * 100) 
@@ -530,7 +563,7 @@ export function MyReportsPage() {
       {/* Student Performance */}
       <Card>
         <CardHeader>
-          <CardTitle>Performanca e nxënësve</CardTitle>
+          <CardTitle>{t('myReports.studentPerformance')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <DataTable 
@@ -546,7 +579,7 @@ export function MyReportsPage() {
       {/* Recent Lessons */}
       <Card>
         <CardHeader>
-          <CardTitle>Historiku i mësimeve</CardTitle>
+          <CardTitle>{t('myReports.lessonHistory')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <DataTable 

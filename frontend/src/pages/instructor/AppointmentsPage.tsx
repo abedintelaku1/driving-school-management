@@ -10,10 +10,12 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { TextArea } from '../../components/ui/TextArea';
 import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import { ConfirmModal } from '../../components/ui/Modal';
 import jsPDF from 'jspdf';
+import { formatDate as formatDateUtil, formatCurrentDate } from '../../utils/dateUtils';
 
 type Appointment = {
   _id?: string;
@@ -51,6 +53,7 @@ type Car = {
 
 export function AppointmentsPage() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
@@ -121,9 +124,7 @@ export function AppointmentsPage() {
           }
 
           // Instructor: get only assigned cars
-          console.log('Fetching cars for instructor...');
           carsRes = await api.getMyCars();
-          console.log('Cars API response:', carsRes);
         } else if (user?.role === 0) {
           // Admin: fetch all appointments and candidates
           appointmentsRes = await api.listAppointments();
@@ -147,13 +148,11 @@ export function AppointmentsPage() {
           if (carsRes.ok && carsRes.data) {
             setCars(carsRes.data);
           } else {
-            // Log error for debugging
-            console.log('Cars API response:', carsRes);
             setCars([]);
           }
         }
       } catch (error) {
-        toast('error', 'Dështoi ngarkimi i të dhënave');
+        toast('error', t('common.failedToLoadData'));
       } finally {
         setLoading(false);
       }
@@ -245,17 +244,26 @@ export function AppointmentsPage() {
 
   const handleExport = () => {
     if (!filteredAppointments.length) {
-      toast('info', 'Nuk ka takime për eksport');
+      toast('info', t('appointments.noAppointmentsToExport'));
       return;
     }
 
     const timestamp = new Date().toISOString().split('T')[0];
 
     if (exportFormat === 'csv') {
-      const headers = ['Data', 'Ora fillimit', 'Ora mbarimit', 'Kandidati', 'Makina', 'Orët', 'Statusi', 'Shënime'];
+      const headers = [
+        t('common.date'),
+        t('appointments.startTime'),
+        t('appointments.endTime'),
+        t('candidates.candidateColumn'),
+        t('cars.vehicleColumn'),
+        t('appointments.hours'),
+        t('common.status'),
+        t('common.notes')
+      ];
       const rows = filteredAppointments.map(apt => {
         const candidate = getCandidateById(apt.candidateId || '');
-        const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName}` : 'I panjohur';
+        const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName}` : t('common.unknown');
         const car = getCarById(apt.carId || '');
         const carInfo = car ? `${car.model} (${car.licensePlate})` : '-';
         
@@ -266,7 +274,7 @@ export function AppointmentsPage() {
           candidateName,
           carInfo,
           (apt.hours || 0).toString(),
-          apt.status === 'scheduled' ? 'E planifikuar' : apt.status === 'completed' ? 'Përfunduar' : apt.status === 'cancelled' ? 'Anuluar' : apt.status || '',
+          apt.status === 'scheduled' ? t('appointments.scheduled') : apt.status === 'completed' ? t('appointments.completed') : apt.status === 'cancelled' ? t('appointments.cancelled') : apt.status || '',
           (apt.notes || '').replace(/"/g, '""')
         ];
       });
@@ -275,34 +283,38 @@ export function AppointmentsPage() {
         .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // Add UTF-8 BOM for Excel compatibility
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `takimet-e-mi_${timestamp}.csv`);
+      link.setAttribute('download', `${t('reports.csvFilenameMyAppointments')}_${timestamp}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast('success', 'Takimet u eksportuan në CSV');
+      toast('success', t('appointments.exportedToCSV'));
     } else {
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Takimet e mia', 14, 20);
+      doc.text(t('appointments.myAppointments'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
-      doc.text(`Total: ${filteredAppointments.length} takime`, 14, 37);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
+      doc.text(`${t('common.total')}: ${filteredAppointments.length} ${t('appointments.appointments')}`, 14, 37);
       
       let yPos = 50;
       doc.setFontSize(8);
       doc.setFont(undefined, 'bold');
-      doc.text('Data', 14, yPos);
-      doc.text('Ora', 50, yPos);
-      doc.text('Kandidati', 80, yPos);
-      doc.text('Makina', 130, yPos);
-      doc.text('Orë', 170, yPos);
-      doc.text('Statusi', 185, yPos);
+      doc.text(t('appointments.date'), 14, yPos);
+      doc.text(t('appointments.time'), 50, yPos);
+      doc.text(t('appointments.student'), 80, yPos);
+      doc.text(t('appointments.vehicle'), 130, yPos);
+      doc.text(t('appointments.hours'), 170, yPos);
+      doc.text(t('common.status'), 185, yPos);
       
       yPos += 6;
       doc.setFont(undefined, 'normal');
@@ -315,10 +327,10 @@ export function AppointmentsPage() {
         }
         
         const candidate = getCandidateById(apt.candidateId || '');
-        const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName}` : 'I panjohur';
+        const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName}` : t('common.unknown');
         const car = getCarById(apt.carId || '');
         const carInfo = car ? `${car.model.substring(0, 10)}` : '-';
-        const status = apt.status === 'scheduled' ? 'Planifikuar' : apt.status === 'completed' ? 'Përfunduar' : apt.status === 'cancelled' ? 'Anuluar' : apt.status || '';
+        const status = apt.status === 'scheduled' ? t('appointments.scheduled') : apt.status === 'completed' ? t('appointments.completed') : apt.status === 'cancelled' ? t('appointments.cancelled') : apt.status || '';
         
         doc.text((apt.date || '').substring(0, 10), 14, yPos);
         doc.text(`${(apt.startTime || '').substring(0, 5)}-${(apt.endTime || '').substring(0, 5)}`, 50, yPos);
@@ -329,35 +341,23 @@ export function AppointmentsPage() {
         yPos += 5;
       });
       
-      doc.save(`takimet-e-mi_${timestamp}.pdf`);
-      toast('success', 'Takimet u eksportuan në PDF');
+      doc.save(`${t('reports.csvFilenameMyAppointments')}_${timestamp}.pdf`);
+      toast('success', t('appointments.exportedToPDF'));
     }
   };
 
   const columns = [
     {
       key: 'date',
-      label: 'Data dhe ora',
+      label: t('appointments.dateAndTime'),
       sortable: true,
       render: (_: unknown, appointment: Appointment) => {
-        // Format date nicely
-        const formatDate = (dateStr: string) => {
-          if (!dateStr) return '';
-          try {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('sq-AL', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric'
-            });
-          } catch {
-            return dateStr;
-          }
-        };
+        const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+        const locale = localeMap[language] || 'sq-AL';
         
         return (
           <div className="min-w-[140px]">
-            <p className="font-semibold text-gray-900 text-sm leading-tight">{formatDate(appointment.date || '')}</p>
+            <p className="font-semibold text-gray-900 text-sm leading-tight">{formatDateUtil(appointment.date || '', locale)}</p>
             <p className="text-xs text-gray-600 font-medium mt-0.5">
               {appointment.startTime} - {appointment.endTime}
             </p>
@@ -367,10 +367,10 @@ export function AppointmentsPage() {
     },
     {
       key: 'candidateId',
-      label: 'Nxënësi',
+      label: t('appointments.student'),
       render: (value: unknown) => {
         const candidate = getCandidateById(value as string);
-        if (!candidate) return <span className="text-gray-400">I panjohur</span>;
+        if (!candidate) return <span className="text-gray-400">{t('common.unknown')}</span>;
         return (
           <div className="flex items-center gap-3">
             <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="sm" />
@@ -388,7 +388,7 @@ export function AppointmentsPage() {
     },
     {
       key: 'carId',
-      label: 'Mjeti',
+      label: t('appointments.vehicle'),
       render: (value: unknown) => {
         if (!value) return <span className="text-gray-400">-</span>;
         const car = getCarById(value as string);
@@ -405,7 +405,8 @@ export function AppointmentsPage() {
     },
     {
       key: 'hours',
-      label: 'Duration',
+      label: t('appointments.hours'),
+      width: '60px',
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">
           {value ? `${value}h` : '-'}
@@ -414,8 +415,9 @@ export function AppointmentsPage() {
     },
     {
       key: 'status',
-      label: 'Statusi',
+      label: t('common.status'),
       sortable: true,
+      width: '160px',
       render: (value: unknown) => {
         const status = value as string;
         const variants: Record<string, 'success' | 'warning' | 'danger'> = {
@@ -423,9 +425,14 @@ export function AppointmentsPage() {
           scheduled: 'warning',
           cancelled: 'danger'
         };
+        const statusLabels: Record<string, string> = {
+          completed: t('appointments.completed'),
+          scheduled: t('appointments.scheduled'),
+          cancelled: t('appointments.cancelled')
+        };
         return (
-          <Badge variant={variants[status] || 'outline'} dot>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+          <Badge variant={variants[status] || 'outline'} dot className="whitespace-nowrap">
+            {statusLabels[status] || status}
           </Badge>
         );
       }
@@ -439,9 +446,9 @@ export function AppointmentsPage() {
     const res = await api.updateAppointment(id, { status: 'completed' });
     if (res.ok) {
       await refreshAppointments();
-      toast('success', 'Takimi u shënua si i përfunduar');
+      toast('success', t('appointments.appointmentUpdated'));
     } else {
-      toast('error', 'Dështoi përditësimi i takimit');
+      toast('error', t('appointments.failedToSave'));
     }
   };
 
@@ -454,15 +461,15 @@ export function AppointmentsPage() {
     const res = await api.updateAppointment(id, { status: 'cancelled' });
     if (res.ok) {
       await refreshAppointments();
-      toast('success', 'Takimi u anulua');
+      toast('success', t('appointments.appointmentCancelled'));
       setCancellingAppointment(null);
     } else {
-      toast('error', 'Dështoi anulimi i takimit');
+      toast('error', t('appointments.failedToCancel'));
     }
   };
 
   const actions = (appointment: Appointment) => (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       {appointment.status === 'scheduled' && (
         <>
           <Button
@@ -470,26 +477,30 @@ export function AppointmentsPage() {
             size="sm"
             onClick={() => handleComplete(appointment)}
             icon={<CheckIcon className="w-4 h-4 text-green-600" />}
-            title="Shëno si të përfunduar"
+            title={t('appointments.markAsCompleted')}
+            className="whitespace-nowrap"
           >
-            Përfundo
+            {t('appointments.markAsCompleted')}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setEditingAppointment(appointment)}
-            icon={<EditIcon className="w-4 h-4" />}
+            icon={<EditIcon className="w-4 h-4 text-gray-600" />}
+            title={t('common.edit')}
+            className="whitespace-nowrap"
           >
-            Ndrysho
+            {t('common.edit')}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setCancellingAppointment(appointment)}
             icon={<XIcon className="w-4 h-4 text-red-600" />}
-            title="Anulo takimin"
+            title={t('appointments.cancelAppointment')}
+            className="whitespace-nowrap"
           >
-            Anulo
+            {t('appointments.cancelAppointment')}
           </Button>
         </>
       )}
@@ -499,7 +510,7 @@ export function AppointmentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Duke u ngarkuar...</p>
+        <p className="text-gray-500">{t('common.loading')}</p>
       </div>
     );
   }
@@ -509,9 +520,9 @@ export function AppointmentsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Takimet</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('appointments.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Menaxhoni mësimet tuaja të drejtimit dhe orarin.
+            {t('appointments.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -520,9 +531,10 @@ export function AppointmentsPage() {
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
               options={[
-                { value: 'csv', label: 'CSV' },
-                { value: 'pdf', label: 'PDF' },
+                { value: 'csv', label: t('reports.csv') },
+                { value: 'pdf', label: t('reports.pdf') },
               ]}
+              placeholder={t('common.selectOption')}
               className="w-24"
             />
             <Button 
@@ -531,11 +543,11 @@ export function AppointmentsPage() {
               icon={<DownloadIcon className="w-4 h-4" />}
               disabled={filteredAppointments.length === 0}
             >
-              Eksporto {exportFormat.toUpperCase()}
+              {t('appointments.export')} {exportFormat.toUpperCase()}
             </Button>
           </div>
           <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
-            Takim i ri
+            {t('appointments.scheduleAppointment')}
           </Button>
         </div>
       </div>
@@ -545,14 +557,14 @@ export function AppointmentsPage() {
         <div className="flex flex-wrap gap-4">
           <div className="w-48">
             <Select
-              placeholder="Të gjitha statuset"
+              placeholder={t('appointments.allStatuses')}
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               options={[
-                { value: '', label: 'Të gjitha statuset' },
-                { value: 'scheduled', label: 'E planifikuar' },
-                { value: 'completed', label: 'Përfunduar' },
-                { value: 'cancelled', label: 'Anuluar' }
+                { value: '', label: t('appointments.allStatuses') },
+                { value: 'scheduled', label: t('appointments.scheduled') },
+                { value: 'completed', label: t('appointments.completed') },
+                { value: 'cancelled', label: t('appointments.cancelled') }
               ]}
             />
           </div>
@@ -566,10 +578,10 @@ export function AppointmentsPage() {
           columns={columns}
           keyExtractor={appointment => appointment._id || appointment.id || ''}
           searchable
-          searchPlaceholder="Search appointments..."
+          searchPlaceholder={t('appointments.searchPlaceholder')}
           searchKeys={['notes']}
           actions={actions}
-          emptyMessage="No appointments found"
+          emptyMessage={t('appointments.noAppointmentsFound')}
         />
       </Card>
 
@@ -585,7 +597,7 @@ export function AppointmentsPage() {
         cars={cars}
         onSuccess={async () => {
           await refreshAppointments();
-          toast('success', editingAppointment ? 'Takimi u përditësua me sukses' : 'Takimi u planifikua me sukses');
+          toast('success', editingAppointment ? t('appointments.appointmentUpdated') : t('appointments.appointmentScheduled'));
           setShowAddModal(false);
           setEditingAppointment(null);
         }}
@@ -596,9 +608,9 @@ export function AppointmentsPage() {
         isOpen={!!cancellingAppointment}
         onClose={() => setCancellingAppointment(null)}
         onConfirm={handleCancel}
-        title="Anulo takimin"
-        message="Jeni të sigurt që dëshironi të anuloni këtë takim? Ky veprim nuk mund të kthehet."
-        confirmText="Anulo takimin"
+        title={t('appointments.cancelAppointment')}
+        message={t('appointments.confirmCancelAppointment')}
+        confirmText={t('appointments.cancelAppointment')}
         variant="danger"
       />
     </div>
@@ -623,6 +635,7 @@ function AddAppointmentModal({
   onSuccess
 }: AddAppointmentModalProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     candidateId: '',
     carId: '',
@@ -742,7 +755,7 @@ function AddAppointmentModal({
     setLoading(true);
     try {
       if (!instructorId) {
-        toast('error', 'Nuk mund të përcaktohet instruktori. Ju lutemi provoni përsëri.');
+        toast('error', t('appointments.unableToDetermineInstructor'));
         setLoading(false);
         return;
       }
@@ -750,7 +763,7 @@ function AddAppointmentModal({
       // For instructors, carId is optional (will be assigned by admin)
       // For admins, carId is required
       if (user?.role === 0 && !formData.carId) {
-        toast('error', 'Ju lutemi zgjidhni një mjet');
+        toast('error', t('appointments.pleaseSelectVehicle'));
         setLoading(false);
         return;
       }
@@ -771,7 +784,7 @@ function AddAppointmentModal({
       if (appointment) {
         const id = appointment._id || appointment.id;
         if (!id) {
-          toast('error', 'ID e pavlefshme e takimit');
+          toast('error', t('appointments.invalidAppointmentId'));
           setLoading(false);
           return;
         }
@@ -793,10 +806,10 @@ function AddAppointmentModal({
         });
         onSuccess();
       } else {
-        toast('error', res.data?.message || 'Dështoi ruajtja e takimit');
+        toast('error', res.data?.message || t('appointments.failedToSave'));
       }
     } catch (error) {
-      toast('error', 'Dështoi ruajtja e takimit');
+      toast('error', t('appointments.failedToSave'));
     } finally {
       setLoading(false);
     }
@@ -823,47 +836,47 @@ function AddAppointmentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={appointment ? 'Ndrysho takimin' : 'Planifiko takim të ri'}
-      description={appointment ? 'Përditësoni detajet e takimit.' : 'Krijoni një takim të ri për mësimin e makinës.'}
+      title={appointment ? t('appointments.editAppointment') : t('appointments.scheduleAppointment')}
+      description={appointment ? t('appointments.updateAppointmentDetails') : t('appointments.createAppointment')}
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            {appointment ? 'Ruaj ndryshimet' : 'Planifiko takimin'}
+            {appointment ? t('common.saveChanges') : t('appointments.scheduleAppointmentButton')}
           </Button>
         </div>
       }
     >
       <form className="space-y-6">
         <Select
-          label="Nxënësi"
+          label={t('appointments.student')}
           required
           value={formData.candidateId}
           onChange={e => setFormData({ ...formData, candidateId: e.target.value })}
           options={activeCandidates.length > 0 ? activeCandidates.map(candidate => ({
             value: candidate._id || candidate.id || '',
             label: `${candidate.firstName} ${candidate.lastName}`
-          })) : [{ value: '', label: 'Nuk ju janë caktuar kandidatë' }]}
+          })) : [{ value: '', label: t('appointments.noCandidatesAssigned') }]}
           disabled={activeCandidates.length === 0}
         />
 
         <Select
-          label="Mjeti"
+          label={t('appointments.vehicle')}
           required={user?.role === 0}
           value={formData.carId}
           onChange={e => setFormData({ ...formData, carId: e.target.value })}
           options={activeCars.length > 0 ? activeCars.map(car => ({
             value: car._id || car.id || '',
             label: `${car.model} (${car.licensePlate})${car.transmission ? ` - ${car.transmission}` : ''}`
-          })) : [{ value: '', label: user?.role === 1 ? 'Nuk ju janë caktuar makina' : 'Nuk ka makina të disponueshme' }]}
+          })) : [{ value: '', label: user?.role === 1 ? t('appointments.noCarsAssigned') : t('appointments.noCarsAvailable') }]}
           disabled={activeCars.length === 0}
         />
 
         <Input
-          label="Data"
+          label={t('appointments.date')}
           type="date"
           required
           value={formData.date}
@@ -872,7 +885,7 @@ function AddAppointmentModal({
 
         <div className="grid grid-cols-3 gap-4">
           <Input
-            label="Start Time"
+            label={t('appointments.startTime')}
             type="time"
             required
             value={formData.startTime}
@@ -886,7 +899,7 @@ function AddAppointmentModal({
             }}
           />
           <Input
-            label="Ora e mbarimit"
+            label={t('appointments.endTime')}
             type="time"
             required
             value={formData.endTime}
@@ -900,20 +913,20 @@ function AddAppointmentModal({
             }}
           />
           <Input
-            label="Orët"
+            label={t('appointments.hours')}
             type="number"
             required
             value={formData.hours}
             onChange={e => setFormData({ ...formData, hours: e.target.value })}
-            hint="Llogaritet automatikisht"
+            hint={t('appointments.calculatedAutomatically')}
           />
         </div>
 
         <TextArea
-          label="Shënime"
+          label={t('appointments.notes')}
           value={formData.notes}
           onChange={e => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Shënime opsionale për këtë mësim..."
+          placeholder={t('appointments.notesPlaceholder')}
           rows={3}
         />
       </form>

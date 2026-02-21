@@ -1,31 +1,52 @@
 const Candidate = require('../models/Candidate');
+const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
+
+// Helper function to sanitize document data (remove sensitive fields)
+const sanitizeDocument = (doc) => {
+    if (!doc) return null;
+    const docObj = doc.toObject ? doc.toObject() : doc;
+    // Remove sensitive fields: filePath, fileSize, originalName
+    const { filePath, fileSize, originalName, ...sanitized } = docObj;
+    
+    // Sanitize uploadedBy field if it exists (remove email)
+    if (sanitized.uploadedBy && typeof sanitized.uploadedBy === 'object') {
+        const { email, ...userData } = sanitized.uploadedBy;
+        sanitized.uploadedBy = userData;
+    }
+    
+    return sanitized;
+};
+
+// Helper function to validate ObjectId
+const isValidObjectId = (id) => {
+    return mongoose.Types.ObjectId.isValid(id) && (new mongoose.Types.ObjectId(id)).toString() === id;
+};
 
 // Upload a document for a candidate
 const uploadDocument = async (req, res, next) => {
     try {
-        console.log('Upload document request received');
-        console.log('Request params:', req.params);
-        console.log('Request file:', req.file ? {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size,
-            path: req.file.path
-        } : 'No file');
-        console.log('Request body:', req.body);
-        console.log('Request user:', req.user ? { id: req.user._id, email: req.user.email, role: req.user.role } : 'No user');
-        
         const { candidateId } = req.params;
         const file = req.file;
         
+        // Validate candidateId
+        if (!isValidObjectId(candidateId)) {
+            if (file && file.path) {
+                fs.unlinkSync(file.path);
+            }
+            return res.status(400).json({ message: 'ID e kandidatit nuk është e vlefshme' });
+        }
+        
         if (!file) {
-            console.error('No file in request');
             return res.status(400).json({ message: 'Nuk u zgjodh asnjë skedar. Ju lutem zgjidhni një skedar për të ngarkuar.' });
         }
         
-        const candidate = await Candidate.findById(candidateId);
-        if (!candidate) {
+        // Verify candidate exists (only check _id to avoid exposing candidate data)
+        const candidateExists = await Candidate.findById(candidateId)
+            .select('_id');
+        
+        if (!candidateExists) {
             // Delete uploaded file if candidate doesn't exist
             if (file.path) {
                 fs.unlinkSync(file.path);
@@ -53,9 +74,26 @@ const uploadDocument = async (req, res, next) => {
         }
         
         // Get document name from request body or use original filename
-        const documentName = req.body.name || path.basename(file.originalname, path.extname(file.originalname));
+        let documentName = req.body.name || path.basename(file.originalname, path.extname(file.originalname));
         
-        // Add document to candidate
+        // Validate document name
+        if (!documentName || !documentName.trim()) {
+            if (file.path) {
+                fs.unlinkSync(file.path);
+            }
+            return res.status(400).json({ message: 'Document name is required' });
+        }
+        
+        // Validate document name length
+        documentName = documentName.trim();
+        if (documentName.length > 255) {
+            if (file.path) {
+                fs.unlinkSync(file.path);
+            }
+            return res.status(400).json({ message: 'Document name is too long (max 255 characters)' });
+        }
+        
+        // Add document to candidate using $push to avoid loading full candidate object
         const newDocument = {
             name: documentName,
             type: documentType,
@@ -66,35 +104,39 @@ const uploadDocument = async (req, res, next) => {
             originalName: file.originalname
         };
         
-        candidate.documents.push(newDocument);
-        await candidate.save();
+        // Use findByIdAndUpdate with $push to add document without exposing candidate data
+        await Candidate.findByIdAndUpdate(
+            candidateId,
+            { $push: { documents: newDocument } },
+            { new: false } // Don't return the updated document to avoid exposing data
+        );
         
-        // Populate uploadedBy field with role information
+        // Populate uploadedBy field with role information (exclude email for security)
+        // Use select to only fetch documents field to avoid exposing candidate data
         const populatedCandidate = await Candidate.findById(candidateId)
-            .populate('documents.uploadedBy', 'firstName lastName email role');
+            .select('documents')
+            .populate('documents.uploadedBy', 'firstName lastName role');
         
         const uploadedDoc = populatedCandidate.documents[populatedCandidate.documents.length - 1];
         
         res.status(201).json({
             message: 'Document uploaded successfully',
-            document: uploadedDoc
+            document: sanitizeDocument(uploadedDoc)
         });
     } catch (err) {
-        console.error('Error uploading document:', err);
-        console.error('Error stack:', err.stack);
         // Delete file if there was an error
         if (req.file && req.file.path) {
             try {
                 fs.unlinkSync(req.file.path);
             } catch (unlinkErr) {
-                console.error('Error deleting file:', unlinkErr);
+                // Silently handle file deletion errors
             }
         }
         
-        // Provide more specific error messages
+        // Provide more specific error messages (without exposing internal details)
         if (err.name === 'ValidationError') {
             return res.status(400).json({
-                message: 'Të dhënat e dokumentit nuk janë të vlefshme: ' + err.message
+                message: 'Të dhënat e dokumentit nuk janë të vlefshme'
             });
         }
         
@@ -104,9 +146,9 @@ const uploadDocument = async (req, res, next) => {
             });
         }
         
-        // Default error response
+        // Default error response (don't expose internal error details)
         res.status(500).json({
-            message: err.message || 'Dështoi ngarkimi i dokumentit. Ju lutem provoni përsëri.'
+            message: 'Dështoi ngarkimi i dokumentit. Ju lutem provoni përsëri.'
         });
     }
 };
@@ -116,15 +158,22 @@ const getDocuments = async (req, res, next) => {
     try {
         const { candidateId } = req.params;
         
+        // Validate candidateId
+        if (!isValidObjectId(candidateId)) {
+            return res.status(400).json({ message: 'ID e kandidatit nuk është e vlefshme' });
+        }
+        
         const candidate = await Candidate.findById(candidateId)
-            .populate('documents.uploadedBy', 'firstName lastName email role')
+            .populate('documents.uploadedBy', 'firstName lastName role')
             .select('documents');
         
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
         
-        res.json(candidate.documents || []);
+        // Sanitize documents before sending
+        const sanitizedDocuments = (candidate.documents || []).map(doc => sanitizeDocument(doc));
+        res.json(sanitizedDocuments);
     } catch (err) {
         next(err);
     }
@@ -135,8 +184,18 @@ const getDocument = async (req, res, next) => {
     try {
         const { candidateId, documentId } = req.params;
         
+        // Validate IDs
+        if (!isValidObjectId(candidateId)) {
+            return res.status(400).json({ message: 'ID e kandidatit nuk është e vlefshme' });
+        }
+        if (!isValidObjectId(documentId)) {
+            return res.status(400).json({ message: 'ID e dokumentit nuk është e vlefshme' });
+        }
+        
+        // Use select to only fetch documents field to avoid exposing candidate data
         const candidate = await Candidate.findById(candidateId)
-            .populate('documents.uploadedBy', 'firstName lastName email role');
+            .select('documents')
+            .populate('documents.uploadedBy', 'firstName lastName role');
         
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
@@ -147,7 +206,7 @@ const getDocument = async (req, res, next) => {
             return res.status(404).json({ message: 'Document not found' });
         }
         
-        res.json(document);
+        res.json(sanitizeDocument(document));
     } catch (err) {
         next(err);
     }
@@ -158,7 +217,18 @@ const downloadDocument = async (req, res, next) => {
     try {
         const { candidateId, documentId } = req.params;
         
-        const candidate = await Candidate.findById(candidateId);
+        // Validate IDs
+        if (!isValidObjectId(candidateId)) {
+            return res.status(400).json({ message: 'ID e kandidatit nuk është e vlefshme' });
+        }
+        if (!isValidObjectId(documentId)) {
+            return res.status(400).json({ message: 'ID e dokumentit nuk është e vlefshme' });
+        }
+        
+        // Use select to only fetch documents field to avoid exposing candidate data
+        const candidate = await Candidate.findById(candidateId)
+            .select('documents');
+        
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
@@ -169,6 +239,16 @@ const downloadDocument = async (req, res, next) => {
         }
         
         const filePath = document.filePath;
+        
+        // Security: Validate that filePath is within the uploads directory to prevent path traversal
+        const uploadsDir = path.join(__dirname, '../../uploads/documents');
+        const resolvedFilePath = path.resolve(filePath);
+        const resolvedUploadsDir = path.resolve(uploadsDir);
+        
+        if (!resolvedFilePath.startsWith(resolvedUploadsDir)) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+        
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ message: 'File not found on server' });
         }
@@ -188,20 +268,21 @@ const downloadDocument = async (req, res, next) => {
         // Set headers for proper file download
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(document.originalName)}"`);
-        res.setHeader('Content-Length', document.fileSize || fs.statSync(filePath).size);
         
-        // Send file
-        const fileStream = fs.createReadStream(filePath);
-        fileStream.pipe(res);
+        // Get file size
+        const stats = fs.statSync(filePath);
+        const fileSize = document.fileSize || stats.size;
+        res.setHeader('Content-Length', fileSize);
         
-        fileStream.on('error', (err) => {
-            console.error('Error streaming file:', err);
-            if (!res.headersSent) {
-                res.status(500).json({ message: 'Error downloading file' });
+        // Send file using res.sendFile which handles streaming better
+        res.sendFile(path.resolve(filePath), (err) => {
+            if (err) {
+                if (!res.headersSent) {
+                    res.status(500).json({ message: 'Error downloading file' });
+                }
             }
         });
     } catch (err) {
-        console.error('Error in downloadDocument:', err);
         next(err);
     }
 };
@@ -211,7 +292,18 @@ const deleteDocument = async (req, res, next) => {
     try {
         const { candidateId, documentId } = req.params;
         
-        const candidate = await Candidate.findById(candidateId);
+        // Validate IDs
+        if (!isValidObjectId(candidateId)) {
+            return res.status(400).json({ message: 'ID e kandidatit nuk është e vlefshme' });
+        }
+        if (!isValidObjectId(documentId)) {
+            return res.status(400).json({ message: 'ID e dokumentit nuk është e vlefshme' });
+        }
+        
+        // Use select to only fetch documents field to avoid exposing candidate data
+        const candidate = await Candidate.findById(candidateId)
+            .select('documents');
+        
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
@@ -223,11 +315,16 @@ const deleteDocument = async (req, res, next) => {
         
         // Delete file from filesystem
         const filePath = document.filePath;
-        if (fs.existsSync(filePath)) {
+        
+        // Security: Validate that filePath is within the uploads directory to prevent path traversal
+        const uploadsDir = path.join(__dirname, '../../uploads/documents');
+        const resolvedFilePath = path.resolve(filePath);
+        const resolvedUploadsDir = path.resolve(uploadsDir);
+        
+        if (resolvedFilePath.startsWith(resolvedUploadsDir) && fs.existsSync(filePath)) {
             try {
                 fs.unlinkSync(filePath);
             } catch (unlinkErr) {
-                console.error('Error deleting file:', unlinkErr);
                 // Continue even if file deletion fails
             }
         }
@@ -248,11 +345,28 @@ const updateDocument = async (req, res, next) => {
         const { candidateId, documentId } = req.params;
         const { name } = req.body;
         
+        // Validate IDs
+        if (!isValidObjectId(candidateId)) {
+            return res.status(400).json({ message: 'ID e kandidatit nuk është e vlefshme' });
+        }
+        if (!isValidObjectId(documentId)) {
+            return res.status(400).json({ message: 'ID e dokumentit nuk është e vlefshme' });
+        }
+        
+        // Validate name
         if (!name || !name.trim()) {
             return res.status(400).json({ message: 'Document name is required' });
         }
         
-        const candidate = await Candidate.findById(candidateId);
+        // Validate name length
+        if (name.trim().length > 255) {
+            return res.status(400).json({ message: 'Document name is too long (max 255 characters)' });
+        }
+        
+        // Use select to only fetch documents field to avoid exposing candidate data
+        const candidate = await Candidate.findById(candidateId)
+            .select('documents');
+        
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
@@ -266,14 +380,16 @@ const updateDocument = async (req, res, next) => {
         document.updatedDate = new Date();
         await candidate.save();
         
+        // Use select to only fetch documents field to avoid exposing candidate data
         const populatedCandidate = await Candidate.findById(candidateId)
-            .populate('documents.uploadedBy', 'firstName lastName email role');
+            .select('documents')
+            .populate('documents.uploadedBy', 'firstName lastName role');
         
         const updatedDoc = populatedCandidate.documents.id(documentId);
         
         res.json({
             message: 'Document updated successfully',
-            document: updatedDoc
+            document: sanitizeDocument(updatedDoc)
         });
     } catch (err) {
         next(err);
@@ -288,4 +404,5 @@ module.exports = {
     deleteDocument,
     updateDocument
 };
+
 

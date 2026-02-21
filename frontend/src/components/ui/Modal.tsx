@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect } from "react";
 import { XIcon } from "lucide-react";
 import { Button } from "./Button";
+import { useLanguage } from "../../hooks/useLanguage";
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 type ModalProps = {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function Modal({
   closeOnEscape = true,
   footer,
 }: ModalProps) {
+  const { t } = useLanguage();
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" && closeOnEscape) {
@@ -101,7 +103,7 @@ export function Modal({
               <button
                 onClick={onClose}
                 className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0"
-                aria-label="Mbyll dritaren"
+                aria-label={t('common.close')}
               >
                 <XIcon className="w-5 h-5" />
               </button>
@@ -140,11 +142,14 @@ export function ConfirmModal({
   onConfirm,
   title,
   message,
-  confirmText = "Konfirmo",
-  cancelText = "Anulo",
+  confirmText,
+  cancelText,
   variant = "danger",
   loading = false,
 }: ConfirmModalProps) {
+  const { t } = useLanguage();
+  const defaultConfirmText = confirmText || t('common.confirm');
+  const defaultCancelText = cancelText || t('common.cancel');
   return (
     <Modal
       isOpen={isOpen}
@@ -160,7 +165,7 @@ export function ConfirmModal({
             fullWidth
             className="sm:w-auto"
           >
-            {cancelText}
+            {defaultCancelText}
           </Button>
           <Button
             variant={variant === "danger" ? "danger" : "primary"}
@@ -169,7 +174,7 @@ export function ConfirmModal({
             fullWidth
             className="sm:w-auto"
           >
-            {confirmText}
+            {defaultConfirmText}
           </Button>
         </div>
       }

@@ -25,6 +25,11 @@ export async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> 
 }
 
 export function getApiUrl(path: string): string {
+  // If API_URL is not configured, use relative path (will be proxied by Vite)
+  // This allows the app to work even when backend is not running
+  if (!API_URL || API_URL.trim() === '') {
+    return path;
+  }
   return `${API_URL}${path}`;
 }
 

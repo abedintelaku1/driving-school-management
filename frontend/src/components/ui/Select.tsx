@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { ChevronDownIcon } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 type SelectOption = {
   value: string;
   label: string;
@@ -32,9 +33,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
   required = false,
   name,
   id,
-  placeholder = 'Select an option',
+  placeholder,
   className = ''
 }, ref) => {
+  const { t } = useLanguage();
+  const defaultPlaceholder = placeholder || t('common.selectOption');
   const selectId = id || name || Math.random().toString(36).substring(2, 9);
   return <div className={`space-y-1.5 ${className}`}>
         {label && <label htmlFor={selectId} className="block text-sm font-medium text-gray-700">
@@ -42,7 +45,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
             {required && <span className="text-red-500 ml-1">*</span>}
           </label>}
         <div className="relative">
-          <select ref={ref} id={selectId} name={name} value={value} onChange={onChange} onBlur={onBlur} disabled={disabled} required={required} className={`
+          <select ref={ref} id={selectId} name={name} value={value || ""} onChange={onChange} onBlur={onBlur} disabled={disabled} required={required} className={`
             block w-full px-3 py-2 pr-10 rounded-lg border appearance-none
             text-gray-900 bg-white
             transition-colors duration-150
@@ -51,7 +54,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
             ${error ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 hover:border-gray-400'}
           `} aria-invalid={error ? 'true' : 'false'} aria-describedby={error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined}>
             <option value="" disabled>
-              {placeholder}
+              {defaultPlaceholder}
             </option>
             {options.map(option => <option key={option.value} value={option.value} disabled={option.disabled}>
                 {option.label}

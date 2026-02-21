@@ -1,73 +1,82 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboardIcon, UsersIcon, CarIcon, GraduationCapIcon, CreditCardIcon, PackageIcon, FileTextIcon, CalendarIcon, ClipboardListIcon, XIcon } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 import type { UserRole } from '../../types';
 type NavItem = {
   label: string;
   path: string;
   icon: React.ReactNode;
 };
-const adminNavItems: NavItem[] = [{
-  label: 'Paneli',
-  path: '/admin',
-  icon: <LayoutDashboardIcon className="w-5 h-5" />
-}, {
-  label: 'Kandidatët',
-  path: '/admin/candidates',
-  icon: <UsersIcon className="w-5 h-5" />
-}, {
-  label: 'Makinat',
-  path: '/admin/cars',
-  icon: <CarIcon className="w-5 h-5" />
-}, {
-  label: 'Instruktorët',
-  path: '/admin/instructors',
-  icon: <GraduationCapIcon className="w-5 h-5" />
-}, {
-  label: 'Pagesat',
-  path: '/admin/payments',
-  icon: <CreditCardIcon className="w-5 h-5" />
-}, {
-  label: 'Paketat',
-  path: '/admin/packages',
-  icon: <PackageIcon className="w-5 h-5" />
-}, {
-  label: 'Raportet',
-  path: '/admin/reports',
-  icon: <FileTextIcon className="w-5 h-5" />
-}];
 
-// Staff (role 2): only Dashboard and Payments – can add payments, cannot edit/delete
-const staffNavItems: NavItem[] = [{
-  label: 'Paneli',
-  path: '/admin',
-  icon: <LayoutDashboardIcon className="w-5 h-5" />
-}, {
-  label: 'Pagesat',
-  path: '/admin/payments',
-  icon: <CreditCardIcon className="w-5 h-5" />
-}];
-const instructorNavItems: NavItem[] = [{
-  label: 'Paneli',
-  path: '/instructor',
-  icon: <LayoutDashboardIcon className="w-5 h-5" />
-}, {
-  label: 'Takimet',
-  path: '/instructor/appointments',
-  icon: <ClipboardListIcon className="w-5 h-5" />
-}, {
-  label: 'Kalendari',
-  path: '/instructor/calendar',
-  icon: <CalendarIcon className="w-5 h-5" />
-}, {
-  label: 'Kandidatët e mi',
-  path: '/instructor/candidates',
-  icon: <UsersIcon className="w-5 h-5" />
-}, {
-  label: 'Raportet',
-  path: '/instructor/reports',
-  icon: <FileTextIcon className="w-5 h-5" />
-}];
+function useNavItems(role: UserRole): NavItem[] {
+  const { t } = useLanguage();
+  
+  const adminNavItems: NavItem[] = [{
+    label: t('sidebar.dashboard'),
+    path: '/admin',
+    icon: <LayoutDashboardIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.candidates'),
+    path: '/admin/candidates',
+    icon: <UsersIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.cars'),
+    path: '/admin/cars',
+    icon: <CarIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.instructors'),
+    path: '/admin/instructors',
+    icon: <GraduationCapIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.payments'),
+    path: '/admin/payments',
+    icon: <CreditCardIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.packages'),
+    path: '/admin/packages',
+    icon: <PackageIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.reports'),
+    path: '/admin/reports',
+    icon: <FileTextIcon className="w-5 h-5" />
+  }];
+
+  // Staff (role 2): only Dashboard and Payments – can add payments, cannot edit/delete
+  const staffNavItems: NavItem[] = [{
+    label: t('sidebar.dashboard'),
+    path: '/admin',
+    icon: <LayoutDashboardIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.payments'),
+    path: '/admin/payments',
+    icon: <CreditCardIcon className="w-5 h-5" />
+  }];
+  
+  const instructorNavItems: NavItem[] = [{
+    label: t('sidebar.dashboard'),
+    path: '/instructor',
+    icon: <LayoutDashboardIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.appointments'),
+    path: '/instructor/appointments',
+    icon: <ClipboardListIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.calendar'),
+    path: '/instructor/calendar',
+    icon: <CalendarIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.myCandidates'),
+    path: '/instructor/candidates',
+    icon: <UsersIcon className="w-5 h-5" />
+  }, {
+    label: t('sidebar.myReports'),
+    path: '/instructor/reports',
+    icon: <FileTextIcon className="w-5 h-5" />
+  }];
+
+  return role === 0 ? adminNavItems : role === 2 ? staffNavItems : instructorNavItems;
+}
 type SidebarProps = {
   role: UserRole;
   collapsed: boolean;
@@ -82,7 +91,8 @@ export function Sidebar({
   mobileOpen,
   onMobileClose
 }: SidebarProps) {
-  const navItems = role === 0 ? adminNavItems : role === 2 ? staffNavItems : instructorNavItems; // 0 = admin, 1 = instructor, 2 = staff
+  const { t } = useLanguage();
+  const navItems = useNavItems(role);
   return <>
       {/* Mobile Overlay */}
       {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onMobileClose} />}
@@ -102,10 +112,10 @@ export function Sidebar({
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                   <CarIcon className="w-5 h-5" />
                 </div>
-                <span className="font-bold text-lg">AutoFlex</span>
+                <span className="font-bold text-lg">{t('app.title')}</span>
               </div>
               {/* Mobile Close Button */}
-              <button onClick={onMobileClose} className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors" aria-label="Close menu">
+              <button onClick={onMobileClose} className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors" aria-label={t('sidebar.closeMenu')}>
                 <XIcon className="w-5 h-5" />
               </button>
             </>}
@@ -129,7 +139,7 @@ export function Sidebar({
         </nav>
 
         {/* Desktop Toggle Button - Hidden on mobile */}
-        <button onClick={onToggle} className="hidden lg:block absolute -right-3 top-20 w-6 h-6 bg-gray-900 border border-gray-700 rounded-full items-center justify-center text-gray-400 hover:text-white transition-colors" aria-label={collapsed ? 'Zgjero menunë' : 'Mbyll menunë'}>
+        <button onClick={onToggle} className="hidden lg:block absolute -right-3 top-20 w-6 h-6 bg-gray-900 border border-gray-700 rounded-full items-center justify-center text-gray-400 hover:text-white transition-colors" aria-label={collapsed ? t('sidebar.expandMenu') : t('sidebar.collapseMenu')}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             {collapsed ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />}
           </svg>

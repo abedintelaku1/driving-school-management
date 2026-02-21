@@ -41,8 +41,8 @@ export type DocumentUploadedBy = {
   _id: string;
   firstName?: string;
   lastName?: string;
-  email?: string;
   role?: number; // 0 = Admin, 1 = Instructor, 2 = Staff
+  // email is not returned by the API for security
 };
 
 export type Document = {
@@ -53,9 +53,8 @@ export type Document = {
   uploadDate: string;
   updatedDate?: string;
   uploadedBy: DocumentUploadedBy | string;
-  filePath: string;
-  fileSize?: number;
-  originalName: string;
+  // Sensitive fields removed from API responses (only used internally on backend)
+  // filePath, fileSize, originalName are not returned by the API
   // Legacy fields (for backward compatibility)
   status?: DocumentStatus;
   submittedAt?: string;
@@ -117,7 +116,7 @@ export type PaymentAddedBy = {
   _id: string;
   firstName?: string;
   lastName?: string;
-  email?: string;
+  // email is not returned by the API for security
 };
 
 export type Payment = {

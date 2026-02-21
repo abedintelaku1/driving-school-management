@@ -7,6 +7,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
 import { api } from '../../utils/api';
 
 type Appointment = {
@@ -32,6 +33,7 @@ type Candidate = {
 
 export function InstructorDashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [cars, setCars] = useState<any[]>([]);
@@ -213,15 +215,17 @@ export function InstructorDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Mirë se u ktheve, {user?.firstName || 'Instruktor'}!
+            {t('instructorDashboard.welcomeBack', { name: user?.firstName || t('instructorDashboard.instructor') })}
           </h1>
           <p className="text-gray-500 mt-1">
-            {todayAppointments.length > 0 ? `Keni ${todayAppointments.length} takim${todayAppointments.length > 1 ? 'e' : ''} sot.` : 'Nuk ka takime të planifikuara për sot.'}
+            {todayAppointments.length > 0 
+              ? t('instructorDashboard.todayAppointments', { count: todayAppointments.length, plural: todayAppointments.length > 1 ? 'e' : '' })
+              : t('instructorDashboard.noAppointmentsToday')}
           </p>
         </div>
         <Link to="/instructor/appointments">
           <Button icon={<CalendarIcon className="w-4 h-4" />}>
-            Takim i ri
+            {t('instructorDashboard.scheduleNewAppointment')}
           </Button>
         </Link>
       </div>
@@ -234,7 +238,7 @@ export function InstructorDashboard() {
               <CalendarIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Mësimet e sotme</p>
+              <p className="text-sm text-gray-500">{t('instructorDashboard.todayLessons')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {todayAppointments.length}
               </p>
@@ -247,7 +251,7 @@ export function InstructorDashboard() {
               <ClockIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Orët këtë muaj</p>
+              <p className="text-sm text-gray-500">{t('instructorDashboard.hoursThisMonth')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {hoursThisMonth}h
               </p>
@@ -260,7 +264,7 @@ export function InstructorDashboard() {
               <UsersIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Nxënës aktivë</p>
+              <p className="text-sm text-gray-500">{t('instructorDashboard.activeStudents')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {activeCandidates.length}
               </p>
@@ -273,7 +277,7 @@ export function InstructorDashboard() {
               <CheckCircleIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Përfunduar këtë muaj</p>
+              <p className="text-sm text-gray-500">{t('instructorDashboard.completedThisMonth')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {completedThisMonth.length}
               </p>
@@ -288,9 +292,9 @@ export function InstructorDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Orari i sotem</CardTitle>
+              <CardTitle>{t('instructorDashboard.todaySchedule')}</CardTitle>
               <Link to="/instructor/calendar" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                Shiko kalendarin <ArrowRightIcon className="w-4 h-4" />
+                {t('instructorDashboard.viewCalendar')} <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -324,7 +328,7 @@ export function InstructorDashboard() {
                           </p>
                         )}
                       </div>
-                      <Badge variant="info">E planifikuar</Badge>
+                      <Badge variant="info">{t('instructorDashboard.scheduled')}</Badge>
                     </div>
                   );
                 })}
@@ -332,10 +336,10 @@ export function InstructorDashboard() {
             ) : (
               <div className="text-center py-8">
                 <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">Nuk ka mësime të planifikuara për sot</p>
+                <p className="text-gray-500">{t('instructorDashboard.noLessonsToday')}</p>
                 <Link to="/instructor/appointments">
                   <Button variant="outline" size="sm" className="mt-3">
-                    Planifiko një mësim
+                    {t('instructorDashboard.scheduleLesson')}
                   </Button>
                 </Link>
               </div>
@@ -347,9 +351,9 @@ export function InstructorDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Takimet e ardhshme</CardTitle>
+              <CardTitle>{t('instructorDashboard.upcomingAppointments')}</CardTitle>
               <Link to="/instructor/appointments" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                Shiko të gjitha <ArrowRightIcon className="w-4 h-4" />
+                {t('instructorDashboard.viewAll')} <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -387,7 +391,7 @@ export function InstructorDashboard() {
               </div>
             ) : (
               <p className="text-center text-gray-500 py-8">
-                Nuk ka takime të ardhshme
+                {t('instructorDashboard.noUpcomingAppointments')}
               </p>
             )}
           </CardContent>
@@ -398,9 +402,9 @@ export function InstructorDashboard() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Nxënësit e mi</CardTitle>
+            <CardTitle>{t('instructorDashboard.myStudents')}</CardTitle>
             <Link to="/instructor/candidates" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              Shiko të gjitha <ArrowRightIcon className="w-4 h-4" />
+              {t('instructorDashboard.viewAll')} <ArrowRightIcon className="w-4 h-4" />
             </Link>
           </div>
         </CardHeader>
@@ -425,7 +429,7 @@ export function InstructorDashboard() {
                         {candidate.firstName} {candidate.lastName}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {completedHours}h përfunduar
+                        {t('instructorDashboard.hoursCompleted', { hours: completedHours })}
                       </p>
                     </div>
                   </div>
@@ -434,7 +438,7 @@ export function InstructorDashboard() {
             </div>
           ) : (
             <p className="text-center text-gray-500 py-8">
-              Nuk ka nxënës aktivë
+              {t('instructorDashboard.noActiveStudents')}
             </p>
           )}
         </CardContent>

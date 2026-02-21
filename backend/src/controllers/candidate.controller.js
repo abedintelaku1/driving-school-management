@@ -82,8 +82,6 @@ const create = async (req, res, next) => {
             status
         } = req.body;
         
-        console.log('Received candidate data:', { firstName, lastName, email, phone, dateOfBirth, personalNumber, address });
-        
         // Validate required fields
         if (!firstName || !firstName.trim()) {
             return res.status(400).json({ message: 'First name is required' });
@@ -119,7 +117,6 @@ const create = async (req, res, next) => {
         // Check if email already exists
         const existingEmail = await Candidate.findOne({ email: normalizedEmail });
         if (existingEmail) {
-            console.log('Email already exists:', normalizedEmail, 'Existing candidate:', existingEmail._id);
             return res.status(400).json({ 
                 message: 'Email already in use' 
             });
@@ -129,7 +126,6 @@ const create = async (req, res, next) => {
         const trimmedPersonalNumber = personalNumber.trim();
         const existingPersonalNumber = await Candidate.findOne({ personalNumber: trimmedPersonalNumber });
         if (existingPersonalNumber) {
-            console.log('Personal number already exists:', trimmedPersonalNumber, 'Existing candidate:', existingPersonalNumber._id);
             return res.status(400).json({ 
                 message: 'Personal number already in use' 
             });
@@ -164,9 +160,8 @@ const create = async (req, res, next) => {
             .populate('instructorId', 'phone address dateOfBirth personalNumber');
         
         // Send welcome email to candidate (async, don't wait for it)
-        emailService.sendWelcomeEmail(populated).catch(err => {
-            console.error('❌ Failed to send welcome email to', populated.email, ':', err.message);
-            // Don't throw - email failure shouldn't block candidate creation
+        emailService.sendWelcomeEmail(populated).catch(() => {
+            // Silently handle email errors
         });
         
         // Send email to instructor if candidate is assigned to one
@@ -174,49 +169,36 @@ const create = async (req, res, next) => {
             const Instructor = require('../models/Instructor');
             const instructor = await Instructor.findById(populated.instructorId).populate('user');
             if (instructor && instructor.user && instructor.user.email) {
-                emailService.sendCandidateAssignedEmail(instructor, populated).catch(err => {
-                    console.error('❌ Failed to send candidate assignment email to instructor', instructor.user.email, ':', err.message);
-                    // Don't throw - email failure shouldn't block candidate creation
+                emailService.sendCandidateAssignedEmail(instructor, populated).catch(() => {
+                    // Silently handle email errors
                 });
             }
         }
         
         // Create notifications (async, don't wait for it)
-        notificationService.notifyCandidateCreated(populated, req.user.id).catch(err => {
-            console.error('Error creating notifications:', err);
+        notificationService.notifyCandidateCreated(populated, req.user.id).catch(() => {
+            // Silently handle notification errors
         });
         
         res.status(201).json(populated);
     } catch (err) {
-        console.error('Error creating candidate:', err);
-        console.error('Error details:', {
-            code: err.code,
-            keyPattern: err.keyPattern,
-            keyValue: err.keyValue,
-            message: err.message
-        });
         if (err.code === 11000) {
             // Duplicate key error
             if (err.keyPattern?.email) {
-                console.log('Duplicate email detected:', err.keyValue?.email);
                 return res.status(400).json({ 
                     message: 'Email already in use' 
                 });
             }
             if (err.keyPattern?.personalNumber) {
-                console.log('Duplicate personal number detected:', err.keyValue?.personalNumber);
                 return res.status(400).json({ 
                     message: 'Personal number already in use' 
                 });
             }
             if (err.keyPattern?.uniqueClientNumber) {
-                console.log('Duplicate unique client number detected:', err.keyValue?.uniqueClientNumber);
-                // This shouldn't happen as we generate it, but handle it anyway
                 return res.status(400).json({ 
                     message: 'Client number conflict. Please try again.' 
                 });
             }
-            console.log('Unknown duplicate key error:', err.keyPattern);
             return res.status(400).json({ 
                 message: 'Email or personal number already in use' 
             });
@@ -308,8 +290,8 @@ const update = async (req, res, next) => {
             const Instructor = require('../models/Instructor');
             const instructor = await Instructor.findById(newInstructorId).populate('user');
             if (instructor && instructor.user && instructor.user.email) {
-                emailService.sendCandidateAssignedEmail(instructor, populated).catch(err => {
-                    console.error('❌ Failed to send candidate assignment email to instructor', instructor.user.email, ':', err.message);
+                emailService.sendCandidateAssignedEmail(instructor, populated).catch(() => {
+                    // Silently handle email errors
                 });
                 
                 // Also create notification for the instructor
@@ -320,15 +302,14 @@ const update = async (req, res, next) => {
                     type: 'success',
                     relatedEntity: 'candidate',
                     relatedEntityId: populated._id
-                }).catch(err => {
-                    console.error('Error creating notification for instructor:', err);
+                }).catch(() => {
+                    // Silently handle notification errors
                 });
             }
         }
         
         res.json(populated);
     } catch (err) {
-        console.error('Error updating candidate:', err);
         if (err.code === 11000) {
             if (err.keyPattern?.email) {
                 return res.status(400).json({ 

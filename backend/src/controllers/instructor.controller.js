@@ -8,7 +8,7 @@ const emailService = require('../services/email.service');
 const list = async (_req, res, next) => {
     try {
         const instructors = await Instructor.find()
-            .populate('user', 'firstName lastName email role')
+            .populate('user', 'firstName lastName role')
             .sort({ createdAt: -1 });
         
         // Calculate totalHours for all instructors using aggregation
@@ -49,7 +49,7 @@ const list = async (_req, res, next) => {
 const getById = async (req, res, next) => {
     try {
         const instructor = await Instructor.findById(req.params.id)
-            .populate('user', 'firstName lastName email role');
+            .populate('user', 'firstName lastName role');
         if (!instructor) {
             return res.status(404).json({ message: 'Instructor not found' });
         }
@@ -62,7 +62,7 @@ const getById = async (req, res, next) => {
 const getMe = async (req, res, next) => {
     try {
         const instructor = await Instructor.findOne({ user: req.user._id })
-            .populate('user', 'firstName lastName email role');
+            .populate('user', 'firstName lastName role');
         if (!instructor) {
             return res.status(404).json({ message: 'Instructor profile not found' });
         }
@@ -76,11 +76,8 @@ const create = async (req, res, next) => {
     try {
         const { firstName, lastName, email = '', password, phone, address, dateOfBirth, personalNumber, specialties = [], assignedCarIds = [], personalCar, instructorType = 'insider', ratePerHour = 0, debtPerHour = 0 } = req.body;
         
-        console.log('Creating instructor with data:', { firstName, lastName, email, phone, address, dateOfBirth, personalNumber });
-        
         // Validate required fields
         if (!firstName || !lastName || !email || !password || !phone || !address || !dateOfBirth || !personalNumber) {
-            console.log('Validation failed: Missing required fields');
             return res.status(400).json({ message: 'All required fields must be provided' });
         }
         
@@ -197,10 +194,7 @@ const create = async (req, res, next) => {
                 // Update instructor with personal car ID
                 instructor.personalCarIds = [personalCarId];
                 await instructor.save();
-                
-                console.log('Personal car created for instructor:', personalCarId);
             } catch (carErr) {
-                console.error('Error creating personal car:', carErr);
                 // If car creation fails, we should still return the instructor but log the error
                 // Optionally, you could delete the instructor here if car creation is critical
                 if (carErr.code === 11000) {
@@ -221,24 +215,32 @@ const create = async (req, res, next) => {
         
         // Populate and return
         const populated = await Instructor.findById(instructor._id)
-            .populate('user', 'firstName lastName email role');
+            .populate('user', 'firstName lastName role');
         
         // Send welcome email to instructor (async, don't wait for it)
-        emailService.sendInstructorWelcomeEmail(populated).catch(err => {
-            console.error('❌ Failed to send welcome email to instructor', populated.user?.email, ':', err.message);
+        emailService.sendInstructorWelcomeEmail(populated).catch(() => {
+            // Silently handle email errors
         });
         
         // Create notifications for admin users (async, don't wait for it)
-        notificationService.notifyInstructorCreated(populated, req.user.id).catch(err => {
-            console.error('Error creating notifications for instructor:', err);
+        notificationService.notifyInstructorCreated(populated, req.user.id).catch(() => {
+            // Silently handle notification errors
         });
         
-        console.log('Instructor created successfully:', populated._id);
         res.status(201).json(populated);
     } catch (err) {
-        console.error('Error creating instructor:', err);
         if (err.code === 11000) {
             // Check which field caused the duplicate
+            if (err.keyPattern?.email) {
+                return res.status(400).json({ message: 'Email already in use' });
+            }
+            if (err.keyPattern?.personalNumber) {
+                return res.status(400).json({ message: 'Personal number already in use' });
+            }
+            return res.status(400).json({ message: 'Email or personal number already in use' });
+        }
+        if (err.code === 11000) {
+            // Duplicate key error
             if (err.keyPattern?.email) {
                 return res.status(400).json({ message: 'Email already in use' });
             }
@@ -299,7 +301,7 @@ const update = async (req, res, next) => {
         await instructor.save();
         
         const populated = await Instructor.findById(instructor._id)
-            .populate('user', 'firstName lastName email role');
+            .populate('user', 'firstName lastName role');
         
         res.json(populated);
     } catch (err) {
@@ -333,17 +335,18 @@ const remove = async (req, res, next) => {
 const getProfile = async (req, res, next) => {
     try {
         const instructor = await Instructor.findOne({ user: req.user._id })
-            .populate('user', 'firstName lastName email role');
+            .populate('user', 'firstName lastName role');
         
         if (!instructor) {
             return res.status(404).json({ message: 'Instructor profile not found' });
         }
         
+        // Only return email for own profile (instructor viewing their own profile)
         res.json({
             id: instructor.user._id,
             firstName: instructor.user.firstName,
             lastName: instructor.user.lastName,
-            email: instructor.user.email,
+            email: instructor.user.email, // Own email is OK for profile view
             role: instructor.user.role,
             phone: instructor.phone,
             address: instructor.address,
@@ -410,11 +413,12 @@ const updateProfile = async (req, res, next) => {
         if (address !== undefined) instructor.address = address;
         await instructor.save();
         
+        // Only return email for own profile (instructor updating their own profile)
         res.json({
             id: user._id,
             firstName: user.firstName,
             lastName: user.lastName,
-            email: user.email,
+            email: user.email, // Own email is OK for profile view
             role: user.role,
             phone: instructor.phone,
             address: instructor.address,

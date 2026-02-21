@@ -32,11 +32,17 @@ async function seedUsers() {
       const exists = await User.findOne({ email: u.email.toLowerCase().trim() });
       if (!exists) {
         await User.create(u);
-        console.log(`Created default user: ${u.email} (${roleLabel(u.role)})`);
+        // Don't log email addresses in production
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Created default user: ${roleLabel(u.role)}`);
+        }
       }
     }
   } catch (err) {
-    console.error('Seed users error:', err);
+    // Don't log error details in production
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Seed users error:', err);
+    }
     throw err;
   }
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircleIcon, XCircleIcon, AlertTriangleIcon, InfoIcon, XIcon } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 import type { Toast as ToastType, ToastType as ToastVariant } from '../../hooks/useToast';
 type ToastProps = {
   toast: ToastType;
@@ -21,6 +22,7 @@ export function Toast({
   toast,
   onDismiss
 }: ToastProps) {
+  const { t } = useLanguage();
   return <div className={`
         flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg
         animate-in slide-in-from-right-full duration-300
@@ -28,7 +30,7 @@ export function Toast({
       `} role="alert">
       {iconMap[toast.type]}
       <p className="flex-1 text-sm text-gray-700">{toast.message}</p>
-      <button onClick={() => onDismiss(toast.id)} className="p-1 rounded hover:bg-black/5 transition-colors" aria-label="Dismiss">
+      <button onClick={() => onDismiss(toast.id)} className="p-1 rounded hover:bg-black/5 transition-colors" aria-label={t('common.dismiss')}>
         <XIcon className="w-4 h-4 text-gray-400" />
       </button>
     </div>;
@@ -41,8 +43,9 @@ export function ToastContainer({
   toasts,
   onDismiss
 }: ToastContainerProps) {
+  const { t } = useLanguage();
   if (toasts.length === 0) return null;
-  return <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-4 sm:px-0" aria-live="polite" aria-label="Notifications">
+  return <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-4 sm:px-0" aria-live="polite" aria-label={t('common.notifications')}>
       {toasts.map(toast => <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />)}
     </div>;
 }

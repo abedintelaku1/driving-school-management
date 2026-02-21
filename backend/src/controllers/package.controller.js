@@ -57,7 +57,6 @@ const create = async (req, res, next) => {
         
         res.status(201).json(pkg);
     } catch (err) {
-        console.error('Error creating package:', err);
         next(err);
     }
 };
@@ -97,7 +96,6 @@ const update = async (req, res, next) => {
         
         res.json(pkg);
     } catch (err) {
-        console.error('Error updating package:', err);
         next(err);
     }
 };

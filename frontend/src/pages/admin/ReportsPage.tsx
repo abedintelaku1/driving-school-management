@@ -13,10 +13,12 @@ import { Tabs, TabList, Tab, TabPanel } from "../../components/ui/Tabs";
 import { DataTable } from "../../components/ui/DataTable";
 import { Badge } from "../../components/ui/Badge";
 import { Select } from "../../components/ui/Select";
+import { useLanguage } from "../../hooks/useLanguage";
 import { api } from "../../utils/api";
 import { toast } from "../../hooks/useToast";
 import { ReportExportModal } from "../../components/ui/ReportExportModal";
 import jsPDF from "jspdf";
+import { formatCurrentDate, formatCurrentDateTime, formatDate, formatDateFull, formatMonthName } from "../../utils/dateUtils";
 
 // Helper function to format numbers: max 2 decimals, but if whole number, no .00
 const formatNumber = (num: number): string => {
@@ -94,6 +96,7 @@ type Appointment = {
 };
 
 export function ReportsPage() {
+  const { t, language } = useLanguage();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -232,31 +235,34 @@ export function ReportsPage() {
           ? `to_${dateTo}`
           : "all";
       const timestamp = new Date().toISOString().split("T")[0];
-      const filename = `reports_all_${dateRange}_${timestamp}.csv`;
+      const filename = `${t('reports.csvFilenameAllReports')}_${dateRange}_${timestamp}.csv`;
 
-      let csvContent = "Menaxhimi i shkollës së makinave - Eksport i plotë raportesh\n";
-      csvContent += `Gjeneruar: ${new Date().toLocaleString("sq-AL")}\n`;
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      
+      let csvContent = `${t('reports.fullExportTitle')}\n`;
+      csvContent += `${t('reports.generated')}: ${formatCurrentDateTime(locale)}\n`;
       if (dateFrom || dateTo) {
-        csvContent += `Periudha: ${dateFrom || "Të gjitha"} deri ${
-          dateTo || "Të gjitha"
+        csvContent += `${t('reports.period')}: ${dateFrom || t('reports.all')} ${t('common.to')} ${
+          dateTo || t('reports.all')
         }\n`;
       }
       csvContent += "\n";
 
       // 1. Summary Stats
-      csvContent += "=== STATISTIKA PËRMBLEDHËSE ===\n";
-      csvContent += `Kandidatët gjithsej,${totalCandidates}\n`;
-      csvContent += `Kandidatë aktivë,${activeCandidates}\n`;
-      csvContent += `Të ardhurat gjithsej,${formatCurrency(totalRevenue)}\n`;
-      csvContent += `Orë të mësuara gjithsej,${formatNumber(totalHours)}\n`;
-      csvContent += `Makinat aktive,${
+      csvContent += `=== ${t('reports.summaryStatistics')} ===\n`;
+      csvContent += `${t('reports.totalCandidatesLabel')},${totalCandidates}\n`;
+      csvContent += `${t('reports.activeCandidatesLabel')},${activeCandidates}\n`;
+      csvContent += `${t('reports.totalRevenueLabel')},${formatCurrency(totalRevenue)}\n`;
+      csvContent += `${t('reports.totalHoursTaughtLabel')},${formatNumber(totalHours)}\n`;
+      csvContent += `${t('reports.activeCarsLabel')},${
         cars.filter((c) => !c.status || c.status === "active").length
       }\n`;
-      csvContent += `Makinat gjithsej,${cars.length}\n`;
+      csvContent += `${t('reports.totalCarsLabel')},${cars.length}\n`;
       csvContent += "\n";
 
       // 2. Instructor Performance
-      csvContent += "=== INSTRUCTOR PERFORMANCE ===\n";
+      csvContent += `=== ${t('reports.instructorPerformanceTitle')} ===\n`;
       const instructorStats = instructors
         .filter((instructor) => instructor != null)
         .map((instructor) => {
@@ -293,7 +299,7 @@ export function ReportsPage() {
           const ratePerHour = instructor.ratePerHour || 0;
           const totalCredits = instructor.totalCredits || 0;
           return {
-            name: `${firstName} ${lastName}`.trim() || "I panjohur",
+            name: `${firstName} ${lastName}`.trim() || t('common.unknown'),
             totalHours,
             completedLessons: completedAppointments.length,
             activeCandidates: instructorCandidates.filter(
@@ -308,9 +314,9 @@ export function ReportsPage() {
         });
 
       csvContent +=
-        "Instruktori,Lloji,Orë të mësuara,Paga për orë,Pagesa totale,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
+        `${t('reports.instructorColumn')},${t('reports.typeColumn')},${t('reports.hoursTaughtColumn')},${t('reports.payPerHourColumn')},${t('reports.totalPaymentColumn')},${t('reports.lessonsColumn')},${t('reports.activeStudentsColumn')},${t('reports.totalStudentsColumn')},${t('reports.statusColumn')}\n`;
       instructorStats.forEach((stat) => {
-        const type = stat.instructorType === 'outsider' ? 'Me orë' : 'Rrogë fikse';
+        const type = stat.instructorType === 'outsider' ? t('reports.byHour') : t('reports.fixedSalary');
         const ratePerHour = stat.instructorType === 'outsider' ? formatCurrency(stat.ratePerHour || 0) : '-';
         const totalCredits = stat.instructorType === 'outsider' ? formatCurrency(stat.totalCredits || 0) : '-';
         csvContent +=
@@ -319,7 +325,7 @@ export function ReportsPage() {
       csvContent += "\n";
 
       // 3. Candidate Progress
-      csvContent += "=== ECURIA E KANDIDATËVE ===\n";
+      csvContent += `=== ${t('reports.candidateProgressTitle')} ===\n`;
       const candidateStats = candidates
         .filter(
           (candidate) =>
@@ -360,7 +366,7 @@ export function ReportsPage() {
         });
 
       csvContent +=
-        "Kandidati,Numri i klientit,Orë të përfunduara,Mësime të planifikuara,Totali i paguar,Statusi\n";
+        `${t('reports.candidateColumn')},${t('reports.clientNumberColumn')},${t('reports.completedHoursColumn')},${t('reports.scheduledLessonsColumn')},${t('reports.totalPaidColumn')},${t('reports.statusColumn')}\n`;
       candidateStats.forEach((stat) => {
         csvContent += `"${stat.name}","${stat.clientNumber}",${
           formatNumber(stat.completedHours)
@@ -371,7 +377,7 @@ export function ReportsPage() {
       csvContent += "\n";
 
       // 4. Car Usage
-      csvContent += "=== PËRDORIMI I MAKINAVE ===\n";
+      csvContent += `=== ${t('reports.carUsageTitle')} ===\n`;
       const carStats = cars
         .filter((car) => car != null && car.model && car.licensePlate)
         .map((car) => {
@@ -399,14 +405,14 @@ export function ReportsPage() {
         });
 
       csvContent +=
-        "Modeli,Targat,Orë gjithsej,Përdorim i fundit,Inspektimi tjetër,Statusi\n";
+        `${t('cars.modelColumn')},${t('cars.licensePlateColumn')},${t('reports.totalHoursColumn')},${t('reports.recentUsageColumn')},${t('cars.nextInspectionColumn')},${t('reports.statusColumn')}\n`;
       carStats.forEach((stat) => {
         csvContent += `"${stat.model}","${stat.licensePlate}",${formatNumber(stat.totalHours)},${formatNumber(stat.recentUsage)},"${stat.nextInspection}",${stat.status}\n`;
       });
       csvContent += "\n";
 
       // 5. Payment Summary
-      csvContent += "=== PËRMBLEDHJE PAGESASH SIPAS MUAJIT ===\n";
+      csvContent += `=== ${t('reports.paymentSummaryByMonth')} ===\n`;
       const paymentsByMonth: Record<
         string,
         {
@@ -449,15 +455,9 @@ export function ReportsPage() {
         }))
         .sort((a, b) => b.month.localeCompare(a.month));
 
-      csvContent += "Muaji,Totali,Transaksione,Bankë,Para në dorë\n";
+      csvContent += `${t('reports.monthColumn')},${t('reports.totalColumn')},${t('reports.transactionsColumn')},${t('reports.bankColumn')},${t('reports.cashColumn')}\n`;
       monthlyData.forEach((data) => {
-        const monthName = new Date(data.month + "-01").toLocaleDateString(
-          "sq-AL",
-          {
-            year: "numeric",
-            month: "long",
-          }
-        );
+        const monthName = formatMonthName(data.month + "-01", locale);
         csvContent += `"${monthName}",${formatCurrency(data.total)},${
           data.count
         },${formatCurrency(data.bank)},${formatCurrency(data.cash)}\n`;
@@ -476,17 +476,17 @@ export function ReportsPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast("success", "Raportet u eksportuan me sukses");
+      toast("success", t('reports.reportsExported'));
     } catch (error) {
       console.error("Error exporting reports:", error);
-      toast("error", "Dështoi eksportimi i raporteve");
+      toast("error", t('reports.exportFailed'));
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Duke ngarkuar raportet...</p>
+        <p className="text-gray-500">{t('reports.loadingReports')}</p>
       </div>
     );
   }
@@ -495,9 +495,9 @@ export function ReportsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Raportet</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('reports.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Shikoni dhe eksportoni raporte për të gjitha entitetet.
+            {t('reports.subtitle')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -506,21 +506,21 @@ export function ReportsPage() {
             icon={<DownloadIcon className="w-4 h-4" />}
             onClick={handleExportAll}
           >
-            Eksporto CSV
+            {t('reports.exportCSV')}
           </Button>
           <Button
             variant="primary"
             icon={<DownloadIcon className="w-4 h-4" />}
             onClick={() => setShowCandidateExportModal(true)}
           >
-            Eksporto Kandidat
+            {t('reports.exportCandidate')}
           </Button>
           <Button
             variant="primary"
             icon={<DownloadIcon className="w-4 h-4" />}
             onClick={() => setShowInstructorExportModal(true)}
           >
-            Eksporto Instruktor
+            {t('reports.exportInstructor')}
           </Button>
         </div>
       </div>
@@ -533,12 +533,12 @@ export function ReportsPage() {
               <UsersIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Kandidatët gjithsej</p>
+              <p className="text-sm text-gray-500">{t('reports.totalCandidates')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {totalCandidates}
               </p>
               <p className="text-xs text-green-600">
-                {activeCandidates} aktivë
+                {activeCandidates} {t('reports.active')}
               </p>
             </div>
           </div>
@@ -549,12 +549,12 @@ export function ReportsPage() {
               <CreditCardIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Të ardhurat gjithsej</p>
+              <p className="text-sm text-gray-500">{t('reports.totalRevenue')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(totalRevenue)}
               </p>
               <p className="text-xs text-gray-500">
-                {filteredPayments.length} transaksione
+                {filteredPayments.length} {t('reports.transactions')}
               </p>
             </div>
           </div>
@@ -565,14 +565,14 @@ export function ReportsPage() {
               <CalendarIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Orë të mësuara</p>
+              <p className="text-sm text-gray-500">{t('reports.hoursTaught')}</p>
               <p className="text-2xl font-bold text-gray-900">{formatNumber(totalHours)}h</p>
               <p className="text-xs text-gray-500">
                 {
                   filteredAppointments.filter((a) => a.status === "completed")
                     .length
                 }{" "}
-                mësime
+                {t('reports.lessons')}
               </p>
             </div>
           </div>
@@ -583,11 +583,11 @@ export function ReportsPage() {
               <CarIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Makinat aktive</p>
+              <p className="text-sm text-gray-500">{t('reports.activeCars')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {cars.filter((c) => !c.status || c.status === "active").length}
               </p>
-              <p className="text-xs text-gray-500">nga {cars.length} gjithsej</p>
+              <p className="text-xs text-gray-500">{t('reports.fromTotal').replace('{total}', cars.length.toString())}</p>
             </div>
           </div>
         </Card>
@@ -599,7 +599,7 @@ export function ReportsPage() {
           <div className="flex-1 flex flex-wrap gap-3">
             <div className="w-full sm:w-40">
               <Input
-                label="Nga data"
+                label={t('reports.fromDate')}
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
@@ -607,7 +607,7 @@ export function ReportsPage() {
             </div>
             <div className="w-full sm:w-40">
               <Input
-                label="Deri në datë"
+                label={t('reports.toDate')}
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
@@ -616,7 +616,7 @@ export function ReportsPage() {
           </div>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Pastro
+              {t('common.clear')}
             </Button>
           )}
         </div>
@@ -625,10 +625,10 @@ export function ReportsPage() {
       {/* Report Tabs */}
       <Tabs defaultTab="instructors">
         <TabList>
-          <Tab value="instructors">Performanca e instruktorëve</Tab>
-          <Tab value="candidates">Ecuria e kandidatëve</Tab>
-          <Tab value="cars">Përdorimi i makinave</Tab>
-          <Tab value="payments">Përmbledhje pagesash</Tab>
+          <Tab value="instructors">{t('reports.instructorPerformance')}</Tab>
+          <Tab value="candidates">{t('reports.candidateProgress')}</Tab>
+          <Tab value="cars">{t('reports.carUsage')}</Tab>
+          <Tab value="payments">{t('reports.paymentSummary')}</Tab>
         </TabList>
 
         <TabPanel value="instructors">
@@ -695,6 +695,7 @@ function InstructorPerformanceReport({
   instructors: Instructor[];
   candidates: Candidate[];
 }) {
+  const { t } = useLanguage();
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   
   const instructorStats = instructors
@@ -733,7 +734,7 @@ function InstructorPerformanceReport({
       const totalCredits = instructor.totalCredits || 0;
       return {
         id: instructorId,
-        name: `${firstName} ${lastName}`.trim() || "I panjohur",
+        name: `${firstName} ${lastName}`.trim() || t('common.unknown'),
         totalHours,
         completedLessons: completedAppointments.length,
         activeCandidates: instructorCandidates.filter(
@@ -752,16 +753,16 @@ function InstructorPerformanceReport({
     
     if (exportFormat === 'csv') {
       const BOM = "\uFEFF";
-      let csvContent = BOM + "=== PERFORMANCA E INSTRUKTORËVE ===\n";
-      csvContent += "Instruktori,Lloji,Orë të mësuara,Paga për orë,Pagesa totale,Mësime të përfunduara,Nxënës aktivë,Nxënës gjithsej,Statusi\n";
+      let csvContent = BOM + `=== ${t('reports.instructorPerformanceTitle')} ===\n`;
+      csvContent += `${t('reports.instructorColumn')},${t('reports.typeColumn')},${t('reports.hoursTaughtColumn')},${t('reports.payPerHourColumn')},${t('reports.totalPaymentColumn')},${t('reports.lessonsColumn')},${t('reports.activeStudentsColumn')},${t('reports.totalStudentsColumn')},${t('reports.statusColumn')}\n`;
       instructorStats.forEach((stat) => {
-        const type = stat.instructorType === 'outsider' ? 'Me orë' : 'Rrogë fikse';
+        const type = stat.instructorType === 'outsider' ? t('reports.byHour') : t('reports.fixedSalary');
         const ratePerHour = stat.instructorType === 'outsider' ? formatCurrency(stat.ratePerHour || 0) : '-';
         const totalCredits = stat.instructorType === 'outsider' ? formatCurrency(stat.totalCredits || 0) : '-';
         csvContent += `"${stat.name}","${type}",${formatNumber(stat.totalHours)},"${ratePerHour}","${totalCredits}",${stat.completedLessons},${stat.activeCandidates},${stat.totalCandidates},${stat.status}\n`;
       });
 
-      const filename = `performanca-instruktoreve_${timestamp}.csv`;
+      const filename = `${t('reports.csvFilenameInstructorPerformance')}_${timestamp}.csv`;
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -775,21 +776,21 @@ function InstructorPerformanceReport({
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Performanca e Instruktorëve', 14, 20);
+      doc.text(t('reports.instructorPerformanceTitle'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
-      doc.text('Instruktori', 14, yPos);
-      doc.text('Lloji', 50, yPos);
-      doc.text('Orë', 70, yPos);
-      doc.text('Paga/orë', 85, yPos);
-      doc.text('Pagesa', 110, yPos);
-      doc.text('Mësime', 135, yPos);
-      doc.text('Nx. aktivë', 155, yPos);
-      doc.text('Nx. gjithsej', 180, yPos);
+      doc.text(t('reports.instructorColumn'), 14, yPos);
+      doc.text(t('reports.typeColumn'), 50, yPos);
+      doc.text(t('reports.hoursTaughtColumn'), 70, yPos);
+      doc.text(t('reports.payPerHourColumn'), 85, yPos);
+      doc.text(t('reports.totalPaymentColumn'), 110, yPos);
+      doc.text(t('reports.lessonsColumn'), 135, yPos);
+      doc.text(t('reports.activeStudentsColumn'), 155, yPos);
+      doc.text(t('reports.totalStudentsColumn'), 180, yPos);
       
       yPos += 8;
       doc.setFont(undefined, 'normal');
@@ -802,20 +803,20 @@ function InstructorPerformanceReport({
           // Redraw headers on new page
           doc.setFontSize(11);
           doc.setFont(undefined, 'bold');
-          doc.text('Instruktori', 14, yPos);
-          doc.text('Lloji', 50, yPos);
-          doc.text('Orë', 70, yPos);
-          doc.text('Paga/orë', 85, yPos);
-          doc.text('Pagesa', 110, yPos);
-          doc.text('Mësime', 135, yPos);
-          doc.text('Nx. aktivë', 155, yPos);
-          doc.text('Nx. gjithsej', 180, yPos);
+          doc.text(t('reports.instructorColumn'), 14, yPos);
+          doc.text(t('reports.typeColumn'), 50, yPos);
+          doc.text(t('reports.hoursTaughtColumn'), 70, yPos);
+          doc.text(t('reports.payPerHourColumn'), 85, yPos);
+          doc.text(t('reports.totalPaymentColumn'), 110, yPos);
+          doc.text(t('reports.lessonsColumn'), 135, yPos);
+          doc.text(t('reports.activeStudentsColumn'), 155, yPos);
+          doc.text(t('reports.totalStudentsColumn'), 180, yPos);
           yPos += 8;
           doc.setFont(undefined, 'normal');
           doc.setFontSize(9);
         }
         doc.text(stat.name.substring(0, 15), 14, yPos);
-        doc.text(stat.instructorType === 'outsider' ? 'Me orë' : 'Rrogë', 50, yPos);
+        doc.text(stat.instructorType === 'outsider' ? t('reports.byHour') : t('reports.fixedSalary'), 50, yPos);
         doc.text(formatNumber(stat.totalHours), 70, yPos);
         if (stat.instructorType === 'outsider') {
           doc.text(formatCurrency(stat.ratePerHour || 0), 85, yPos);
@@ -830,33 +831,33 @@ function InstructorPerformanceReport({
         yPos += 7;
       });
       
-      doc.save(`performanca-instruktoreve_${timestamp}.pdf`);
+      doc.save(`${t('reports.csvFilenameInstructorPerformance')}_${timestamp}.pdf`);
     }
     
-    toast("success", "Raporti u eksportua me sukses");
+    toast("success", t('reports.reportExported'));
   };
   const columns = [
     {
       key: "name",
-      label: "Instruktori",
+      label: t('reports.instructorColumn'),
       sortable: true,
     },
     {
       key: "instructorType",
-      label: "Lloji",
+      label: t('reports.typeColumn'),
       sortable: true,
       render: (value: unknown) => {
         const type = value as 'insider' | 'outsider';
         return (
           <Badge variant={type === 'outsider' ? 'info' : 'outline'} size="sm">
-            {type === 'outsider' ? 'Me orë' : 'Rrogë fikse'}
+            {type === 'outsider' ? t('reports.byHour') : t('reports.fixedSalary')}
           </Badge>
         );
       },
     },
     {
       key: "totalHours",
-      label: "Orë të mësuara",
+      label: t('reports.hoursTaughtColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
@@ -864,7 +865,7 @@ function InstructorPerformanceReport({
     },
     {
       key: "ratePerHour",
-      label: "Paga për orë",
+      label: t('reports.payPerHourColumn'),
       sortable: true,
       render: (_: unknown, stat: any) => {
         if (stat.instructorType !== 'outsider') {
@@ -875,7 +876,7 @@ function InstructorPerformanceReport({
     },
     {
       key: "totalCredits",
-      label: "Pagesa totale",
+      label: t('reports.totalPaymentColumn'),
       sortable: true,
       render: (_: unknown, stat: any) => {
         if (stat.instructorType !== 'outsider') {
@@ -886,25 +887,25 @@ function InstructorPerformanceReport({
     },
     {
       key: "completedLessons",
-      label: "Mësime",
+      label: t('reports.lessonsColumn'),
       sortable: true,
     },
     {
       key: "activeCandidates",
-      label: "Nxënës aktivë",
+      label: t('reports.activeStudentsColumn'),
       sortable: true,
     },
     {
       key: "totalCandidates",
-      label: "Nxënës gjithsej",
+      label: t('reports.totalStudentsColumn'),
       sortable: true,
     },
     {
       key: "status",
-      label: "Statusi",
+      label: t('reports.statusColumn'),
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value === "active" ? "Aktiv" : (value as string)}
+          {value === "active" ? t('common.active') : (value === "inactive" ? t('common.inactive') : (value as string))}
         </Badge>
       ),
     },
@@ -916,9 +917,10 @@ function InstructorPerformanceReport({
           value={exportFormat}
           onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
           options={[
-            { value: 'csv', label: 'CSV' },
-            { value: 'pdf', label: 'PDF' },
+            { value: 'csv', label: t('reports.csv') },
+            { value: 'pdf', label: t('reports.pdf') },
           ]}
+          placeholder={t('common.selectOption')}
           className="w-32"
         />
         <Button
@@ -926,7 +928,7 @@ function InstructorPerformanceReport({
           icon={<DownloadIcon className="w-4 h-4" />}
           onClick={handleExport}
         >
-          Eksporto {exportFormat.toUpperCase()}
+          {exportFormat === 'csv' ? t('reports.exportCSV') : t('reports.exportPDF')}
         </Button>
       </div>
       <Card padding="none">
@@ -950,6 +952,7 @@ function CandidateProgressReport({
   filteredPayments: Payment[];
   candidates: Candidate[];
 }) {
+  const { t } = useLanguage();
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   
   const candidateStats = candidates
@@ -993,7 +996,7 @@ function CandidateProgressReport({
   const columns = [
     {
       key: "name",
-      label: "Kandidati",
+      label: t('reports.candidateColumn'),
       sortable: true,
       render: (_: unknown, item: (typeof candidateStats)[0]) => (
         <div>
@@ -1004,7 +1007,7 @@ function CandidateProgressReport({
     },
     {
       key: "completedHours",
-      label: "Orë të përfunduara",
+      label: t('reports.completedHoursColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
@@ -1012,12 +1015,12 @@ function CandidateProgressReport({
     },
     {
       key: "scheduledLessons",
-      label: "Të planifikuara",
+      label: t('reports.scheduledLessonsColumn'),
       sortable: true,
     },
     {
       key: "totalPaid",
-      label: "Totali i paguar",
+      label: t('reports.totalPaidColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatCurrency(value as number)}</span>
@@ -1025,10 +1028,10 @@ function CandidateProgressReport({
     },
     {
       key: "status",
-      label: "Statusi",
+      label: t('reports.statusColumn'),
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value === "active" ? "Aktiv" : (value as string)}
+          {value === "active" ? t('common.active') : (value === "inactive" ? t('common.inactive') : (value as string))}
         </Badge>
       ),
     },
@@ -1038,13 +1041,13 @@ function CandidateProgressReport({
     
     if (exportFormat === 'csv') {
       const BOM = "\uFEFF";
-      let csvContent = BOM + "=== ECURIA E KANDIDATËVE ===\n";
-      csvContent += "Kandidati,Numri i klientit,Orë të përfunduara,Mësime të planifikuara,Totali i paguar,Statusi\n";
+      let csvContent = BOM + `=== ${t('reports.candidateProgressTitle')} ===\n`;
+      csvContent += `${t('reports.candidateColumn')},${t('reports.clientNumberColumn')},${t('reports.completedHoursColumn')},${t('reports.scheduledLessonsColumn')},${t('reports.totalPaidColumn')},${t('reports.statusColumn')}\n`;
       candidateStats.forEach((stat) => {
         csvContent += `"${stat.name}","${stat.clientNumber}",${formatNumber(stat.completedHours)},${stat.scheduledLessons},${formatCurrency(stat.totalPaid)},${stat.status}\n`;
       });
 
-      const filename = `ecuria-kandidateve_${timestamp}.csv`;
+      const filename = `${t('reports.csvFilenameCandidateProgress')}_${timestamp}.csv`;
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -1058,19 +1061,21 @@ function CandidateProgressReport({
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Ecuria e Kandidatëve', 14, 20);
+      doc.text(t('reports.candidateProgressTitle'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
-      doc.text('Kandidati', 14, yPos);
-      doc.text('Nr. Klientit', 60, yPos);
-      doc.text('Orë', 95, yPos);
-      doc.text('Mësime', 110, yPos);
-      doc.text('Totali', 130, yPos);
-      doc.text('Statusi', 170, yPos);
+      doc.text(t('reports.candidateColumn'), 14, yPos);
+      doc.text(t('candidates.clientNumberColumn'), 60, yPos);
+      doc.text(t('reports.hoursColumn'), 95, yPos);
+      doc.text(t('reports.lessonsColumn'), 110, yPos);
+      doc.text(t('reports.totalColumn'), 130, yPos);
+      doc.text(t('reports.statusColumn'), 170, yPos);
       
       yPos += 8;
       doc.setFont(undefined, 'normal');
@@ -1082,18 +1087,18 @@ function CandidateProgressReport({
           yPos = 20;
         }
         doc.text(stat.name.substring(0, 20), 14, yPos);
-        doc.text(stat.clientNumber || 'N/A', 60, yPos);
+        doc.text(stat.clientNumber || t('common.n/a'), 60, yPos);
         doc.text(formatNumber(stat.completedHours), 95, yPos);
         doc.text(stat.scheduledLessons.toString(), 110, yPos);
         doc.text(formatCurrency(stat.totalPaid), 130, yPos);
-        doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 170, yPos);
+        doc.text(stat.status === 'active' ? t('common.active') : (stat.status === 'inactive' ? t('common.inactive') : stat.status || ''), 170, yPos);
         yPos += 7;
       });
       
-      doc.save(`ecuria-kandidateve_${timestamp}.pdf`);
+      doc.save(`${t('reports.csvFilenameCandidateProgress')}_${timestamp}.pdf`);
     }
     
-    toast("success", "Raporti u eksportua me sukses");
+    toast("success", t('reports.reportExported'));
   };
 
   return (
@@ -1103,9 +1108,10 @@ function CandidateProgressReport({
           value={exportFormat}
           onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
           options={[
-            { value: 'csv', label: 'CSV' },
-            { value: 'pdf', label: 'PDF' },
+            { value: 'csv', label: t('reports.csv') },
+            { value: 'pdf', label: t('reports.pdf') },
           ]}
+          placeholder={t('common.selectOption')}
           className="w-32"
         />
         <Button
@@ -1113,7 +1119,7 @@ function CandidateProgressReport({
           icon={<DownloadIcon className="w-4 h-4" />}
           onClick={handleExport}
         >
-          Eksporto {exportFormat.toUpperCase()}
+          {exportFormat === 'csv' ? t('reports.exportCSV') : t('reports.exportPDF')}
         </Button>
       </div>
       <Card padding="none">
@@ -1122,7 +1128,7 @@ function CandidateProgressReport({
           columns={columns}
           keyExtractor={(item) => item.id}
           searchable
-          searchPlaceholder="Kërko kandidatë..."
+          searchPlaceholder={t('reports.searchCandidates')}
           searchKeys={["name", "clientNumber"]}
         />
       </Card>
@@ -1136,6 +1142,7 @@ function CarUsageReport({
   filteredAppointments: Appointment[];
   cars: Car[];
 }) {
+  const { t } = useLanguage();
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   
   const carStats = cars
@@ -1167,7 +1174,7 @@ function CarUsageReport({
   const columns = [
     {
       key: "model",
-      label: "Mjeti",
+      label: t('reports.vehicleColumn'),
       sortable: true,
       render: (_: unknown, item: (typeof carStats)[0]) => (
         <div>
@@ -1178,7 +1185,7 @@ function CarUsageReport({
     },
     {
       key: "totalHours",
-      label: "Orë gjithsej",
+      label: t('reports.totalHoursColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold">{formatNumber(value as number)}h</span>
@@ -1186,21 +1193,21 @@ function CarUsageReport({
     },
     {
       key: "recentUsage",
-      label: "Përdorim i fundit",
+      label: t('reports.recentUsageColumn'),
       sortable: true,
       render: (value: unknown) => <span>{formatNumber(value as number)}h</span>,
     },
     {
       key: "nextInspection",
-      label: "Inspektimi tjetër",
+      label: t('reports.nextInspectionColumn'),
       sortable: true,
     },
     {
       key: "status",
-      label: "Statusi",
+      label: t('reports.statusColumn'),
       render: (value: unknown) => (
         <Badge variant={value === "active" ? "success" : "danger"} dot>
-          {value === "active" ? "Aktiv" : (value as string)}
+          {value === "active" ? t('common.active') : (value === "inactive" ? t('common.inactive') : (value as string))}
         </Badge>
       ),
     },
@@ -1210,13 +1217,13 @@ function CarUsageReport({
     
     if (exportFormat === 'csv') {
       const BOM = "\uFEFF";
-      let csvContent = BOM + "=== PËRDORIMI I MAKINAVE ===\n";
-      csvContent += "Modeli,Targat,Orë gjithsej,Përdorim i fundit,Inspektimi tjetër,Statusi\n";
+      let csvContent = BOM + `=== ${t('reports.carUsageTitle')} ===\n`;
+      csvContent += `${t('cars.modelColumn')},${t('cars.licensePlateColumn')},${t('reports.totalHoursColumn')},${t('reports.recentUsageColumn')},${t('reports.nextInspectionColumn')},${t('reports.statusColumn')}\n`;
       carStats.forEach((stat) => {
         csvContent += `"${stat.model}","${stat.licensePlate}",${formatNumber(stat.totalHours)},${formatNumber(stat.recentUsage)},"${stat.nextInspection}",${stat.status}\n`;
       });
 
-      const filename = `perdorimi-makinave_${timestamp}.csv`;
+      const filename = `${t('reports.csvFilenameCarUsage')}_${timestamp}.csv`;
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -1230,19 +1237,21 @@ function CarUsageReport({
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Përdorimi i Makinave', 14, 20);
+      doc.text(t('reports.carUsageTitle'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
-      doc.text('Modeli', 14, yPos);
-      doc.text('Targat', 60, yPos);
-      doc.text('Orë gjithsej', 95, yPos);
-      doc.text('Përdorim', 130, yPos);
-      doc.text('Inspektimi', 160, yPos);
-      doc.text('Statusi', 190, yPos);
+      doc.text(t('cars.modelColumn'), 14, yPos);
+      doc.text(t('cars.licensePlateColumn'), 60, yPos);
+      doc.text(t('reports.totalHoursColumn'), 95, yPos);
+      doc.text(t('reports.recentUsageColumn'), 130, yPos);
+      doc.text(t('cars.nextInspectionColumn'), 160, yPos);
+      doc.text(t('reports.statusColumn'), 190, yPos);
       
       yPos += 8;
       doc.setFont(undefined, 'normal');
@@ -1257,15 +1266,15 @@ function CarUsageReport({
         doc.text(stat.licensePlate, 60, yPos);
         doc.text(formatNumber(stat.totalHours), 95, yPos);
         doc.text(formatNumber(stat.recentUsage), 130, yPos);
-        doc.text(stat.nextInspection || 'N/A', 160, yPos);
-        doc.text(stat.status === 'active' ? 'Aktiv' : stat.status, 190, yPos);
+        doc.text(stat.nextInspection || t('common.n/a'), 160, yPos);
+        doc.text(stat.status === 'active' ? t('common.active') : (stat.status === 'inactive' ? t('common.inactive') : stat.status || ''), 190, yPos);
         yPos += 7;
       });
       
-      doc.save(`perdorimi-makinave_${timestamp}.pdf`);
+      doc.save(`${t('reports.csvFilenameCarUsage')}_${timestamp}.pdf`);
     }
     
-    toast("success", "Raporti u eksportua me sukses");
+    toast("success", t('reports.reportExported'));
   };
 
   return (
@@ -1275,9 +1284,10 @@ function CarUsageReport({
           value={exportFormat}
           onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
           options={[
-            { value: 'csv', label: 'CSV' },
-            { value: 'pdf', label: 'PDF' },
+            { value: 'csv', label: t('reports.csv') },
+            { value: 'pdf', label: t('reports.pdf') },
           ]}
+          placeholder={t('common.selectOption')}
           className="w-32"
         />
         <Button
@@ -1285,7 +1295,7 @@ function CarUsageReport({
           icon={<DownloadIcon className="w-4 h-4" />}
           onClick={handleExport}
         >
-          Eksporto {exportFormat.toUpperCase()}
+          {exportFormat === 'csv' ? t('reports.exportCSV') : t('reports.exportPDF')}
         </Button>
       </div>
       <Card padding="none">
@@ -1305,6 +1315,7 @@ function PaymentSummaryReport({
 }: {
   filteredPayments: Payment[];
 }) {
+  const { t, language } = useLanguage();
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   
   // Group payments by month
@@ -1352,19 +1363,17 @@ function PaymentSummaryReport({
   const columns = [
     {
       key: "month",
-      label: "Muaji",
+      label: t('reports.monthColumn'),
       sortable: true,
       render: (value: unknown) => {
-        const date = new Date((value as string) + "-01");
-        return date.toLocaleDateString("sq-AL", {
-          year: "numeric",
-          month: "long",
-        });
+        const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+        const locale = localeMap[language] || 'sq-AL';
+        return formatMonthName((value as string) + "-01", locale);
       },
     },
     {
       key: "total",
-      label: "Totali",
+      label: t('reports.totalColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-green-600">{formatCurrency(value as number)}</span>
@@ -1372,39 +1381,35 @@ function PaymentSummaryReport({
     },
     {
       key: "count",
-      label: "Transaksione",
+      label: t('reports.transactionsColumn'),
       sortable: true,
     },
     {
       key: "bank",
-      label: "Bankë",
+      label: t('reports.bankColumn'),
       render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
     {
       key: "cash",
-      label: "Para në dorë",
+      label: t('reports.cashColumn'),
       render: (value: unknown) => <span>{formatCurrency(value as number)}</span>,
     },
   ];
   const handleExport = () => {
     const timestamp = new Date().toISOString().split("T")[0];
+    const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+    const locale = localeMap[language] || 'sq-AL';
     
     if (exportFormat === 'csv') {
       const BOM = "\uFEFF";
-      let csvContent = BOM + "=== PËRMBLEDHJE PAGESASH SIPAS MUAJIT ===\n";
-      csvContent += "Muaji,Totali,Transaksione,Bankë,Para në dorë\n";
+      let csvContent = BOM + `=== ${t('reports.paymentSummaryByMonth')} ===\n`;
+      csvContent += `${t('reports.monthColumn')},${t('reports.totalColumn')},${t('reports.transactionsColumn')},${t('reports.bankColumn')},${t('reports.cashColumn')}\n`;
       monthlyData.forEach((data) => {
-        const monthName = new Date(data.month + "-01").toLocaleDateString(
-          "sq-AL",
-          {
-            year: "numeric",
-            month: "long",
-          }
-        );
+        const monthName = formatMonthName(data.month + "-01", locale);
         csvContent += `"${monthName}",${formatCurrency(data.total)},${data.count},${formatCurrency(data.bank)},${formatCurrency(data.cash)}\n`;
       });
 
-      const filename = `permbledhje-pagesash_${timestamp}.csv`;
+      const filename = `${t('reports.csvFilenamePaymentSummary')}_${timestamp}.csv`;
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -1418,18 +1423,18 @@ function PaymentSummaryReport({
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Përmbledhje Pagesash', 14, 20);
+      doc.text(t('reports.paymentSummaryByMonth'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
       
       let yPos = 40;
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
-      doc.text('Muaji', 14, yPos);
-      doc.text('Totali', 70, yPos);
-      doc.text('Transaksione', 100, yPos);
-      doc.text('Bankë', 140, yPos);
-      doc.text('Para në dorë', 170, yPos);
+      doc.text(t('reports.monthColumn'), 14, yPos);
+      doc.text(t('reports.totalColumn'), 70, yPos);
+      doc.text(t('reports.transactionsColumn'), 100, yPos);
+      doc.text(t('reports.bankColumn'), 140, yPos);
+      doc.text(t('reports.cashColumn'), 170, yPos);
       
       yPos += 8;
       doc.setFont(undefined, 'normal');
@@ -1440,13 +1445,7 @@ function PaymentSummaryReport({
           doc.addPage();
           yPos = 20;
         }
-        const monthName = new Date(data.month + "-01").toLocaleDateString(
-          "sq-AL",
-          {
-            year: "numeric",
-            month: "long",
-          }
-        );
+        const monthName = formatMonthName(data.month + "-01", locale);
         doc.text(monthName, 14, yPos);
         doc.text(formatCurrency(data.total), 70, yPos);
         doc.text(data.count.toString(), 100, yPos);
@@ -1455,10 +1454,10 @@ function PaymentSummaryReport({
         yPos += 7;
       });
       
-      doc.save(`permbledhje-pagesash_${timestamp}.pdf`);
+      doc.save(`${t('reports.csvFilenamePaymentSummary')}_${timestamp}.pdf`);
     }
     
-    toast("success", "Raporti u eksportua me sukses");
+    toast("success", t('reports.reportExported'));
   };
 
   return (
@@ -1468,9 +1467,10 @@ function PaymentSummaryReport({
           value={exportFormat}
           onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
           options={[
-            { value: 'csv', label: 'CSV' },
-            { value: 'pdf', label: 'PDF' },
+            { value: 'csv', label: t('reports.csv') },
+            { value: 'pdf', label: t('reports.pdf') },
           ]}
+          placeholder={t('common.selectOption')}
           className="w-32"
         />
         <Button
@@ -1478,7 +1478,7 @@ function PaymentSummaryReport({
           icon={<DownloadIcon className="w-4 h-4" />}
           onClick={handleExport}
         >
-          Eksporto {exportFormat.toUpperCase()}
+          {exportFormat === 'csv' ? t('reports.exportCSV') : t('reports.exportPDF')}
         </Button>
       </div>
       <Card padding="none">

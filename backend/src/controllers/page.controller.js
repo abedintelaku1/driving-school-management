@@ -52,7 +52,6 @@ const create = async (req, res, next) => {
 
         res.status(201).json(page);
     } catch (err) {
-        console.error('Error creating page:', err);
         next(err);
     }
 };
@@ -85,7 +84,6 @@ const update = async (req, res, next) => {
         await page.save();
         res.json(page);
     } catch (err) {
-        console.error('Error updating page:', err);
         next(err);
     }
 };

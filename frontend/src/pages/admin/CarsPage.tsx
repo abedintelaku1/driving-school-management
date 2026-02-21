@@ -9,12 +9,14 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FilterBar } from '../../components/ui/FilterBar';
+import { useLanguage } from '../../hooks/useLanguage';
 import type { Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
 import jsPDF from 'jspdf';
 
 export function CarsPage() {
+  const { t, language } = useLanguage();
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -63,11 +65,11 @@ export function CarsPage() {
           }));
           setCars(mapped as Car[]);
         } else {
-          toast('error', 'Dështoi ngarkimi i makinave');
+          toast('error', t('cars.failedToLoad'));
         }
       } catch (error) {
         console.error('Error fetching cars:', error);
-        toast('error', 'Dështoi ngarkimi i makinave');
+        toast('error', t('cars.failedToLoad'));
       } finally {
         setLoading(false);
       }
@@ -99,23 +101,35 @@ export function CarsPage() {
 
   const handleExport = () => {
     if (!filteredCars.length) {
-      toast('info', 'Nuk ka makina për eksport');
+      toast('info', t('cars.noCarsToExport'));
       return;
     }
 
     const timestamp = new Date().toISOString().split('T')[0];
 
     if (exportFormat === 'csv') {
-      const headers = ['Modeli', 'Viti', 'Targat', 'Transmetimi', 'Lloji i karburantit', 'Pronësia', 'Orë totale', 'Statusi', 'Regjistrimi deri', 'Inspektimi i fundit', 'Inspektimi tjetër'];
+      const headers = [
+        t('cars.modelColumn'),
+        t('cars.yearColumn'),
+        t('cars.licensePlateColumn'),
+        t('cars.transmissionColumn'),
+        t('cars.fuelColumn'),
+        t('cars.ownershipColumn'),
+        t('cars.totalHoursColumn'),
+        t('cars.statusColumn'),
+        t('cars.registrationExpiryColumn'),
+        t('cars.lastInspectionColumn'),
+        t('cars.nextInspectionColumn')
+      ];
       const rows = filteredCars.map(car => [
         car.model || '',
         car.yearOfManufacture?.toString() || '',
         car.licensePlate || '',
-        car.transmission === 'manual' ? 'Manual' : 'Automatik',
-        car.fuelType === 'petrol' ? 'Benzinë' : car.fuelType === 'diesel' ? 'Diesel' : car.fuelType === 'electric' ? 'Elektrik' : car.fuelType || '',
-        car.ownership === 'owned' ? 'E pronës' : 'E marrë me qira',
+        car.transmission === 'manual' ? t('cars.manual') : t('cars.automatic'),
+        car.fuelType === 'petrol' ? t('cars.petrol') : car.fuelType === 'diesel' ? t('cars.diesel') : car.fuelType === 'electric' ? t('cars.electric') : car.fuelType === 'hybrid' ? t('cars.hybrid') : car.fuelType || '',
+        car.ownership === 'owned' ? t('cars.owned') : t('cars.rented'),
         car.totalHours?.toString() || '0',
-        car.status === 'active' ? 'Aktiv' : 'Jo aktiv',
+        car.status === 'active' ? t('common.active') : t('common.inactive'),
         car.registrationExpiry || '',
         car.lastInspection || '',
         car.nextInspection || ''
@@ -125,35 +139,39 @@ export function CarsPage() {
         .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // Add UTF-8 BOM for Excel compatibility
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `makinat_${timestamp}.csv`);
+      link.setAttribute('download', `${t('cars.csvFilename')}_${timestamp}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast('success', 'Makinat u eksportuan në CSV');
+      toast('success', t('cars.exportedToCSV'));
     } else {
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Lista e Makinave', 14, 20);
+      doc.text(t('cars.title'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
-      doc.text(`Total: ${filteredCars.length} makina`, 14, 37);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
+      doc.text(`${t('common.total')}: ${filteredCars.length} ${t('cars.title').toLowerCase()}`, 14, 37);
       
       let yPos = 50;
       doc.setFontSize(9);
       doc.setFont(undefined, 'bold');
-      doc.text('Modeli', 14, yPos);
-      doc.text('Viti', 50, yPos);
-      doc.text('Targat', 65, yPos);
-      doc.text('Trans.', 90, yPos);
-      doc.text('Karburant', 110, yPos);
-      doc.text('Orë', 145, yPos);
-      doc.text('Statusi', 165, yPos);
+      doc.text(t('cars.modelColumn'), 14, yPos);
+      doc.text(t('cars.yearColumn'), 50, yPos);
+      doc.text(t('cars.licensePlateColumn'), 65, yPos);
+      doc.text(t('cars.transmissionColumn').substring(0, 8), 90, yPos);
+      doc.text(t('cars.fuelColumn').substring(0, 10), 110, yPos);
+      doc.text(t('cars.totalHoursColumn').substring(0, 5), 145, yPos);
+      doc.text(t('cars.statusColumn'), 165, yPos);
       
       yPos += 7;
       doc.setFont(undefined, 'normal');
@@ -165,22 +183,22 @@ export function CarsPage() {
           yPos = 20;
         }
         
-        const transmission = car.transmission === 'manual' ? 'Manual' : 'Auto';
-        const fuelType = car.fuelType === 'petrol' ? 'Benzinë' : car.fuelType === 'diesel' ? 'Diesel' : car.fuelType === 'electric' ? 'Elektrik' : car.fuelType || '';
-        const status = car.status === 'active' ? 'Aktiv' : 'Jo aktiv';
+        const transmission = car.transmission === 'manual' ? t('cars.manual') : t('cars.automatic');
+        const fuelType = car.fuelType === 'petrol' ? t('cars.petrol') : car.fuelType === 'diesel' ? t('cars.diesel') : car.fuelType === 'electric' ? t('cars.electric') : car.fuelType === 'hybrid' ? t('cars.hybrid') : car.fuelType || '';
+        const status = car.status === 'active' ? t('common.active') : t('common.inactive');
         
         doc.text((car.model || '').substring(0, 18), 14, yPos);
         doc.text(car.yearOfManufacture?.toString() || '', 50, yPos);
         doc.text((car.licensePlate || '').substring(0, 10), 65, yPos);
-        doc.text(transmission, 90, yPos);
+        doc.text(transmission.substring(0, 8), 90, yPos);
         doc.text(fuelType.substring(0, 12), 110, yPos);
         doc.text((car.totalHours || 0).toString(), 145, yPos);
         doc.text(status, 165, yPos);
         yPos += 6;
       });
       
-      doc.save(`makinat_${timestamp}.pdf`);
-      toast('success', 'Makinat u eksportuan në PDF');
+      doc.save(`${t('cars.csvFilename')}_${timestamp}.pdf`);
+      toast('success', t('cars.exportedToPDF'));
     }
   };
 
@@ -194,22 +212,22 @@ export function CarsPage() {
     try {
       const { ok, data } = await api.deleteCar(deletingCar.id);
       if (ok) {
-        toast('success', 'Car deleted successfully');
+        toast('success', t('cars.carDeleted'));
         setRefreshKey((prev) => prev + 1);
         setDeletingCar(null);
       } else {
-        toast('error', (data as any)?.message || 'Dështoi fshirja e makinës');
+        toast('error', (data as any)?.message || t('cars.failedToDelete'));
       }
     } catch (error) {
       console.error('Error deleting car:', error);
-      toast('error', 'Dështoi fshirja e makinës');
+      toast('error', t('cars.failedToDelete'));
     }
   };
 
   const columns = [
     {
       key: 'model',
-      label: 'Mjeti',
+      label: t('cars.vehicleColumn'),
       sortable: true,
       render: (_: unknown, car: Car) => (
         <div>
@@ -220,7 +238,7 @@ export function CarsPage() {
     },
     {
       key: 'licensePlate',
-      label: 'Targë',
+      label: t('cars.licensePlateColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-mono text-gray-900">{value as string}</span>
@@ -228,23 +246,27 @@ export function CarsPage() {
     },
     {
       key: 'transmission',
-      label: 'Transmisioni',
-      render: (value: unknown) => (
-        <Badge variant="outline">
-          {(value as string).charAt(0).toUpperCase() + (value as string).slice(1)}
-        </Badge>
-      ),
+      label: t('cars.transmissionColumn'),
+      render: (value: unknown) => {
+        const transmission = value as string;
+        const translated = transmission === 'manual' ? t('cars.manual') : t('cars.automatic');
+        return (
+          <Badge variant="outline">
+            {translated}
+          </Badge>
+        );
+      },
     },
     {
       key: 'fuelType',
-      label: 'Karburanti',
+      label: t('cars.fuelColumn'),
       render: (value: unknown) => (
         <span className="text-gray-700 capitalize">{value as string}</span>
       ),
     },
     {
       key: 'totalHours',
-      label: 'Orë totale',
+      label: t('cars.totalHoursColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">{value as number}h</span>
@@ -252,7 +274,7 @@ export function CarsPage() {
     },
     {
       key: 'nextInspection',
-      label: 'Inspektimi i ardhshëm',
+      label: t('cars.nextInspectionColumn'),
       sortable: true,
       render: (value: unknown) => {
         const days = getDaysUntilInspection(value as string);
@@ -269,7 +291,7 @@ export function CarsPage() {
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('cars.statusColumn'),
       sortable: true,
       render: (value: unknown) => <StatusBadge status={value as 'active' | 'inactive'} />,
     },
@@ -283,7 +305,7 @@ export function CarsPage() {
         onClick={() => setEditingCar(car)}
         icon={<EditIcon className="w-4 h-4" />}
       >
-        Ndrysho
+        {t('common.edit')}
       </Button>
       <Button
         variant="ghost"
@@ -291,7 +313,7 @@ export function CarsPage() {
         onClick={() => handleDelete(car)}
         icon={<TrashIcon className="w-4 h-4" />}
       >
-        Fshi
+        {t('common.delete')}
       </Button>
     </div>
   );
@@ -309,9 +331,9 @@ export function CarsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Makinat</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('cars.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Menaxhoni mjetet e shkollës së makinës dhe mirëmbajtjen e tyre.
+            {t('cars.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -320,9 +342,10 @@ export function CarsPage() {
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
               options={[
-                { value: 'csv', label: 'CSV' },
-                { value: 'pdf', label: 'PDF' },
+                { value: 'csv', label: t('reports.csv') },
+                { value: 'pdf', label: t('reports.pdf') },
               ]}
+              placeholder={t('common.selectOption')}
               className="w-24"
             />
             <Button 
@@ -331,11 +354,11 @@ export function CarsPage() {
               icon={<DownloadIcon className="w-4 h-4" />}
               disabled={filteredCars.length === 0}
             >
-              Eksporto {exportFormat.toUpperCase()}
+              {exportFormat === 'csv' ? t('cars.exportCSV') : t('cars.exportPDF')}
             </Button>
           </div>
           <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />}>
-            Shto makinë
+            {t('cars.addCar')}
           </Button>
         </div>
       </div>
@@ -344,25 +367,25 @@ export function CarsPage() {
       <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="Të gjitha statuset"
+            placeholder={t('cars.allStatuses')}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             options={[
-              { value: '', label: 'Të gjitha statuset' },
-              { value: 'active', label: 'Aktive' },
-              { value: 'inactive', label: 'Joaktive' },
+              { value: '', label: t('cars.allStatuses') },
+              { value: 'active', label: t('common.active') },
+              { value: 'inactive', label: t('common.inactive') },
             ]}
           />
         </div>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="Të gjitha transmisionet"
+            placeholder={t('cars.allTransmissions')}
             value={transmissionFilter}
             onChange={(e) => setTransmissionFilter(e.target.value)}
             options={[
-              { value: '', label: 'Të gjitha transmisionet' },
-              { value: 'manual', label: 'Manuale' },
-              { value: 'automatic', label: 'Automatik' },
+              { value: '', label: t('cars.allTransmissions') },
+              { value: 'manual', label: t('cars.manual') },
+              { value: 'automatic', label: t('cars.automatic') },
             ]}
           />
         </div>
@@ -375,10 +398,10 @@ export function CarsPage() {
           columns={columns}
           keyExtractor={(car) => car.id}
           searchable
-          searchPlaceholder="Search cars..."
+          searchPlaceholder={t('cars.searchPlaceholder')}
           searchKeys={['model', 'licensePlate', 'chassisNumber']}
           actions={actions}
-          emptyMessage="No cars found"
+          emptyMessage={t('cars.noCarsFound')}
         />
       </Card>
 
@@ -392,7 +415,7 @@ export function CarsPage() {
         car={editingCar}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast('success', editingCar ? 'Makina u përditësua me sukses' : 'Makina u shtua me sukses');
+          toast('success', editingCar ? t('cars.carUpdated') : t('cars.carAdded'));
           setShowAddModal(false);
           setEditingCar(null);
         }}
@@ -403,15 +426,15 @@ export function CarsPage() {
         <Modal
           isOpen={!!deletingCar}
           onClose={() => setDeletingCar(null)}
-          title="Fshi makinën"
-          description={`Jeni të sigurt që dëshironi të fshini ${deletingCar.model} (${deletingCar.licensePlate})? Ky veprim nuk mund të kthehet.`}
+          title={t('cars.deleteCar')}
+          description={t('cars.confirmDelete')}
           footer={
             <div className="flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setDeletingCar(null)}>
-                Anulo
+                {t('common.cancel')}
               </Button>
               <Button variant="danger" onClick={confirmDelete}>
-                Fshi
+                {t('common.delete')}
               </Button>
             </div>
           }
@@ -429,6 +452,7 @@ type AddCarModalProps = {
 };
 
 function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     model: '',
     yearOfManufacture: '',
@@ -455,7 +479,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
           if (ok && data) {
             const opts = (data as any[]).map((ins: any) => ({
               id: ins._id || ins.id,
-              name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor'
+              name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || t('common.roleInstructor')
             }));
             setInstructors(opts);
           }
@@ -530,7 +554,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         if (ok) {
           onSuccess();
         } else {
-          toast('error', (data as any)?.message || 'Dështoi përditësimi i makinës');
+          toast('error', (data as any)?.message || t('cars.carUpdateFailed'));
         }
       } else {
         // Create new car
@@ -538,12 +562,12 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         if (ok) {
           onSuccess();
         } else {
-          toast('error', (data as any)?.message || 'Dështoi krijimi i makinës');
+          toast('error', (data as any)?.message || t('cars.carCreateFailed'));
         }
       }
     } catch (error) {
       console.error('Error saving car:', error);
-      toast('error', 'Dështoi ruajtja e makinës');
+      toast('error', t('cars.carSaveFailed'));
     } finally {
       setLoading(false);
     }
@@ -553,16 +577,16 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={car ? 'Ndrysho makinën' : 'Shto makinë të re'}
-      description="Vendosni të dhënat e mjetit për ta regjistruar në sistem."
+      title={car ? t('cars.editCarTitle') : t('cars.addCarTitle')}
+      description={t('cars.enterCarDetails')}
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            {car ? 'Ruaj ndryshimet' : 'Shto makinë'}
+            {car ? t('common.saveChanges') : t('cars.addCar')}
           </Button>
         </div>
       }
@@ -570,7 +594,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Modeli"
+            label={t('cars.model')}
             required
             value={formData.model}
             onChange={(e) =>
@@ -579,10 +603,10 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 model: e.target.value,
               })
             }
-            placeholder="p.sh. Toyota Corolla"
+            placeholder={t('cars.modelPlaceholder')}
           />
           <Input
-            label="Viti i prodhimit"
+            label={t('cars.yearOfManufacture')}
             type="number"
             required
             value={formData.yearOfManufacture}
@@ -592,13 +616,13 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 yearOfManufacture: e.target.value,
               })
             }
-            placeholder="p.sh. 2022"
+            placeholder={t('cars.yearPlaceholder')}
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Numri i shasisë"
+            label={t('cars.chassisNumber')}
             required
             value={formData.chassisNumber}
             onChange={(e) =>
@@ -609,7 +633,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
             }
           />
           <Input
-            label="Targë"
+            label={t('cars.licensePlate')}
             required
             value={formData.licensePlate}
             onChange={(e) =>
@@ -618,13 +642,13 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 licensePlate: e.target.value,
               })
             }
-            placeholder="p.sh. ABC-1234"
+            placeholder={t('cars.licensePlatePlaceholder')}
           />
         </div>
 
         <div className="grid grid-cols-3 gap-4">
           <Select
-            label="Transmisioni"
+            label={t('cars.transmission')}
             required
             value={formData.transmission}
             onChange={(e) =>
@@ -634,12 +658,12 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: 'manual', label: 'Manuale' },
-              { value: 'automatic', label: 'Automatik' },
+              { value: 'manual', label: t('cars.manual') },
+              { value: 'automatic', label: t('cars.automatic') },
             ]}
           />
           <Select
-            label="Lloji i karburantit"
+            label={t('cars.fuelType')}
             required
             value={formData.fuelType}
             onChange={(e) =>
@@ -649,24 +673,24 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: 'petrol', label: 'Benzinë' },
-              { value: 'diesel', label: 'Naftë' },
-              { value: 'electric', label: 'Elektrik' },
-              { value: 'hybrid', label: 'Hibrid' },
+              { value: 'petrol', label: t('cars.petrol') },
+              { value: 'diesel', label: t('cars.diesel') },
+              { value: 'electric', label: t('cars.electric') },
+              { value: 'hybrid', label: t('cars.hybrid') },
             ]}
           />
           {car ? (
             // Edit mode: show ownership based on car type (disabled)
             <Input
-              label="Pronësia"
-              value={car.instructorId ? 'Instruktor' : 'Shkolla'}
+              label={t('cars.ownership')}
+              value={car.instructorId ? t('cars.instructor') : t('cars.school')}
               disabled
-              hint={car.instructorId ? 'Kjo është makina personale e një instruktori' : 'Kjo është makina e shkollës'}
+              hint={car.instructorId ? t('cars.instructorCarHint') : t('cars.schoolCarHint')}
             />
           ) : (
             // Add mode: owned and instructor options
             <Select
-              label="Pronësia"
+              label={t('cars.ownership')}
               required
               value={formData.ownership}
               onChange={(e) =>
@@ -677,8 +701,8 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
                 })
               }
               options={[
-                { value: 'owned', label: 'Shkolla' },
-                { value: 'instructor', label: 'Instruktor' },
+                { value: 'owned', label: t('cars.school') },
+                { value: 'instructor', label: t('cars.instructor') },
               ]}
             />
           )}
@@ -687,7 +711,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
         {/* Instructor field - only show when ownership is instructor */}
         {formData.ownership === 'instructor' && (
           <Select
-            label="Instructor"
+            label={t('common.instructor')}
             required={formData.ownership === 'instructor'}
             value={formData.instructorId}
             onChange={(e) =>
@@ -697,7 +721,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: '', label: 'Select an instructor' },
+              { value: '', label: t('cars.selectInstructor') },
               ...instructors.map((instructor) => ({
                 value: instructor.id,
                 label: instructor.name,
@@ -708,7 +732,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
 
         <div className="grid grid-cols-3 gap-4">
           <Input
-            label="Skadenca e regjistrimit"
+            label={t('cars.registrationExpiry')}
             type="date"
             required
             value={formData.registrationExpiry}
@@ -720,7 +744,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
             }
           />
           <Input
-            label="Inspektimi i fundit"
+            label={t('cars.lastInspection')}
             type="date"
             required
             value={formData.lastInspection}
@@ -732,7 +756,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
             }
           />
           <Input
-            label="Inspektimi i ardhshëm"
+            label={t('cars.nextInspection')}
             type="date"
             required
             value={formData.nextInspection}
@@ -747,7 +771,7 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
 
         {car && (
           <Select
-            label="Statusi"
+            label={t('cars.status')}
             value={formData.status}
             onChange={(e) =>
               setFormData({
@@ -756,8 +780,8 @@ function AddCarModal({ isOpen, onClose, car, onSuccess }: AddCarModalProps) {
               })
             }
             options={[
-              { value: 'active', label: 'Aktive' },
-              { value: 'inactive', label: 'Joaktive' },
+              { value: 'active', label: t('common.active') },
+              { value: 'inactive', label: t('common.inactive') },
             ]}
           />
         )}

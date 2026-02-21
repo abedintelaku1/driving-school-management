@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { StatCard } from '../../components/ui/StatCard';
+import { useLanguage } from '../../hooks/useLanguage';
 import { api } from '../../utils/api';
 
 type Candidate = {
@@ -48,6 +49,7 @@ type Appointment = {
 };
 
 export function AdminDashboard() {
+  const { t } = useLanguage();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -133,7 +135,7 @@ export function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Duke ngarkuar panelin...</p>
+        <p className="text-gray-500">{t('dashboard.loading')}</p>
       </div>
     );
   }
@@ -142,19 +144,19 @@ export function AdminDashboard() {
       {/* Page Header */}
       <div>
         <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-          Paneli
+          {t('dashboard.title')}
         </h1>
         <p className="text-sm lg:text-base text-gray-500 mt-1">
-          Mirë se u ktheve! Ja çfarë ndodh sot.
+          {t('dashboard.subtitle')}
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
-        <StatCard title="Kandidatë aktivë" value={activeCandidates} change="+12% nga muaji i kaluar" changeType="positive" icon={<UsersIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/candidates" />
-        <StatCard title="Makina aktivë" value={activeCars} icon={<CarIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/cars" />
-        <StatCard title="Instruktorë aktivë" value={activeInstructors} icon={<GraduationCapIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/instructors" />
-        <StatCard title="Të ardhura totale" value={`€${totalRevenue.toLocaleString()}`} change="+8% nga muaji i kaluar" changeType="positive" icon={<CreditCardIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/payments" />
+        <StatCard title={t('dashboard.activeCandidates')} value={activeCandidates} change={`+12% ${t('dashboard.changeFromLastMonth')}`} changeType="positive" icon={<UsersIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/candidates" />
+        <StatCard title={t('dashboard.activeCars')} value={activeCars} icon={<CarIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/cars" />
+        <StatCard title={t('dashboard.activeInstructors')} value={activeInstructors} icon={<GraduationCapIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/instructors" />
+        <StatCard title={t('dashboard.totalRevenue')} value={`€${totalRevenue.toLocaleString()}`} change={`+8% ${t('dashboard.changeFromLastMonth')}`} changeType="positive" icon={<CreditCardIcon className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />} link="/admin/payments" />
       </div>
 
       {/* Content Grid */}
@@ -163,9 +165,9 @@ export function AdminDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Kandidatët e fundit</CardTitle>
+              <CardTitle>{t('dashboard.recentCandidates')}</CardTitle>
               <Link to="/admin/candidates" className="text-xs lg:text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors">
-                Shiko të gjithë <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
+                {t('dashboard.viewAll')} <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -192,7 +194,7 @@ export function AdminDashboard() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <Badge variant={!candidate.status || candidate.status === 'active' ? 'success' : 'danger'} dot>
-                        {candidate.status || 'aktiv'}
+                        {candidate.status || t('common.active')}
                       </Badge>
                     </div>
                   </Link>
@@ -200,7 +202,7 @@ export function AdminDashboard() {
               })}
               {recentCandidates.length === 0 && (
                 <p className="text-center text-sm text-gray-500 py-4">
-                  Nuk u gjetën kandidatë
+                  {t('dashboard.noRecentCandidates')}
                 </p>
               )}
             </div>
@@ -211,9 +213,9 @@ export function AdminDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Takimet e ardhshme</CardTitle>
+              <CardTitle>{t('dashboard.upcomingAppointments')}</CardTitle>
               <Link to="/admin/reports" className="text-xs lg:text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors">
-                Shiko të gjithë <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
+                {t('dashboard.viewAll')} <ArrowRightIcon className="w-3 h-3 lg:w-4 lg:h-4" />
               </Link>
             </div>
           </CardHeader>
@@ -238,9 +240,9 @@ export function AdminDashboard() {
                       </p>
                       <p className="text-xs lg:text-sm text-gray-500 truncate">
                         {instructorUser?.firstName && instructorUser?.lastName ? (
-                          <>me {instructorUser.firstName} {instructorUser.lastName}</>
+                          <>{t('dashboard.assignedTo')} {instructorUser.firstName} {instructorUser.lastName}</>
                         ) : (
-                          <span className="text-gray-400">Nuk ka instruktor caktuar</span>
+                          <span className="text-gray-400">{t('dashboard.noInstructorAssigned')}</span>
                         )}
                       </p>
                     </div>
@@ -257,7 +259,7 @@ export function AdminDashboard() {
               })}
               {upcomingAppointments.length === 0 && (
                 <p className="text-center text-sm text-gray-500 py-4">
-                  Nuk ka takime të ardhshme
+                  {t('dashboard.noUpcomingAppointments')}
                 </p>
               )}
             </div>
@@ -274,10 +276,10 @@ export function AdminDashboard() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-sm lg:text-base text-amber-800">
-                Kërkohet vëmendje
+                {t('dashboard.attentionRequired')}
               </h3>
               <p className="text-xs lg:text-sm text-amber-700 mt-1">
-                {carsNeedingAttention.length} makinë(ra) kanë nevojë për inspektim brenda 30 ditëve të ardhshme.
+                {t('dashboard.carsNeedInspection', { count: carsNeedingAttention.length })}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {carsNeedingAttention.map(car => {

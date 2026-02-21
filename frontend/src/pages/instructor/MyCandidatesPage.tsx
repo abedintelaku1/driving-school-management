@@ -10,10 +10,12 @@ import { Select } from '../../components/ui/Select';
 import { TextArea } from '../../components/ui/TextArea';
 import { DataTable } from '../../components/ui/DataTable';
 import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
 import { api } from '../../utils/api';
 import { toast } from '../../hooks/useToast';
 import type { Candidate } from '../../types';
 import jsPDF from 'jspdf';
+import { formatCurrentDate } from '../../utils/dateUtils';
 
 type Appointment = {
   _id?: string;
@@ -42,6 +44,7 @@ type Appointment = {
 
 type CandidateWithStats = Candidate & {
   completedHours: number;
+  completedLessons: number;
   scheduledLessons: number;
   totalLessons: number;
   progress: number;
@@ -63,6 +66,7 @@ type Car = {
 
 export function MyCandidatesPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
@@ -123,7 +127,7 @@ export function MyCandidatesPage() {
             setPackages(packageMap);
           }
         } else {
-          toast('error', 'Dështoi ngarkimi i kandidatëve');
+          toast('error', t('candidates.failedToLoad'));
         }
 
         if (appointmentsRes.ok && appointmentsRes.data) {
@@ -139,7 +143,7 @@ export function MyCandidatesPage() {
           }));
           setAppointments(transformedAppointments);
         } else {
-          toast('error', 'Dështoi ngarkimi i takimeve');
+          toast('error', t('appointments.failedToLoadAppointments'));
         }
 
         if (carsRes.ok && carsRes.data) {
@@ -151,7 +155,7 @@ export function MyCandidatesPage() {
         }
       } catch (error) {
         console.error('Error fetching candidates data:', error);
-        toast('error', 'Dështoi ngarkimi i të dhënave');
+        toast('error', t('common.failedToLoadData'));
       } finally {
         setLoading(false);
       }
@@ -175,13 +179,14 @@ export function MyCandidatesPage() {
       const completedAppointments = candidateAppointments.filter(a => a.status === 'completed');
       const scheduledAppointments = candidateAppointments.filter(a => a.status === 'scheduled');
       const completedHours = completedAppointments.reduce((sum, a) => sum + (a.hours || 0), 0);
+      const completedLessons = completedAppointments.length;
       const scheduledLessons = scheduledAppointments.length;
       const totalLessons = candidateAppointments.length;
 
       // Get package info
       const packageId = (candidate as any).packageId;
       const packageInfo = packageId && packages[packageId] ? {
-        name: packages[packageId].name || 'Paketa',
+        name: packages[packageId].name || t('packages.package'),
         hours: packages[packageId].hours || packages[packageId].totalHours || 0,
         price: packages[packageId].price || 0
       } : undefined;
@@ -192,12 +197,13 @@ export function MyCandidatesPage() {
         progress = Math.min(100, Math.round((completedHours / packageInfo.hours) * 100));
       } else if (totalLessons > 0) {
         // If no package, show progress based on completed lessons
-        progress = Math.round((completedAppointments.length / totalLessons) * 100);
+        progress = Math.round((completedLessons / totalLessons) * 100);
       }
 
       return {
         ...candidate,
         completedHours,
+        completedLessons,
         scheduledLessons,
         totalLessons,
         progress,
@@ -251,60 +257,75 @@ export function MyCandidatesPage() {
 
   const handleExport = () => {
     if (!candidatesWithStats.length) {
-      toast('info', 'Nuk ka kandidatë për eksport');
+      toast('info', t('myCandidates.noCandidatesToExport'));
       return;
     }
 
     const timestamp = new Date().toISOString().split('T')[0];
 
     if (exportFormat === 'csv') {
-      const headers = ['Emri', 'Mbiemri', 'Numri i klientit', 'Email', 'Telefon', 'Mësime gjithsej', 'Mësime të përfunduara', 'Orë të përfunduara', 'Ecuria %', 'Statusi'];
+      const headers = [
+        t('candidates.firstName'),
+        t('candidates.lastName'),
+        t('candidates.clientNumberColumn'),
+        t('common.email'),
+        t('common.phone'),
+        t('instructors.totalLessons'),
+        t('instructors.completedLessons'),
+        t('candidates.completedHours'),
+        t('candidates.progress'),
+        t('candidates.statusColumn')
+      ];
       const rows = candidatesWithStats.map(c => [
         c.firstName || '',
         c.lastName || '',
         c.uniqueClientNumber || '',
         c.email || '',
         c.phone || '',
-        c.totalLessons.toString(),
-        c.completedLessons.toString(),
-        c.completedHours.toString(),
-        `${c.progress}%`,
-        c.status === 'active' ? 'Aktiv' : 'Jo aktiv'
+        (c.totalLessons || 0).toString(),
+        (c.completedLessons || 0).toString(),
+        (c.completedHours || 0).toString(),
+        `${c.progress || 0}%`,
+        c.status === 'active' ? t('common.active') : t('common.inactive')
       ]);
 
       const csv = [headers, ...rows]
         .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // Add UTF-8 BOM for Excel compatibility
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `kandidatet-e-mi_${timestamp}.csv`);
+      link.setAttribute('download', `${t('reports.csvFilenameMyCandidates')}_${timestamp}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast('success', 'Kandidatët u eksportuan në CSV');
+      toast('success', t('candidates.exportedToCSV'));
     } else {
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Nxënësit e mi', 14, 20);
+      doc.text(t('candidates.myCandidates'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
-      doc.text(`Total: ${candidatesWithStats.length} nxënës`, 14, 37);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('reports.exportDate')}: ${formatCurrentDate(locale)}`, 14, 30);
+      doc.text(`${t('common.total')}: ${candidatesWithStats.length} ${t('candidates.candidates')}`, 14, 37);
       
       let yPos = 50;
       doc.setFontSize(9);
       doc.setFont(undefined, 'bold');
-      doc.text('Emri', 14, yPos);
-      doc.text('Mbiemri', 50, yPos);
-      doc.text('Nr. Klientit', 85, yPos);
-      doc.text('Mësime', 120, yPos);
-      doc.text('Orë', 145, yPos);
-      doc.text('Ecuria', 165, yPos);
-      doc.text('Statusi', 190, yPos);
+      doc.text(t('common.firstName'), 14, yPos);
+      doc.text(t('common.lastName'), 50, yPos);
+      doc.text(t('candidates.clientNumber'), 85, yPos);
+      doc.text(t('candidates.lessons'), 120, yPos);
+      doc.text(t('candidates.hours'), 145, yPos);
+      doc.text(t('candidates.progress'), 165, yPos);
+      doc.text(t('common.status'), 190, yPos);
       
       yPos += 7;
       doc.setFont(undefined, 'normal');
@@ -318,16 +339,16 @@ export function MyCandidatesPage() {
         
         doc.text((c.firstName || '').substring(0, 15), 14, yPos);
         doc.text((c.lastName || '').substring(0, 15), 50, yPos);
-        doc.text((c.uniqueClientNumber || 'N/A').substring(0, 12), 85, yPos);
+        doc.text((c.uniqueClientNumber || t('common.n/a')).substring(0, 12), 85, yPos);
         doc.text(c.totalLessons.toString(), 120, yPos);
         doc.text(c.completedHours.toString(), 145, yPos);
         doc.text(`${c.progress}%`, 165, yPos);
-        doc.text(c.status === 'active' ? 'Aktiv' : 'Jo aktiv', 190, yPos);
+        doc.text(c.status === 'active' ? t('myCandidates.active') : t('myCandidates.inactive'), 190, yPos);
         yPos += 6;
       });
       
-      doc.save(`kandidatet-e-mi_${timestamp}.pdf`);
-      toast('success', 'Kandidatët u eksportuan në PDF');
+      doc.save(`${t('reports.csvFilenameMyCandidates')}_${timestamp}.pdf`);
+      toast('success', t('candidates.exportedToPDF'));
     }
   };
 
@@ -336,9 +357,9 @@ export function MyCandidatesPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nxënësit e mi</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('myCandidates.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Shikoni dhe ndiqni progresin e nxënësve që ju janë caktuar.
+            {t('myCandidates.subtitle')}
           </p>
         </div>
         <div className="flex gap-2 items-center">
@@ -346,9 +367,10 @@ export function MyCandidatesPage() {
             value={exportFormat}
             onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
             options={[
-              { value: 'csv', label: 'CSV' },
-              { value: 'pdf', label: 'PDF' },
+              { value: 'csv', label: t('reports.csv') },
+              { value: 'pdf', label: t('reports.pdf') },
             ]}
+            placeholder={t('common.selectOption')}
             className="w-24"
           />
           <Button 
@@ -357,7 +379,7 @@ export function MyCandidatesPage() {
             icon={<DownloadIcon className="w-4 h-4" />}
             disabled={candidatesWithStats.length === 0}
           >
-            Eksporto {exportFormat.toUpperCase()}
+            {t('myCandidates.export')} {exportFormat.toUpperCase()}
           </Button>
         </div>
       </div>
@@ -366,20 +388,20 @@ export function MyCandidatesPage() {
       {loading ? (
         <Card>
           <div className="text-center py-12">
-            <p className="text-gray-500">Duke ngarkuar nxënësit...</p>
+            <p className="text-gray-500">{t('myCandidates.loading')}</p>
           </div>
         </Card>
       ) : candidatesWithStats.length === 0 ? (
         <Card>
           <div className="text-center py-12">
-            <p className="text-gray-500">Ende nuk ju janë caktuar nxënës.</p>
+            <p className="text-gray-500">{t('myCandidates.noCandidatesAssigned')}</p>
           </div>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {candidatesWithStats.map(candidate => {
             const candidateId = candidate._id || candidate.id;
-            const packageName = candidate.packageInfo?.name || 'Pa paketë';
+            const packageName = candidate.packageInfo?.name || t('packages.package');
             const packageHours = candidate.packageInfo?.hours || 0;
             
             return (
@@ -430,16 +452,17 @@ export function MyCandidatesPage() {
                           )}
                         </span>
                         <Badge variant="info" size="sm">
-                          {candidate.totalLessons > 0 ? 'Aktiv' : 'I caktuar'}
+                          {candidate.totalLessons > 0 ? t('myCandidates.active') : t('myCandidates.assigned')}
                         </Badge>
                       </div>
                       <div className="mb-2">
                         <div className="flex justify-between text-xs text-gray-500 mb-1">
                           <span>
-                            {candidate.completedHours}h të përfunduara
-                            {packageHours > 0 && ` / ${packageHours}h`}
+                            {packageHours > 0 
+                              ? t('myCandidates.hoursCompletedOf', { completed: candidate.completedHours, total: packageHours })
+                              : t('myCandidates.hoursCompleted', { hours: candidate.completedHours })}
                           </span>
-                          <span>{candidate.scheduledLessons} të planifikuara</span>
+                          <span>{t('myCandidates.scheduled', { count: candidate.scheduledLessons })}</span>
                         </div>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div 
@@ -448,8 +471,8 @@ export function MyCandidatesPage() {
                           />
                         </div>
                         <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>{candidate.progress}% e përfunduar</span>
-                          <span>{candidate.totalLessons} mësime gjithsej</span>
+                          <span>{t('myCandidates.completed', { percent: candidate.progress })}</span>
+                          <span>{t('myCandidates.totalLessons', { count: candidate.totalLessons })}</span>
                         </div>
                       </div>
                     </div>
@@ -461,14 +484,14 @@ export function MyCandidatesPage() {
                         fullWidth
                         onClick={() => handleViewDetails(candidate)}
                       >
-                        Shiko detajet
+                        {t('myCandidates.viewDetails')}
                       </Button>
                       <Button 
                         size="sm" 
                         fullWidth
                         onClick={() => handleScheduleLesson(candidate)}
                       >
-                        Planifiko mësim
+                        {t('myCandidates.scheduleLesson')}
                       </Button>
                     </div>
                   </div>
@@ -522,15 +545,17 @@ function CandidateDetailModal({
   candidate,
   appointments
 }: CandidateDetailModalProps) {
+  const { t } = useLanguage();
+  
   const appointmentColumns = [
     {
       key: 'date',
-      label: 'Data',
+      label: t('common.date'),
       sortable: true
     },
     {
       key: 'time',
-      label: 'Ora',
+      label: t('appointments.time'),
       render: (_: unknown, apt: Appointment) => (
         <span>
           {apt.startTime} - {apt.endTime}
@@ -539,14 +564,14 @@ function CandidateDetailModal({
     },
     {
       key: 'hours',
-      label: 'Orë',
+      label: t('appointments.hours'),
       render: (value: unknown) => (
         <span className="font-semibold">{value ? `${value}h` : '-'}</span>
       )
     },
     {
       key: 'status',
-      label: 'Statusi',
+      label: t('common.status'),
       render: (value: unknown) => {
         const status = value as string;
         const variants: Record<string, 'success' | 'warning' | 'danger'> = {
@@ -555,9 +580,9 @@ function CandidateDetailModal({
           cancelled: 'danger'
         };
         const labels: Record<string, string> = {
-          completed: 'Përfunduar',
-          scheduled: 'Të planifikuar',
-          cancelled: 'Anuluar'
+          completed: t('appointments.completed'),
+          scheduled: t('appointments.scheduled'),
+          cancelled: t('appointments.cancelled')
         };
         return (
           <Badge variant={variants[status] || 'outline'} size="sm">
@@ -573,7 +598,7 @@ function CandidateDetailModal({
       isOpen={isOpen}
       onClose={onClose}
       title={`${candidate.firstName} ${candidate.lastName}`}
-      description="Detajet e nxënësit dhe historiku i mësimeve"
+      description={t('myCandidates.studentDetailsDescription')}
       size="lg"
     >
       <div className="space-y-6">
@@ -592,7 +617,7 @@ function CandidateDetailModal({
                   </h3>
                   {candidate.uniqueClientNumber && (
                     <p className="text-sm text-gray-500 mt-1">
-                      Klienti #: {candidate.uniqueClientNumber}
+                      {t('candidates.clientNumber')}: {candidate.uniqueClientNumber}
                     </p>
                   )}
                 </div>
@@ -636,25 +661,25 @@ function CandidateDetailModal({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card padding="sm">
             <div className="text-center">
-              <p className="text-sm text-gray-500">Mësime gjithsej</p>
+              <p className="text-sm text-gray-500">{t('myCandidates.totalLessonsLabel')}</p>
               <p className="text-2xl font-bold text-gray-900">{candidate.totalLessons}</p>
             </div>
           </Card>
           <Card padding="sm">
             <div className="text-center">
-              <p className="text-sm text-gray-500">Orë të përfunduara</p>
+              <p className="text-sm text-gray-500">{t('myCandidates.completedHours')}</p>
               <p className="text-2xl font-bold text-gray-900">{candidate.completedHours}h</p>
             </div>
           </Card>
           <Card padding="sm">
             <div className="text-center">
-              <p className="text-sm text-gray-500">Të planifikuara</p>
+              <p className="text-sm text-gray-500">{t('myCandidates.scheduledLabel')}</p>
               <p className="text-2xl font-bold text-gray-900">{candidate.scheduledLessons}</p>
             </div>
           </Card>
           <Card padding="sm">
             <div className="text-center">
-              <p className="text-sm text-gray-500">Ecuria</p>
+              <p className="text-sm text-gray-500">{t('myCandidates.progressLabel')}</p>
               <p className="text-2xl font-bold text-gray-900">{candidate.progress}%</p>
             </div>
           </Card>
@@ -663,12 +688,12 @@ function CandidateDetailModal({
         {/* Appointments History */}
         <Card padding="none">
           <CardHeader>
-            <CardTitle>Historiku i mësimeve</CardTitle>
+            <CardTitle>{t('myCandidates.lessonHistory')}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {appointments.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                Ende nuk ka takime të planifikuara
+                {t('myCandidates.noAppointmentsScheduled')}
               </div>
             ) : (
               <DataTable
@@ -705,6 +730,7 @@ function ScheduleLessonModal({
   preSelectedCandidateId,
   onSuccess
 }: ScheduleLessonModalProps) {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     candidateId: '',
@@ -781,13 +807,13 @@ function ScheduleLessonModal({
     setLoading(true);
     try {
       if (!instructorId) {
-        toast('error', 'Unable to determine instructor. Please try again.');
+        toast('error', t('appointments.unableToDetermineInstructor'));
         setLoading(false);
         return;
       }
 
       if (!formData.candidateId) {
-        toast('error', 'Ju lutemi zgjidhni një nxënës');
+        toast('error', t('appointments.pleaseSelectStudent'));
         setLoading(false);
         return;
       }
@@ -807,7 +833,7 @@ function ScheduleLessonModal({
       const res = await api.createAppointment(appointmentData);
 
       if (res.ok) {
-        toast('success', 'Takimi u planifikuar me sukses');
+        toast('success', t('appointments.appointmentScheduledSuccess'));
         setFormData({
           candidateId: '',
           carId: '',
@@ -820,10 +846,10 @@ function ScheduleLessonModal({
         onSuccess();
         onClose();
       } else {
-        toast('error', res.data?.message || 'Dështoi planifikimi i takimit');
+        toast('error', res.data?.message || t('appointments.failedToSchedule'));
       }
     } catch (error) {
-      toast('error', 'Dështoi planifikimi i takimit');
+      toast('error', t('appointments.failedToSchedule'));
     } finally {
       setLoading(false);
     }
@@ -836,50 +862,50 @@ function ScheduleLessonModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Schedule New Lesson"
-      description="Create a new driving lesson appointment"
+      title={t('appointments.scheduleAppointment')}
+      description={t('appointments.createAppointment')}
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            Planifiko takimin
+            {t('appointments.scheduleAppointmentButton')}
           </Button>
         </div>
       }
     >
       <form className="space-y-6" onSubmit={handleSubmit}>
         <Select
-          label="Student"
+          label={t('appointments.student')}
           required
           value={formData.candidateId}
           onChange={e => setFormData({ ...formData, candidateId: e.target.value })}
           options={activeCandidates.length > 0 ? activeCandidates.map(candidate => ({
             value: candidate._id || candidate.id || '',
             label: `${candidate.firstName} ${candidate.lastName}`
-          })) : [{ value: '', label: 'Nuk ka kandidatë të disponueshëm' }]}
+          })) : [{ value: '', label: t('appointments.noCandidatesAssigned') }]}
           disabled={activeCandidates.length === 0}
         />
 
         <Select
-          label="Mjeti"
+          label={t('appointments.vehicle')}
           value={formData.carId}
           onChange={e => setFormData({ ...formData, carId: e.target.value })}
           options={activeCars.length > 0 ? [
-            { value: '', label: 'Pa caktuar (do të caktohet nga admini)' },
+            { value: '', label: t('appointments.notAssigned') },
             ...activeCars.map(car => ({
               value: car._id || car.id || '',
               label: `${car.model} (${car.licensePlate})${car.transmission ? ` - ${car.transmission}` : ''}`
             }))
-          ] : [{ value: '', label: 'Nuk ju janë caktuar makinë' }]}
+          ] : [{ value: '', label: t('appointments.noCarsAssigned') }]}
           disabled={activeCars.length === 0}
-          hint={activeCars.length === 0 ? 'Makina do të caktohet nga admini' : undefined}
+          hint={activeCars.length === 0 ? t('appointments.carWillBeAssignedByAdmin') : undefined}
         />
 
         <Input
-          label="Date"
+          label={t('appointments.date')}
           type="date"
           required
           value={formData.date}
@@ -888,7 +914,7 @@ function ScheduleLessonModal({
 
         <div className="grid grid-cols-3 gap-4">
           <Input
-            label="Start Time"
+            label={t('appointments.startTime')}
             type="time"
             required
             value={formData.startTime}
@@ -902,7 +928,7 @@ function ScheduleLessonModal({
             }}
           />
           <Input
-            label="Ora e mbarimit"
+            label={t('appointments.endTime')}
             type="time"
             required
             value={formData.endTime}
@@ -916,20 +942,20 @@ function ScheduleLessonModal({
             }}
           />
           <Input
-            label="Orë"
+            label={t('appointments.hours')}
             type="number"
             required
             value={formData.hours}
             onChange={e => setFormData({ ...formData, hours: e.target.value })}
-            hint="Llogaritet automatikisht"
+            hint={t('appointments.calculatedAutomatically')}
           />
         </div>
 
         <TextArea
-          label="Shënime"
+          label={t('appointments.notes')}
           value={formData.notes}
           onChange={e => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Shënime opsionale për këtë mësim..."
+          placeholder={t('appointments.notesPlaceholder')}
           rows={3}
         />
       </form>

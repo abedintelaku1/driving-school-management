@@ -25,7 +25,12 @@ const app = express();
 
 connectDB();
 mongoose.connection.once("open", () => {
-  seedUsers().catch((err) => console.error("Seed users error:", err));
+  seedUsers().catch((err) => {
+    // Don't log error details in production
+    if (process.env.NODE_ENV === 'development') {
+      console.error("Seed users error:", err);
+    }
+  });
 });
 
 // CORS configuration
@@ -49,13 +54,11 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Logging middleware for debugging
+// Logging middleware for debugging (disabled in production for security)
 app.use((req, res, next) => {
-  if (req.path === "/api/auth/login") {
-    console.log("=== REQUEST LOG ===");
+  // Don't log sensitive request data in production
+  if (process.env.NODE_ENV === 'development' && req.path === "/api/auth/login") {
     console.log(`${req.method} ${req.path}`);
-    console.log("Body:", JSON.stringify(req.body, null, 2));
-    console.log("Content-Type:", req.headers["content-type"]);
   }
   next();
 });
