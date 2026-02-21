@@ -11,6 +11,7 @@ import { Select } from "../../components/ui/Select";
 import { Checkbox } from "../../components/ui/Checkbox";
 import { FilterBar } from "../../components/ui/FilterBar";
 import { toast } from "../../hooks/useToast";
+import { useLanguage } from "../../hooks/useLanguage";
 import { api } from "../../utils/api/index";
 import type { Car } from "../../types";
 
@@ -35,6 +36,7 @@ type InstructorRow = {
   totalDebt?: number;
 };
 export function InstructorsPage() {
+  const { t } = useLanguage();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingInstructor, setEditingInstructor] =
     useState<InstructorRow | null>(null);
@@ -60,7 +62,7 @@ export function InstructorsPage() {
             result.data !== null &&
             "message" in result.data
               ? (result.data as any).message
-              : "Failed to load instructors";
+              : t('instructors.failedToLoad');
           throw new Error(errorMsg);
         }
         const mapped: InstructorRow[] = (result.data || []).map((item: any) => {
@@ -107,7 +109,7 @@ export function InstructorsPage() {
         setRows(mapped);
       } catch (err) {
         console.error("Failed to fetch instructors", err);
-        toast("error", "Failed to load instructors");
+        toast("error", t('instructors.failedToLoad'));
       } finally {
         setLoading(false);
       }
@@ -191,7 +193,7 @@ export function InstructorsPage() {
   const columns = [
     {
       key: "name",
-      label: "Instructor",
+      label: t('instructors.instructorColumn'),
       sortable: true,
       render: (_: unknown, instructor: InstructorRow) => (
         <div className="flex items-center gap-3">
@@ -210,11 +212,11 @@ export function InstructorsPage() {
     },
     {
       key: "phone",
-      label: "Phone",
+      label: t('instructors.phoneLabel'),
     },
     {
       key: "categories",
-      label: "Categories",
+      label: t('instructors.categoriesLabel'),
       render: (value: unknown) => (
         <div className="flex flex-wrap gap-1">
           {(value as string[]).map((cat) => (
@@ -227,7 +229,7 @@ export function InstructorsPage() {
     },
     {
       key: "totalHours",
-      label: "Total Hours",
+      label: t('instructors.totalHoursLabel'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">{value as number}h</span>
@@ -235,7 +237,7 @@ export function InstructorsPage() {
     },
     {
       key: "assignedCarIds",
-      label: "Cars",
+      label: t('instructors.carsLabel'),
       width: "200px",
       render: (value: unknown, instructor: InstructorRow) => {
         const assignedCarIds = value as string[];
@@ -250,14 +252,14 @@ export function InstructorsPage() {
           .filter(Boolean);
         
         if (allCarIds.length === 0) {
-          return <span className="text-gray-400">None</span>;
+          return <span className="text-gray-400">{t('instructors.none')}</span>;
         }
         
         return (
           <div className="flex flex-col gap-1">
             {personalCars.map((car) => (
               <Badge key={car!.id} variant="info" size="sm" className="w-fit whitespace-nowrap">
-                {car!.licensePlate} (Personal)
+                {car!.licensePlate} ({t('instructors.personal')})
               </Badge>
             ))}
             {assignedCars.map((car) => (
@@ -271,20 +273,20 @@ export function InstructorsPage() {
     },
     {
       key: "instructorType",
-      label: "Lloji",
+      label: t('instructors.typeLabel'),
       sortable: true,
       render: (value: unknown) => {
         const type = value as 'insider' | 'outsider';
         return (
           <Badge variant={type === 'outsider' ? 'info' : 'outline'} size="sm">
-            {type === 'outsider' ? 'Me orë' : 'Rrogë fikse'}
+            {type === 'outsider' ? t('instructors.hourlyRate') : t('instructors.fixedSalary')}
           </Badge>
         );
       },
     },
     {
       key: "balance",
-      label: "Kredite",
+      label: t('instructors.creditsLabel'),
       sortable: true,
       width: "100px",
       render: (_: unknown, instructor: InstructorRow) => {
@@ -301,7 +303,7 @@ export function InstructorsPage() {
     },
     {
       key: "status",
-      label: "Status",
+      label: t('instructors.statusLabel'),
       sortable: true,
       render: (value: unknown) => (
         <StatusBadge status={value as "active" | "inactive"} />
@@ -320,19 +322,19 @@ export function InstructorsPage() {
       const result = await api.deleteInstructor(instructorToDelete.id);
 
       if (!result.ok) {
-        toast("error", result.data?.message || "Dështoi fshirja e instruktorit");
+        toast("error", result.data?.message || t('instructors.failedToDelete'));
         setIsDeleting(false);
         return;
       }
 
-      toast("success", "Instruktori u fshi me sukses");
+      toast("success", t('instructors.instructorDeleted'));
       setInstructorToDelete(null);
       setRefreshKey((prev) => prev + 1); // Refresh the list
     } catch (error: any) {
       console.error("Error deleting instructor:", error);
       toast(
         "error",
-        error?.message || "Failed to delete instructor. Please try again."
+        error?.message || t('instructors.failedToDelete')
       );
     } finally {
       setIsDeleting(false);
@@ -347,7 +349,7 @@ export function InstructorsPage() {
         onClick={() => setEditingInstructor(instructor)}
         icon={<EditIcon className="w-4 h-4" />}
       >
-        Ndrysho
+        {t('common.edit')}
       </Button>
       <Button
         variant="ghost"
@@ -356,7 +358,7 @@ export function InstructorsPage() {
         icon={<TrashIcon className="w-4 h-4" />}
         className="text-red-600 hover:text-red-700 hover:bg-red-50"
       >
-        Fshi
+        {t('common.delete')}
       </Button>
     </div>
   );
@@ -365,16 +367,16 @@ export function InstructorsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Instruktorët</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('instructors.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Menaxhoni instruktorët e makinës dhe caktimet e tyre.
+            {t('instructors.subtitle')}
           </p>
         </div>
         <Button
           onClick={() => setShowAddModal(true)}
           icon={<PlusIcon className="w-4 h-4" />}
         >
-          Shto instruktor
+          {t('instructors.addInstructor')}
         </Button>
       </div>
 
@@ -382,35 +384,35 @@ export function InstructorsPage() {
       <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="All Statuses"
+            placeholder={t('instructors.allStatuses')}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             options={[
               {
                 value: "",
-                label: "All Statuses",
+                label: t('instructors.allStatuses'),
               },
               {
                 value: "active",
-                label: "Active",
+                label: t('common.active'),
               },
               {
                 value: "inactive",
-                label: "Inactive",
+                label: t('common.inactive'),
               },
             ]}
           />
         </div>
         <div className="w-full sm:w-48">
           <Select
-            placeholder="Të gjitha kategoritë"
+            placeholder={t('instructors.allStatuses')}
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             options={[
-              { value: "", label: "Të gjitha kategoritë" },
+              { value: "", label: t('instructors.allStatuses') },
               ...licenseCategories.map((cat) => ({
                 value: cat,
-                label: `Kategoria ${cat}`,
+                label: t('packages.categoryLabel').replace('{category}', cat),
               })),
             ]}
           />
@@ -424,10 +426,10 @@ export function InstructorsPage() {
           columns={columns}
           keyExtractor={(instructor) => instructor.id}
           searchable
-          searchPlaceholder="Search instructors..."
+          searchPlaceholder={t('instructors.searchPlaceholder')}
           searchKeys={["firstName", "lastName", "email", "phone"]}
           actions={actions}
-          emptyMessage="No instructors found"
+          emptyMessage={t('common.noData')}
         />
       </Card>
 
@@ -453,10 +455,10 @@ export function InstructorsPage() {
         isOpen={!!instructorToDelete}
         onClose={() => setInstructorToDelete(null)}
         onConfirm={handleDeleteConfirm}
-        title="Fshi instruktorin"
-        message={`Jeni të sigurt që dëshironi të fshini ${instructorToDelete?.firstName} ${instructorToDelete?.lastName}? Ky veprim nuk mund të kthehet.`}
-        confirmText="Po, fshi"
-        cancelText="Anulo"
+        title={t('instructors.deleteInstructor')}
+        message={t('instructors.confirmDeleteMessage').replace('{name}', `${instructorToDelete?.firstName} ${instructorToDelete?.lastName}`)}
+        confirmText={t('common.yes') + ', ' + t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         loading={isDeleting}
       />
@@ -479,6 +481,7 @@ function AddInstructorModal({
   licenseCategories,
   onSuccess,
 }: AddInstructorModalProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -518,92 +521,91 @@ function AddInstructorModal({
     const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = "Emri është i detyrueshëm";
+      newErrors.firstName = t('instructors.firstNameRequired');
     }
 
     if (!formData.lastName.trim()) {
-      newErrors.lastName = "Mbiemri është i detyrueshëm";
+      newErrors.lastName = t('instructors.lastNameRequired');
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = "Emaili është i detyrueshëm";
+      newErrors.email = t('instructors.emailRequired');
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
-        newErrors.email = "Vendosni një adresë email të vlefshme";
+        newErrors.email = t('instructors.emailInvalid');
       }
     }
 
     if (!instructor) {
       if (!formData.password) {
-        newErrors.password = "Fjalëkalimi është i detyrueshëm";
+        newErrors.password = t('instructors.passwordRequired');
       } else if (formData.password.length < 6) {
-        newErrors.password = "Fjalëkalimi duhet të ketë të paktën 6 karaktere";
+        newErrors.password = t('instructors.passwordMinLength');
       }
     }
 
     if (!formData.phone.trim()) {
-      newErrors.phone = "Numri i telefonit është i detyrueshëm";
+      newErrors.phone = t('instructors.phoneRequired');
     } else {
       const phoneRegex = /^[\d\s\-\+\(\)]{6,}$/;
       if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = "Vendosni një numër telefoni të vlefshëm";
+        newErrors.phone = t('instructors.phoneInvalid');
       }
     }
 
     if (!formData.address.trim()) {
-      newErrors.address = "Adresa është e detyrueshme";
+      newErrors.address = t('instructors.addressRequired');
     }
 
     if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = "Data e lindjes është e detyrueshme";
+      newErrors.dateOfBirth = t('instructors.dateOfBirthRequired');
     } else {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
       if (birthDate >= today) {
-        newErrors.dateOfBirth = "Data e lindjes duhet të jetë në të kaluarën";
+        newErrors.dateOfBirth = t('instructors.dateOfBirthMustBePast');
       }
       const age = today.getFullYear() - birthDate.getFullYear();
       if (age < 18) {
-        newErrors.dateOfBirth = "Instruktori duhet të jetë të paktën 18 vjeç";
+        newErrors.dateOfBirth = t('instructors.instructorMustBeAtLeast18');
       }
     }
 
     if (!formData.personalNumber.trim()) {
-      newErrors.personalNumber = "Numri personal është i detyrueshëm";
+      newErrors.personalNumber = t('instructors.personalNumberRequired');
     } else if (formData.personalNumber.trim().length < 6) {
-      newErrors.personalNumber =
-        "Numri personal duhet të ketë të paktën 6 karaktere";
+      newErrors.personalNumber = t('instructors.personalNumberMinLength');
     }
 
     // Validate payment fields for outsider
     if (formData.instructorType === 'outsider') {
       if (formData.ratePerHour < 0) {
-        newErrors.ratePerHour = "Paga për orë duhet të jetë pozitive";
+        newErrors.ratePerHour = t('instructors.hourlyRateMustBePositive');
       }
     }
 
     if (formData.hasPersonalCar && !instructor) {
       if (!formData.personalCar.model.trim()) {
-        newErrors.personalCarModel = "Modeli i makinës është i detyrueshëm";
+        newErrors.personalCarModel = t('instructors.carModelRequired');
       }
       if (!formData.personalCar.yearOfManufacture) {
-        newErrors.personalCarYear = "Viti i prodhimit është i detyrueshëm";
+        newErrors.personalCarYear = t('instructors.carYearRequired');
       }
       if (!formData.personalCar.chassisNumber.trim()) {
-        newErrors.personalCarChassis = "Numri i shasisë është i detyrueshëm";
+        newErrors.personalCarChassis = t('instructors.carChassisRequired');
       }
       if (!formData.personalCar.licensePlate.trim()) {
-        newErrors.personalCarLicensePlate = "Targa është e detyrueshme";
+        newErrors.personalCarLicensePlate = t('instructors.carLicensePlateRequired');
       }
       if (!formData.personalCar.registrationExpiry) {
-        newErrors.personalCarRegExpiry = "Skadenca e regjistrimit është e detyrueshme";
+        newErrors.personalCarRegExpiry = t('instructors.carRegistrationExpiryRequired');
       }
       if (!formData.personalCar.lastInspection) {
-        newErrors.personalCarLastInspection = "Data e inspektimit të fundit është e detyrueshme";
+        newErrors.personalCarLastInspection = t('instructors.carLastInspectionRequired');
       }
       if (!formData.personalCar.nextInspection) {
-        newErrors.personalCarNextInspection = "Data e inspektimit të ardhshëm është e detyrueshme";
+        newErrors.personalCarNextInspection = t('instructors.carNextInspectionRequired');
       }
     }
 
@@ -701,7 +703,7 @@ function AddInstructorModal({
 
     if (!isValid) {
       console.log("❌ Validation failed, errors:", errors);
-      toast("error", "Ju lutemi korrigjoni gabimet në formular");
+      toast("error", t('instructors.pleaseFixErrors'));
       return;
     }
 
@@ -726,12 +728,12 @@ function AddInstructorModal({
         });
 
         if (!result.ok) {
-          toast("error", result.data?.message || "Dështoi përditësimi i instruktorit");
+          toast("error", result.data?.message || t('instructors.failedToUpdate'));
           setLoading(false);
           return;
         }
 
-        toast("success", "Instruktori u përditësua me sukses");
+        toast("success", t('instructors.instructorUpdated'));
         onSuccess();
       } else {
         // Create new instructor via backend
@@ -771,7 +773,7 @@ function AddInstructorModal({
 
         if (!result.ok) {
           const errorMessage =
-            result.data?.message || "Dështoi krijimi i instruktorit";
+            result.data?.message || t('instructors.failedToCreate');
           console.error("❌ Failed to create instructor:", errorMessage);
           toast("error", errorMessage);
 
@@ -796,7 +798,7 @@ function AddInstructorModal({
         console.log("✅ Instructor created successfully!");
         toast(
           "success",
-          "Instruktori u krijua me sukses! Tani mund të hyjnë me email dhe fjalëkalimin e tyre."
+          t('instructors.instructorCreatedSuccess')
         );
         onSuccess();
       }
@@ -809,7 +811,7 @@ function AddInstructorModal({
       });
       toast(
         "error",
-        error?.message || "Dështoi ruajtja e instruktorit. Ju lutemi provoni përsëri."
+        error?.message || t('instructors.failedToSave')
       );
     } finally {
       console.log("=== FORM SUBMISSION END ===");
@@ -827,13 +829,13 @@ function AddInstructorModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={instructor ? "Ndrysho instruktorin" : "Shto instruktor të ri"}
-      description="Vendosni të dhënat e instruktorit për ta regjistruar në sistem."
+      title={instructor ? t('instructors.editInstructor') : t('instructors.addInstructor')}
+      description={instructor ? t('instructors.editInstructor') : t('instructors.addInstructor')}
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button
             type="button"
@@ -841,7 +843,7 @@ function AddInstructorModal({
             loading={loading}
             disabled={loading}
           >
-            {instructor ? "Ruaj ndryshimet" : "Shto instruktor"}
+            {instructor ? t('common.save') : t('instructors.addInstructor')}
           </Button>
         </div>
       }
@@ -854,7 +856,7 @@ function AddInstructorModal({
       >
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Emri"
+            label={t('instructors.firstName')}
             required
             value={formData.firstName}
             error={errors.firstName}
@@ -864,7 +866,7 @@ function AddInstructorModal({
             }}
           />
           <Input
-            label="Mbiemri"
+            label={t('instructors.lastName')}
             required
             value={formData.lastName}
             error={errors.lastName}
@@ -877,7 +879,7 @@ function AddInstructorModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Emaili"
+            label={t('instructors.email')}
             type="email"
             required
             value={formData.email}
@@ -888,7 +890,7 @@ function AddInstructorModal({
             }}
           />
           <Input
-            label="Telefoni"
+            label={t('instructors.phone')}
             type="tel"
             required
             value={formData.phone}
@@ -900,7 +902,7 @@ function AddInstructorModal({
           />
         </div>
         <Input
-          label="Adresa"
+          label={t('instructors.address')}
           required
           value={formData.address}
           error={errors.address}
@@ -912,7 +914,7 @@ function AddInstructorModal({
 
         {!instructor && (
           <Input
-            label="Fjalëkalimi"
+            label={t('instructors.password')}
             type="password"
             required
             value={formData.password}
@@ -921,13 +923,13 @@ function AddInstructorModal({
               setFormData({ ...formData, password: e.target.value });
               if (errors.password) setErrors({ ...errors, password: "" });
             }}
-            hint="Të paktën 6 karaktere. Instruktori do ta përdorë për të hyrë."
+            hint={t('instructors.passwordHint')}
           />
         )}
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Data e lindjes"
+            label={t('instructors.dateOfBirth')}
             type="date"
             required
             value={formData.dateOfBirth}
@@ -938,7 +940,7 @@ function AddInstructorModal({
             }}
           />
           <Input
-            label="Numri personal"
+            label={t('instructors.personalNumber')}
             required
             value={formData.personalNumber}
             error={errors.personalNumber}
@@ -952,7 +954,7 @@ function AddInstructorModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Kategoritë e patentës
+            {t('instructors.licenseCategories')}
           </label>
           <div className="grid grid-cols-4 gap-2">
             {licenseCategories.map((category) => (
@@ -968,7 +970,7 @@ function AddInstructorModal({
 
         <div className="border-t pt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Lloji i pagesës
+            {t('instructors.paymentType')}
           </label>
           <Select
             value={formData.instructorType}
@@ -983,14 +985,14 @@ function AddInstructorModal({
               }));
             }}
             options={[
-              { value: "insider", label: "Rrogë fikse (Insider)" },
-              { value: "outsider", label: "Me orë (Outsider)" },
+              { value: "insider", label: t('instructors.fixedSalaryOption') },
+              { value: "outsider", label: t('instructors.hourlyRateOption') },
             ]}
           />
           {formData.instructorType === "outsider" && (
             <div className="mt-4">
               <Input
-                label="Paga për orë (€)"
+                label={t('instructors.hourlyRateLabel')}
                 type="number"
                 required
                 value={formData.ratePerHour.toString()}
@@ -1003,7 +1005,7 @@ function AddInstructorModal({
                   }));
                   if (errors.ratePerHour) setErrors({ ...errors, ratePerHour: "" });
                 }}
-                hint="Sa paguhet instruktori për çdo orë të përfunduar"
+                hint={t('instructors.hourlyRateHint')}
               />
             </div>
           )}
@@ -1012,7 +1014,7 @@ function AddInstructorModal({
         {!instructor && (
           <div className="border-t pt-4">
             <Checkbox
-              label="Instruktori ka makinën e vet personale"
+              label={t('instructors.hasPersonalCar')}
               checked={formData.hasPersonalCar}
               onChange={(checked) => {
                 setFormData((prev) => ({
@@ -1025,20 +1027,20 @@ function AddInstructorModal({
               <div className="mt-4 space-y-5 p-5 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="border-b border-gray-200 pb-3">
                   <h3 className="text-base font-semibold text-gray-900">
-                    Të dhënat e makinës personale
+                    {t('instructors.personalCarData')}
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Vendosni detajet e mjetit personal të instruktorit
+                    {t('instructors.personalCarDescription')}
                   </p>
                 </div>
                 
                 <div className="space-y-5">
                   {/* Basic Information */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Të dhënat themelore</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">{t('instructors.basicInformation')}</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <Input
-                        label="Modeli"
+                        label={t('cars.model')}
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.model}
                         error={errors.personalCarModel}
@@ -1052,7 +1054,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Viti i prodhimit"
+                        label={t('cars.yearOfManufacture')}
                         type="number"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.yearOfManufacture}
@@ -1072,7 +1074,7 @@ function AddInstructorModal({
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <Input
-                        label="Numri i shasisë"
+                        label={t('cars.chassisNumber')}
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.chassisNumber}
                         error={errors.personalCarChassis}
@@ -1089,7 +1091,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Targë"
+                        label={t('cars.licensePlate')}
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.licensePlate}
                         error={errors.personalCarLicensePlate}
@@ -1110,10 +1112,10 @@ function AddInstructorModal({
 
                   {/* Specifications */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Specifikimet</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">{t('instructors.specifications')}</h4>
                     <div className="grid grid-cols-3 gap-4">
                       <Select
-                        label="Transmisioni"
+                        label={t('cars.transmission')}
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.transmission}
                         onChange={(e) => {
@@ -1126,12 +1128,12 @@ function AddInstructorModal({
                           }));
                         }}
                         options={[
-                          { value: "manual", label: "Manuale" },
-                          { value: "automatic", label: "Automatik" },
+                          { value: "manual", label: t('cars.manual') },
+                          { value: "automatic", label: t('cars.automatic') },
                         ]}
                       />
                       <Select
-                        label="Lloji i karburantit"
+                        label={t('cars.fuelType')}
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.fuelType}
                         onChange={(e) => {
@@ -1144,27 +1146,27 @@ function AddInstructorModal({
                           }));
                         }}
                         options={[
-                          { value: "petrol", label: "Benzinë" },
-                          { value: "diesel", label: "Naftë" },
-                          { value: "electric", label: "Elektrik" },
-                          { value: "hybrid", label: "Hibrid" },
+                          { value: "petrol", label: t('cars.petrol') },
+                          { value: "diesel", label: t('cars.diesel') },
+                          { value: "electric", label: t('cars.electric') },
+                          { value: "hybrid", label: t('cars.hybrid') },
                         ]}
                       />
                       <Input
-                        label="Pronësia"
-                        value="Instruktor"
+                        label={t('cars.ownership')}
+                        value={t('cars.instructor')}
                         disabled
-                        hint="Makinat personale janë gjithmonë të instruktorit"
+                        hint={t('instructors.personalCarHint')}
                       />
                     </div>
                   </div>
 
                   {/* Inspection & Registration */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Inspektimi dhe regjistrimi</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">{t('instructors.inspectionAndRegistration')}</h4>
                     <div className="space-y-4">
                       <Input
-                        label="Skadenca e regjistrimit"
+                        label={t('cars.registrationExpiry')}
                         type="date"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.registrationExpiry}
@@ -1182,7 +1184,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Inspektimi i fundit"
+                        label={t('cars.lastInspection')}
                         type="date"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.lastInspection}
@@ -1200,7 +1202,7 @@ function AddInstructorModal({
                         }}
                       />
                       <Input
-                        label="Inspektimi i ardhshëm"
+                        label={t('cars.nextInspection')}
                         type="date"
                         required={formData.hasPersonalCar}
                         value={formData.personalCar.nextInspection}
@@ -1228,13 +1230,13 @@ function AddInstructorModal({
         {instructor && instructor.personalCarIds && instructor.personalCarIds.length > 0 && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-700">
-              <strong>Shënim:</strong> Ky instruktor ka makinë personale. Mund të caktoni edhe makina të shkollës përveç makinës së tyre personale.
+              <strong>{t('common.note')}:</strong> {t('instructors.personalCarNote')}
             </p>
           </div>
         )}
 
         <Select
-          label="Cakto makina të shkollës (opsionale)"
+          label={t('instructors.assignSchoolCars')}
           value=""
           onChange={(e) => {
             if (
@@ -1260,7 +1262,7 @@ function AddInstructorModal({
               label: `${car.model} (${car.licensePlate})`,
               disabled: formData.assignedCarIds.includes(car.id),
             }))}
-          placeholder="Zgjidhni makina për t'u caktuar"
+          placeholder={t('instructors.selectCarsToAssign')}
         />
         {formData.assignedCarIds.length > 0 && (
           <div className="flex flex-wrap gap-2">

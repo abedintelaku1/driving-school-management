@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronUpIcon, ChevronDownIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Input } from './Input';
 import { Button } from './Button';
+import { useLanguage } from '../../hooks/useLanguage';
 type Column<T> = {
   key: string;
   label: string;
@@ -29,15 +30,17 @@ export function DataTable<T extends Record<string, unknown>>({
   columns,
   keyExtractor,
   searchable = true,
-  searchPlaceholder = 'Kërko...',
+  searchPlaceholder,
   searchKeys = [],
   pagination = true,
   pageSize = 10,
-  emptyMessage = 'Nuk u gjetën të dhëna',
+  emptyMessage,
   onRowClick,
   actions,
   loading = false
 }: DataTableProps<T>) {
+  const { t } = useLanguage();
+  const defaultEmptyMessage = emptyMessage || t('common.noData');
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -110,7 +113,7 @@ export function DataTable<T extends Record<string, unknown>>({
       {searchable && <div className="max-w-sm">
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" value={search} onChange={handleSearchChange} placeholder={searchPlaceholder} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
+            <input type="text" value={search} onChange={handleSearchChange} placeholder={searchPlaceholder || t('common.search')} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
           </div>
         </div>}
 
@@ -132,14 +135,14 @@ export function DataTable<T extends Record<string, unknown>>({
                     </div>
                   </th>)}
                 {actions && <th className="px-4 lg:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Veprimet
+                    {t('common.actions')}
                   </th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginatedData.length === 0 ? <tr>
                   <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 lg:px-6 py-12 text-center text-gray-500">
-                    {emptyMessage}
+                    {defaultEmptyMessage}
                   </td>
                 </tr> : paginatedData.map((item, index) => <tr key={keyExtractor(item)} className={`
                       bg-white
@@ -148,7 +151,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     {columns.map(column => <td key={column.key} className="px-4 lg:px-6 py-4 text-sm text-gray-700" style={{ maxWidth: column.width }}>
                         {column.render ? column.render(item[column.key], item, index) : String(item[column.key] ?? '-')}
                       </td>)}
-                    {actions && <td className="px-4 lg:px-6 py-4 text-right">
+                    {actions && <td className="px-2 lg:px-3 py-4 text-right">
                         <div onClick={e => e.stopPropagation()}>
                           {actions(item)}
                         </div>
@@ -162,7 +165,7 @@ export function DataTable<T extends Record<string, unknown>>({
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
         {paginatedData.length === 0 ? <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-gray-200">
-            {emptyMessage}
+            {defaultEmptyMessage}
           </div> : paginatedData.map((item, index) => <div key={keyExtractor(item)} className={`
                 bg-white rounded-xl border border-gray-200 p-4 space-y-3
                 ${onRowClick ? 'cursor-pointer active:bg-gray-50' : ''}
@@ -184,13 +187,13 @@ export function DataTable<T extends Record<string, unknown>>({
       {/* Pagination */}
       {pagination && totalPages > 1 && <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-600">
-            Showing {(currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, sortedData.length)} of{' '}
-            {sortedData.length} results
+            {t('common.showing')} {(currentPage - 1) * pageSize + 1} {t('common.to')}{' '}
+            {Math.min(currentPage * pageSize, sortedData.length)} {t('common.of')}{' '}
+            {sortedData.length} {t('common.results')}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} icon={<ChevronLeftIcon className="w-4 h-4" />}>
-              <span className="hidden sm:inline">Para</span>
+              <span className="hidden sm:inline">{t('common.previous')}</span>
             </Button>
             <div className="flex items-center gap-1">
               {[...Array(Math.min(5, totalPages))].map((_, i) => {
@@ -213,7 +216,7 @@ export function DataTable<T extends Record<string, unknown>>({
           })}
             </div>
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>
-              <span className="hidden sm:inline">Tjetër</span>
+              <span className="hidden sm:inline">{t('common.next')}</span>
               <ChevronRightIcon className="w-4 h-4" />
             </Button>
           </div>

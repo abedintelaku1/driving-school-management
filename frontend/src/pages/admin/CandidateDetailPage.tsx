@@ -29,6 +29,8 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Modal } from "../../components/ui/Modal";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../hooks/useLanguage";
+import { toast } from "../../hooks/useToast";
 import type { Appointment, Document } from "../../types";
 
 type Candidate = {
@@ -62,6 +64,7 @@ export function CandidateDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const defaultTab = searchParams.get("tab") || "appointments";
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [appointments, setAppointments] = useState<AppointmentEx[]>([]);
@@ -167,7 +170,7 @@ export function CandidateDetailPage() {
     if (aptWithInstructor?.instructor?.user) {
       return `${aptWithInstructor.instructor.user.firstName || ""} ${aptWithInstructor.instructor.user.lastName || ""}`.trim();
     }
-    return "Pa caktuar";
+    return t('common.notAssigned');
   }, [candidate?.instructor, appointments]);
 
   const totalPaid = useMemo(() => {
@@ -183,7 +186,7 @@ export function CandidateDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <p className="text-gray-500">Duke ngarkuar kandidatin...</p>
+        <p className="text-gray-500">{t('common.loadingProfile')}</p>
       </div>
     );
   }
@@ -192,10 +195,10 @@ export function CandidateDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <EmptyState
-          title="Kandidati nuk u gjet"
-          description="Kandidati që po kërkoni nuk ekziston ose është hequr."
+          title={t('candidates.candidateNotFound')}
+          description={t('candidates.candidateNotFoundDescription')}
           action={{
-            label: "Kthehu te kandidatët",
+            label: t('candidates.backToCandidates'),
             onClick: () => navigate("/admin/candidates"),
           }}
         />
@@ -212,7 +215,7 @@ export function CandidateDetailPage() {
           onClick={() => navigate("/admin/candidates")}
           icon={<ArrowLeftIcon className="w-4 h-4" />}
         >
-          Kthehu
+          {t('common.back')}
         </Button>
       </div>
 
@@ -247,7 +250,7 @@ export function CandidateDetailPage() {
                     icon={<EditIcon className="w-4 h-4" />}
                     onClick={() => setEditOpen(true)}
                   >
-                    Ndrysho
+                    {t('common.edit')}
                   </Button>
                 )}
               </div>
@@ -264,7 +267,7 @@ export function CandidateDetailPage() {
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />
-                <span>DOB: {candidate.dateOfBirth || "-"}</span>
+                <span>{t('candidates.dateOfBirth')}: {candidate.dateOfBirth || "-"}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600 md:col-span-3">
                 <MapPinIcon className="w-5 h-5 text-gray-400" />
@@ -283,9 +286,9 @@ export function CandidateDetailPage() {
               <PackageIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Paketa</p>
+              <p className="text-sm text-gray-500">{t('candidates.package')}</p>
               <p className="font-semibold text-gray-900">
-                {packageInfo ? packageInfo.name : "Nuk është caktuar"}
+                {packageInfo ? packageInfo.name : t('candidates.notAssignedPackage')}
               </p>
             </div>
           </div>
@@ -296,7 +299,7 @@ export function CandidateDetailPage() {
               <UserIcon className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Instruktori</p>
+              <p className="text-sm text-gray-500">{t('candidates.instructor')}</p>
               <p className="font-semibold text-gray-900">{instructorName}</p>
             </div>
           </div>
@@ -307,7 +310,7 @@ export function CandidateDetailPage() {
               <ClockIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Orë të përfunduara</p>
+              <p className="text-sm text-gray-500">{t('candidates.completedHours')}</p>
               <p className="font-semibold text-gray-900">{completedHours}h</p>
             </div>
           </div>
@@ -318,11 +321,11 @@ export function CandidateDetailPage() {
               <CreditCardIcon className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Bilanci</p>
+              <p className="text-sm text-gray-500">{t('candidates.balance')}</p>
               <p className="font-semibold text-gray-900">{balanceText}</p>
               {packageInfo && balance > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  {((totalPaid / packagePrice) * 100).toFixed(1)}% e paguar
+                  {((totalPaid / packagePrice) * 100).toFixed(1)}% {t('candidates.paid')}
                 </p>
               )}
             </div>
@@ -333,10 +336,10 @@ export function CandidateDetailPage() {
       {/* Tabs */}
       <Tabs defaultTab={defaultTab}>
         <TabList>
-          <Tab value="appointments">Takimet</Tab>
-          <Tab value="payments">Pagesat</Tab>
-          <Tab value="documents">Dokumentet</Tab>
-          <Tab value="package">Paketa</Tab>
+          <Tab value="appointments">{t('candidates.appointments')}</Tab>
+          <Tab value="payments">{t('candidates.payments')}</Tab>
+          <Tab value="documents">{t('candidates.documents')}</Tab>
+          <Tab value="package">{t('candidates.packages')}</Tab>
         </TabList>
 
         <TabPanel value="appointments">
@@ -382,15 +385,16 @@ export function CandidateDetailPage() {
 }
 
 function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
+  const { t } = useLanguage();
   const columns = [
     {
       key: "date",
-      label: "Data",
+      label: t('appointments.date'),
       sortable: true,
     },
     {
       key: "time",
-      label: "Ora",
+      label: t('appointments.time'),
       render: (_: unknown, appointment: AppointmentEx) => (
         <span>
           {appointment.startTime} - {appointment.endTime}
@@ -399,11 +403,11 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
     },
     {
       key: "hours",
-      label: "Orët",
+      label: t('appointments.hours'),
     },
     {
       key: "status",
-      label: "Statusi",
+      label: t('common.status'),
       render: (value: unknown) => {
         const status = value as string;
         const variants: Record<string, "success" | "warning" | "danger"> = {
@@ -411,16 +415,21 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
           scheduled: "warning",
           cancelled: "danger",
         };
+        const statusLabels: Record<string, string> = {
+          completed: t('appointments.completed'),
+          scheduled: t('appointments.scheduled'),
+          cancelled: t('appointments.cancelled'),
+        };
         return (
           <Badge variant={variants[status] || "outline"} dot>
-            {status?.charAt(0).toUpperCase() + status?.slice(1)}
+            {statusLabels[status] || (status?.charAt(0).toUpperCase() + status?.slice(1))}
           </Badge>
         );
       },
     },
     {
       key: "notes",
-      label: "Shënime",
+      label: t('appointments.notes'),
       render: (value: unknown) => (
         <span className="text-gray-500">{(value as string) || "-"}</span>
       ),
@@ -433,7 +442,7 @@ function AppointmentsTab({ appointments }: { appointments: AppointmentEx[] }) {
         columns={columns}
         keyExtractor={(a) => a._id || a.id || ""}
         searchable={false}
-        emptyMessage="Nuk ka takime të planifikuara"
+        emptyMessage={t('candidates.noAppointmentsScheduled')}
       />
     </Card>
   );
@@ -454,6 +463,7 @@ function EditCandidateModal({
   instructors,
   onSaved,
 }: EditModalProps) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     firstName: candidate.firstName || "",
     lastName: candidate.lastName || "",
@@ -503,14 +513,14 @@ function EditCandidateModal({
       );
       if (!resp.ok) {
         alert(
-          (resp.data as any)?.message || "Dështoi përditësimi i kandidatit",
+          (resp.data as any)?.message || t('documents.failedToUpdateCandidate'),
         );
         return;
       }
       onSaved();
       onClose();
     } catch (err) {
-      alert("Dështoi përditësimi i kandidatit");
+      alert(t('documents.failedToUpdateCandidate'));
     } finally {
       setSaving(false);
     }
@@ -520,8 +530,8 @@ function EditCandidateModal({
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Ndrysho kandidatin"
-      description="Përditësoni të dhënat e kandidatit."
+      title={t('candidates.editCandidate')}
+      description={t('candidates.updateCandidateDetails')}
       size="lg"
       footer={
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
@@ -532,7 +542,7 @@ function EditCandidateModal({
             fullWidth
             className="sm:w-auto"
           >
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleSave}
@@ -540,7 +550,7 @@ function EditCandidateModal({
             fullWidth
             className="sm:w-auto"
           >
-            Ruaj ndryshimet
+            {t('common.saveChanges')}
           </Button>
         </div>
       }
@@ -554,13 +564,13 @@ function EditCandidateModal({
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Emri"
+            label={t('common.firstName')}
             required
             value={form.firstName}
             onChange={(e) => setForm({ ...form, firstName: e.target.value })}
           />
           <Input
-            label="Mbiemri"
+            label={t('common.lastName')}
             required
             value={form.lastName}
             onChange={(e) => setForm({ ...form, lastName: e.target.value })}
@@ -568,27 +578,27 @@ function EditCandidateModal({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Emaili"
+            label={t('common.email')}
             type="email"
             required
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <Input
-            label="Telefoni"
+            label={t('common.phone')}
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Data e lindjes"
+            label={t('candidates.dateOfBirth')}
             type="date"
             value={form.dateOfBirth}
             onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
           />
           <Input
-            label="Numri personal"
+            label={t('candidates.personalNumber')}
             value={form.personalNumber || ""}
             onChange={(e) =>
               setForm({ ...form, personalNumber: e.target.value })
@@ -596,25 +606,25 @@ function EditCandidateModal({
           />
         </div>
         <Input
-          label="Adresa"
+          label={t('common.address')}
           value={form.address}
           onChange={(e) => setForm({ ...form, address: e.target.value })}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Instruktori"
+            label={t('candidates.instructor')}
             value={form.instructorId}
             onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
             options={[
-              { value: "", label: "Pa caktuar" },
+              { value: "", label: t('common.notAssigned') },
               ...instructors.map((i) => ({
                 value: i.id,
-                label: i.name || "Instruktor",
+                label: i.name || t('common.instructor'),
               })),
             ]}
           />
           <Select
-            label="Statusi"
+            label={t('common.status')}
             value={form.status}
             onChange={(e) =>
               setForm({
@@ -623,8 +633,8 @@ function EditCandidateModal({
               })
             }
             options={[
-              { value: "active", label: "Aktive" },
-              { value: "inactive", label: "Joaktive" },
+              { value: "active", label: t('common.active') },
+              { value: "inactive", label: t('common.inactive') },
             ]}
           />
         </div>
@@ -644,6 +654,7 @@ function PaymentsTab({
   packageInfo: any;
   onPaymentAdded: () => void;
 }) {
+  const { t } = useLanguage();
   const totalPaid = useMemo(() => {
     return paymentsProp.reduce((sum, p) => sum + (p.amount || 0), 0);
   }, [paymentsProp]);
@@ -655,15 +666,15 @@ function PaymentsTab({
   const paymentColumns = [
     {
       key: "date",
-      label: "Data",
+      label: t('payments.date'),
       sortable: true,
       render: (value: unknown) => (
-        <span>{new Date(value as string).toLocaleDateString("sq-AL")}</span>
+        <span>{new Date(value as string).toLocaleDateString()}</span>
       ),
     },
     {
       key: "amount",
-      label: "Shuma",
+      label: t('payments.amount'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">
@@ -673,17 +684,23 @@ function PaymentsTab({
     },
     {
       key: "method",
-      label: "Metoda",
-      render: (value: unknown) => (
-        <Badge variant={value === "bank" ? "info" : "default"}>
-          {(value as string).charAt(0).toUpperCase() +
-            (value as string).slice(1)}
-        </Badge>
-      ),
+      label: t('payments.method'),
+      render: (value: unknown) => {
+        const method = value as string;
+        const methodLabels: Record<string, string> = {
+          bank: t('payments.bankTransfer'),
+          cash: t('payments.cashInHand'),
+        };
+        return (
+          <Badge variant={method === "bank" ? "info" : "default"}>
+            {methodLabels[method] || (method.charAt(0).toUpperCase() + method.slice(1))}
+          </Badge>
+        );
+      },
     },
     {
       key: "addedBy",
-      label: "Shtuar nga",
+      label: t('candidates.addedBy'),
       render: (value: unknown) => {
         const user = value as
           | { firstName?: string; lastName?: string; email?: string }
@@ -699,7 +716,7 @@ function PaymentsTab({
     },
     {
       key: "notes",
-      label: "Shënime",
+      label: t('payments.notes'),
       render: (value: unknown) => (
         <span className="text-gray-500 truncate max-w-[200px] block">
           {(value as string) || "-"}
@@ -715,11 +732,11 @@ function PaymentsTab({
         {/* Package Price */}
         <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <div className="p-4">
-            <p className="text-blue-100 text-sm">Çmimi i paketës</p>
+            <p className="text-blue-100 text-sm">{t('payments.packagePrice')}</p>
             <p className="text-3xl font-bold mt-1">
               {packageInfoProp
                 ? `€${packagePrice.toLocaleString()}`
-                : "Pa paketë"}
+                : t('candidates.notAssignedPackage')}
             </p>
             {packageInfoProp && (
               <p className="text-blue-100 text-xs mt-1">
@@ -732,12 +749,12 @@ function PaymentsTab({
         {/* Total Paid */}
         <Card className="bg-gradient-to-r from-green-600 to-green-700 text-white">
           <div className="p-4">
-            <p className="text-green-100 text-sm">Totali i paguar</p>
+            <p className="text-green-100 text-sm">{t('payments.totalPaid')}</p>
             <p className="text-3xl font-bold mt-1">
               €{totalPaid.toLocaleString()}
             </p>
             <p className="text-green-100 text-xs mt-1">
-              {paymentsProp.length} pagesë{paymentsProp.length !== 1 ? "" : ""}
+              {paymentsProp.length} {t('payments.transactions')}
             </p>
           </div>
         </Card>
@@ -755,17 +772,17 @@ function PaymentsTab({
           <div className="p-4">
             <p className="text-white/90 text-sm">
               {isFullyPaid
-                ? "E paguar plotësisht"
+                ? t('payments.fullyPaid')
                 : balance > 0
-                  ? "E mbetur"
-                  : "Më shumë se çmimi"}
+                  ? t('payments.remaining')
+                  : t('payments.overpaid')}
             </p>
             <p className="text-3xl font-bold mt-1">
               €{Math.abs(balance).toLocaleString()}
             </p>
             {!isFullyPaid && balance > 0 && (
               <p className="text-white/90 text-xs mt-1">
-                {((totalPaid / packagePrice) * 100).toFixed(1)}% e paguar
+                {((totalPaid / packagePrice) * 100).toFixed(1)}% {t('candidates.paid')}
               </p>
             )}
           </div>
@@ -776,12 +793,12 @@ function PaymentsTab({
       <Card padding="none">
         <div className="p-4 sm:p-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            Historiku i pagesave
+            {t('payments.paymentHistory')}
           </h3>
         </div>
         {paymentsProp.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            <p>Ende nuk është regjistruar asnjë pagesë.</p>
+            <p>{t('payments.noPaymentsYet')}</p>
           </div>
         ) : (
           <DataTable
@@ -789,7 +806,7 @@ function PaymentsTab({
             columns={paymentColumns}
             keyExtractor={(payment) => payment.id}
             searchable={false}
-            emptyMessage="Nuk u gjetën pagesa"
+            emptyMessage={t('payments.noPaymentsFound')}
           />
         )}
       </Card>
@@ -798,9 +815,10 @@ function PaymentsTab({
 }
 
 function PackageTab() {
+  const { t } = useLanguage();
   return (
     <Card>
-      <div className="p-4 sm:p-6 text-gray-600">Nuk është caktuar paketë.</div>
+      <div className="p-4 sm:p-6 text-gray-600">{t('candidates.noPackageAssigned')}</div>
     </Card>
   );
 }
@@ -822,6 +840,7 @@ function DocumentsTab({
   onDocumentsLoadingChange,
   userRole,
 }: DocumentsTabProps) {
+  const { t } = useLanguage();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
@@ -833,12 +852,13 @@ function DocumentsTab({
   const [updating, setUpdating] = useState(false);
 
   const isAdmin = userRole === 0;
-  const canUpload = userRole === 0 || userRole === 2; // Admin or Staff
+  const canView = userRole === 0 || userRole === 2; // Admin or Staff can view documents
+  const canUpload = userRole === 0 || userRole === 2; // Admin or Staff can upload documents
   const canDelete = isAdmin; // Only admin can delete
   const canEdit = isAdmin; // Only admin can edit
 
   const loadDocuments = useCallback(async () => {
-    if (!candidateId || !canUpload) return; // Admin and Staff can view documents
+    if (!candidateId || !canView) return; // Admin and Staff can view documents
     onDocumentsLoadingChange(true);
     try {
       const res = await api.listDocuments(candidateId);
@@ -850,7 +870,7 @@ function DocumentsTab({
     } finally {
       onDocumentsLoadingChange(false);
     }
-  }, [candidateId, canUpload, onDocumentsChange, onDocumentsLoadingChange]);
+  }, [candidateId, canView, onDocumentsChange, onDocumentsLoadingChange]);
 
   useEffect(() => {
     loadDocuments();
@@ -862,12 +882,12 @@ function DocumentsTab({
       // Validate file type
       const ext = file.name.split(".").pop()?.toUpperCase();
       if (!["PDF", "JPG", "JPEG", "PNG", "DOCX"].includes(ext || "")) {
-        alert("Lloji i skedarit nuk është i lejuar. Lejohen: PDF, JPG, PNG, DOCX");
+        alert(t('documents.fileTypeNotAllowed'));
         return;
       }
       // Validate file size (10MB)
       if (file.size > 10 * 1024 * 1024) {
-        alert("Skedari është shumë i madh. Maksimumi është 10MB");
+        alert(t('documents.fileTooLarge'));
         return;
       }
       setSelectedFile(file);
@@ -894,20 +914,20 @@ function DocumentsTab({
         // Reload documents
         loadDocuments();
       } else {
-        const errorMessage = (res.data as any)?.message || "Dështoi ngarkimi i dokumentit";
+        const errorMessage = (res.data as any)?.message || t('documents.failedToUpload');
         console.error("Upload failed:", res.status, errorMessage, res.data);
         alert(errorMessage);
       }
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Dështoi ngarkimi i dokumentit. Ju lutem provoni përsëri.");
+      alert(t('documents.failedToUpload'));
     } finally {
       setUploading(false);
     }
   };
 
   const handleDelete = async (documentId: string) => {
-    if (!confirm("A jeni të sigurt që dëshironi të fshini këtë dokument?")) {
+    if (!confirm(t('documents.confirmDelete'))) {
       return;
     }
 
@@ -918,12 +938,12 @@ function DocumentsTab({
         loadDocuments();
       } else {
         alert(
-          (res.data as any)?.message || "Dështoi fshirja e dokumentit"
+          (res.data as any)?.message || t('documents.failedToDelete')
         );
       }
     } catch (err) {
       console.error("Delete error:", err);
-      alert("Dështoi fshirja e dokumentit");
+      alert(t('documents.failedToDelete'));
     } finally {
       setDeletingId(null);
     }
@@ -937,13 +957,13 @@ function DocumentsTab({
 
   const handleUpdate = async () => {
     if (!editingDocument || !editDocumentName.trim()) {
-      alert("Emri i dokumentit është i detyrueshëm");
+      alert(t('documents.documentNameRequired'));
       return;
     }
 
     const docId = editingDocument._id || editingDocument.id || "";
     if (!docId) {
-      alert("ID e dokumentit nuk është e vlefshme");
+      alert(t('documents.invalidDocumentId'));
       return;
     }
 
@@ -956,13 +976,13 @@ function DocumentsTab({
         setEditDocumentName("");
         loadDocuments();
       } else {
-        const errorMessage = (res.data as any)?.message || "Dështoi përditësimi i dokumentit";
+        const errorMessage = (res.data as any)?.message || t('documents.failedToUpdateDocumentMessage');
         console.error("Update failed:", res.status, errorMessage, res.data);
         alert(errorMessage);
       }
     } catch (err) {
       console.error("Update error:", err);
-      alert("Dështoi përditësimi i dokumentit. Ju lutem provoni përsëri.");
+      alert(t('documents.failedToUpdateDocument'));
     } finally {
       setUpdating(false);
     }
@@ -973,7 +993,8 @@ function DocumentsTab({
       await api.downloadDocument(candidateId, documentId);
     } catch (err) {
       console.error("Download error:", err);
-      alert("Dështoi shkarkimi i dokumentit");
+      const errorMessage = err instanceof Error ? err.message : t('documents.downloadError');
+      toast('error', errorMessage);
     }
   };
 
@@ -987,7 +1008,9 @@ function DocumentsTab({
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      const formattedDate = date.toLocaleDateString("sq-AL", {
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      const formattedDate = date.toLocaleDateString(locale, {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -1008,16 +1031,23 @@ function DocumentsTab({
       const name = [uploadedBy.firstName, uploadedBy.lastName]
         .filter(Boolean)
         .join(" ");
-      return name || uploadedBy.email || "E panjohur";
+      return name || uploadedBy.email || t('common.unknown');
     }
-    return "E panjohur";
+    return t('common.unknown');
   };
 
   const getUploaderRole = (uploadedBy: Document["uploadedBy"]) => {
     if (typeof uploadedBy === "object" && uploadedBy !== null && uploadedBy.role !== undefined) {
-      if (uploadedBy.role === 0) return "Admin";
-      if (uploadedBy.role === 2) return "Staff";
-      if (uploadedBy.role === 1) return "Instructor";
+      if (uploadedBy.role === 0) return t('common.roleAdmin');
+      if (uploadedBy.role === 2) return t('common.roleStaff');
+      if (uploadedBy.role === 1) return t('common.roleInstructor');
+    }
+    return null;
+  };
+
+  const getUploaderRoleNumber = (uploadedBy: Document["uploadedBy"]): number | null => {
+    if (typeof uploadedBy === "object" && uploadedBy !== null && uploadedBy.role !== undefined) {
+      return uploadedBy.role as number;
     }
     return null;
   };
@@ -1025,19 +1055,19 @@ function DocumentsTab({
   const documentColumns = [
     {
       key: "name",
-      label: "Emri",
+      label: t('documents.documentName'),
       sortable: true,
     },
     {
       key: "type",
-      label: "Tipi",
+      label: t('documents.documentType'),
       render: (value: unknown) => (
         <Badge variant="outline">{value as string}</Badge>
       ),
     },
     {
       key: "uploadDate",
-      label: "Data e ngarkimit/modifikimit",
+      label: t('documents.uploadDate') + '/' + t('documents.modifiedDate'),
       sortable: true,
       render: (_: unknown, doc: Document) => {
         const dateToShow = doc.updatedDate || doc.uploadDate;
@@ -1046,7 +1076,7 @@ function DocumentsTab({
           <div className="flex flex-col">
             <span className="text-gray-600">{formatDate(dateToShow as string)}</span>
             <span className="text-xs text-gray-400 mt-1">
-              {isModified ? "(E modifikuar)" : "(Ngarkuar)"}
+              {isModified ? `(${t('documents.modified')})` : `(${t('documents.uploaded')})`}
             </span>
           </div>
         );
@@ -1054,17 +1084,18 @@ function DocumentsTab({
     },
     {
       key: "uploadedBy",
-      label: "Ngarkuar nga",
+      label: t('documents.uploadedBy'),
       render: (value: unknown) => {
         const uploadedBy = value as Document["uploadedBy"];
         const name = getUploadedByName(uploadedBy);
         const role = getUploaderRole(uploadedBy);
+        const roleNumber = getUploaderRoleNumber(uploadedBy);
         return (
           <div className="flex items-center gap-2">
             <span className="text-gray-700">{name}</span>
             {role && (
               <Badge 
-                variant={role === "Admin" ? "info" : role === "Staff" ? "warning" : "outline"}
+                variant={roleNumber === 0 ? "info" : roleNumber === 2 ? "warning" : "outline"}
                 className="text-xs"
               >
                 {role}
@@ -1076,14 +1107,14 @@ function DocumentsTab({
     },
     {
       key: "fileSize",
-      label: "Madhësia",
+      label: t('documents.fileSize'),
       render: (value: unknown) => (
         <span className="text-gray-500">{formatFileSize(value as number)}</span>
       ),
     },
     {
       key: "actions",
-      label: "Veprime",
+      label: t('common.actions'),
       render: (_: unknown, doc: Document) => {
         const docId = doc._id || doc.id || "";
         return (
@@ -1093,9 +1124,9 @@ function DocumentsTab({
               size="sm"
               icon={<DownloadIcon className="w-4 h-4" />}
               onClick={() => handleDownload(docId)}
-              title="Shkarko"
+              title={t('documents.download')}
             >
-              Shkarko
+              {t('documents.download')}
             </Button>
             {canEdit && (
               <Button
@@ -1103,10 +1134,10 @@ function DocumentsTab({
                 size="sm"
                 icon={<EditIcon className="w-4 h-4" />}
                 onClick={() => handleEdit(doc)}
-                title="Ndrysho"
+                title={t('common.edit')}
                 className="text-blue-600 hover:text-blue-700"
               >
-                Ndrysho
+                {t('common.edit')}
               </Button>
             )}
             {canDelete && (
@@ -1116,10 +1147,10 @@ function DocumentsTab({
                 icon={<TrashIcon className="w-4 h-4" />}
                 onClick={() => handleDelete(docId)}
                 disabled={deletingId === docId}
-                title="Fshi"
+                title={t('common.delete')}
                 className="text-red-600 hover:text-red-700"
               >
-                Fshi
+                {t('common.delete')}
               </Button>
             )}
           </div>
@@ -1133,11 +1164,11 @@ function DocumentsTab({
       {/* Header with Upload Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Dokumentet</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('documents.title')}</h3>
           <p className="text-sm text-gray-500 mt-1">
             {isAdmin
-              ? "Të gjitha dokumentet e kandidatit"
-              : "Ju mund të ngarkoni dhe shikoni dokumente, por jo t'i fshini ose t'i ndryshoni"}
+              ? t('documents.allCandidateDocuments')
+              : t('documents.instructorDocumentsNote')}
           </p>
         </div>
         {canUpload && (
@@ -1145,7 +1176,7 @@ function DocumentsTab({
             icon={<UploadIcon className="w-4 h-4" />}
             onClick={() => setUploadOpen(true)}
           >
-            Ngarko dokument
+            {t('documents.uploadDocument')}
           </Button>
         )}
       </div>
@@ -1154,17 +1185,17 @@ function DocumentsTab({
       {documentsLoading ? (
         <Card>
           <div className="p-8 text-center text-gray-500">
-            Duke ngarkuar dokumentet...
+            {t('documents.loadingDocuments')}
           </div>
         </Card>
       ) : documents.length === 0 ? (
         <Card>
           <EmptyState
-            title="Nuk ka dokumente"
+            title={t('documents.noDocuments')}
             description={
               canUpload
-                ? "Klikoni 'Ngarko dokument' për të shtuar dokumente të reja"
-                : "Nuk ka dokumente të ngarkuara për këtë kandidat"
+                ? t('documents.noDocumentsDescription')
+                : t('documents.noDocumentsForCandidate')
             }
           />
         </Card>
@@ -1175,7 +1206,7 @@ function DocumentsTab({
             columns={documentColumns}
             keyExtractor={(doc) => doc._id || doc.id || ""}
             searchable={false}
-            emptyMessage="Nuk u gjetën dokumente"
+            emptyMessage={t('documents.noDocuments')}
           />
         </Card>
       )}
@@ -1188,8 +1219,8 @@ function DocumentsTab({
           setSelectedFile(null);
           setDocumentName("");
         }}
-        title="Ngarko dokument"
-        description="Zgjidhni një skedar për të ngarkuar (PDF, JPG, PNG, DOCX - maksimumi 10MB)"
+        title={t('documents.uploadDocument')}
+        description={t('documents.uploadDocumentDescription')}
         size="lg"
         footer={
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
@@ -1204,7 +1235,7 @@ function DocumentsTab({
               fullWidth
               className="sm:w-auto"
             >
-              Anulo
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleUpload}
@@ -1214,7 +1245,7 @@ function DocumentsTab({
               className="sm:w-auto"
               icon={<UploadIcon className="w-4 h-4" />}
             >
-              Ngarko
+              {t('documents.upload')}
             </Button>
           </div>
         }
@@ -1222,7 +1253,7 @@ function DocumentsTab({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Skedari
+              {t('documents.file')}
             </label>
             <div className="flex items-center gap-4">
               <input
@@ -1243,10 +1274,10 @@ function DocumentsTab({
             )}
           </div>
           <Input
-            label="Emri i dokumentit (opsionale)"
+            label={t('documents.documentNameOptional')}
             value={documentName}
             onChange={(e) => setDocumentName(e.target.value)}
-            placeholder={selectedFile?.name.replace(/\.[^/.]+$/, "") || ""}
+            placeholder={selectedFile?.name.replace(/\.[^/.]+$/, "") || t('documents.documentNamePlaceholder')}
           />
           </div>
         </Modal>
@@ -1259,8 +1290,8 @@ function DocumentsTab({
             setEditingDocument(null);
             setEditDocumentName("");
           }}
-          title="Ndrysho emrin e dokumentit"
-          description="Përditësoni emrin e dokumentit"
+          title={t('documents.editDocumentName')}
+          description={t('documents.editDocumentDescription')}
           size="lg"
           footer={
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
@@ -1275,7 +1306,7 @@ function DocumentsTab({
                 fullWidth
                 className="sm:w-auto"
               >
-                Anulo
+                {t('common.cancel')}
               </Button>
               <Button
                 onClick={handleUpdate}
@@ -1285,24 +1316,24 @@ function DocumentsTab({
                 className="sm:w-auto"
                 icon={<EditIcon className="w-4 h-4" />}
               >
-                Ruaj ndryshimet
+                {t('common.saveChanges')}
               </Button>
             </div>
           }
         >
           <div className="space-y-4">
             <Input
-              label="Emri i dokumentit"
+              label={t('documents.documentName')}
               required
               value={editDocumentName}
               onChange={(e) => setEditDocumentName(e.target.value)}
-              placeholder="Shkruani emrin e dokumentit"
+              placeholder={t('documents.documentNamePlaceholder')}
             />
             {editingDocument && (
               <div className="text-sm text-gray-500">
-                <p><strong>Tipi:</strong> {editingDocument.type}</p>
-                <p><strong>Madhësia:</strong> {formatFileSize(editingDocument.fileSize)}</p>
-                <p><strong>Ngarkuar:</strong> {formatDate(editingDocument.uploadDate)}</p>
+                <p><strong>{t('documents.documentType')}:</strong> {editingDocument.type}</p>
+                <p><strong>{t('documents.fileSize')}:</strong> {formatFileSize(editingDocument.fileSize)}</p>
+                <p><strong>{t('documents.uploaded')}:</strong> {formatDate(editingDocument.uploadDate)}</p>
               </div>
             )}
           </div>

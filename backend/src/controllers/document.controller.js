@@ -188,16 +188,20 @@ const downloadDocument = async (req, res, next) => {
         // Set headers for proper file download
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(document.originalName)}"`);
-        res.setHeader('Content-Length', document.fileSize || fs.statSync(filePath).size);
         
-        // Send file
-        const fileStream = fs.createReadStream(filePath);
-        fileStream.pipe(res);
+        // Get file size
+        const stats = fs.statSync(filePath);
+        const fileSize = document.fileSize || stats.size;
+        res.setHeader('Content-Length', fileSize);
         
-        fileStream.on('error', (err) => {
-            console.error('Error streaming file:', err);
-            if (!res.headersSent) {
-                res.status(500).json({ message: 'Error downloading file' });
+        // Don't use Connection: close header as it can cause issues with proxy
+        // Send file using res.sendFile which handles streaming better
+        res.sendFile(path.resolve(filePath), (err) => {
+            if (err) {
+                console.error('Error sending file:', err);
+                if (!res.headersSent) {
+                    res.status(500).json({ message: 'Error downloading file' });
+                }
             }
         });
     } catch (err) {

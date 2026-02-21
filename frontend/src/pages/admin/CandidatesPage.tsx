@@ -11,12 +11,34 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { SearchBar } from '../../components/ui/SearchBar';
+import { useLanguage } from '../../hooks/useLanguage';
 import type { Package } from '../../types';
 import type { Candidate, Car } from '../../types';
 import { toast } from '../../hooks/useToast';
 import { api } from '../../utils/api';
 import jsPDF from 'jspdf';
+
+// Helper function to translate package names
+const getTranslatedPackageName = (packageName: string, t: (key: string) => string): string => {
+  const nameLower = packageName.toLowerCase();
+  
+  // Map common package names to translation keys
+  if (nameLower.includes('premium')) {
+    return t('packages.premium');
+  }
+  if (nameLower.includes('standard')) {
+    return t('packages.standard');
+  }
+  if (nameLower.includes('basic')) {
+    return t('packages.basic');
+  }
+  
+  // If no match found, return original name
+  return packageName;
+};
+
 export function CandidatesPage() {
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
@@ -39,7 +61,7 @@ export function CandidatesPage() {
         if (ok && data) {
           const opts = (data as any[]).map((ins: any) => ({
             id: ins._id || ins.id,
-            name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || 'Instructor',
+            name: `${ins.user?.firstName || ''} ${ins.user?.lastName || ''}`.trim() || ins.user?.email || t('common.roleInstructor'),
             assignedCarIds: (ins.assignedCarIds || []).map((id: any) => {
               // Handle both ObjectId objects and string IDs
               if (typeof id === "object" && id !== null && id._id) {
@@ -50,11 +72,11 @@ export function CandidatesPage() {
           }));
           setInstructors(opts);
         } else {
-          toast('error', 'Dështoi ngarkimi i instruktorëve');
+          toast('error', t('candidates.failedToLoadInstructors'));
         }
       } catch (err) {
         console.error(err);
-        toast('error', 'Dështoi ngarkimi i instruktorëve');
+        toast('error', t('candidates.failedToLoadInstructors'));
       }
     };
     fetchInstructors();
@@ -80,7 +102,7 @@ export function CandidatesPage() {
         }
       } catch (error) {
         console.error('Failed to load packages:', error);
-        toast('error', 'Dështoi ngarkimi i paketave');
+        toast('error', t('candidates.failedToLoadPackages'));
       }
     };
     fetchPackages();
@@ -112,7 +134,7 @@ export function CandidatesPage() {
         }
       } catch (error) {
         console.error('Failed to load cars:', error);
-        toast('error', 'Dështoi ngarkimi i makinave');
+        toast('error', t('cars.failedToLoad'));
       }
     };
     fetchCars();
@@ -186,36 +208,36 @@ export function CandidatesPage() {
     try {
       const resp = await api.deleteCandidate(deletingCandidate.id);
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Dështoi fshirja e kandidatit';
+        const errorMessage = (resp.data as any)?.message || t('candidates.failedToDelete');
         toast('error', errorMessage);
         return;
       }
-      toast('success', 'Kandidati u fshi me sukses');
+      toast('success', t('candidates.candidateDeleted'));
       setRefreshKey(prev => prev + 1);
       setDeletingCandidate(null);
     } catch (error) {
       console.error('Error deleting candidate:', error);
-      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
+      toast('error', t('common.somethingWentWrong'));
     } finally {
       setIsDeleting(false);
     }
   };
   const handleExport = () => {
     if (!filteredCandidates.length) {
-      toast('info', 'Nuk ka kandidatë për eksport');
+      toast('info', t('candidates.noCandidatesToExport'));
       return;
     }
 
     const timestamp = new Date().toISOString().split('T')[0];
 
     if (exportFormat === 'csv') {
-      const headers = ['Emri', 'Mbiemri', 'Email', 'Telefon', 'Paketa', 'Instruktori', 'Statusi'];
+      const headers = [t('candidates.firstName'), t('candidates.lastName'), t('common.email'), t('common.phone'), t('candidates.packageColumn'), t('candidates.instructorColumn'), t('candidates.statusColumn')];
       const rows = filteredCandidates.map(c => {
         const pkg = c.packageId ? getPackageById(c.packageId) : null;
-        const packageName = pkg ? pkg.name : 'Pa caktuar';
+        const packageName = pkg ? getTranslatedPackageName(pkg.name, t) : t('candidates.notAssigned');
         
         const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
-        const instructorName = instructor ? instructor.name : 'Pa caktuar';
+        const instructorName = instructor ? instructor.name : t('candidates.notAssigned');
         
         return [
           c.firstName || '',
@@ -224,7 +246,7 @@ export function CandidatesPage() {
           c.phone || '',
           packageName,
           instructorName,
-          c.status || ''
+          c.status === 'active' ? t('common.active') : t('common.inactive')
         ];
       });
 
@@ -232,34 +254,38 @@ export function CandidatesPage() {
         .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // Add UTF-8 BOM for Excel compatibility
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `kandidatet_${timestamp}.csv`);
+      link.setAttribute('download', `${t('candidates.csvFilename')}_${timestamp}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast('success', 'Kandidatët u eksportuan në CSV');
+      toast('success', t('candidates.exportedToCSV'));
     } else {
       // PDF Export
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('Lista e Kandidatëve', 14, 20);
+      doc.text(t('candidates.title'), 14, 20);
       doc.setFontSize(10);
-      doc.text(`Data e eksportit: ${new Date().toLocaleDateString('sq-AL')}`, 14, 30);
-      doc.text(`Total: ${filteredCandidates.length} kandidatë`, 14, 37);
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      doc.text(`${t('common.date')}: ${new Date().toLocaleDateString(locale)}`, 14, 30);
+      doc.text(`${t('common.total')}: ${filteredCandidates.length} ${t('candidates.title').toLowerCase()}`, 14, 37);
       
       let yPos = 50;
       doc.setFontSize(10);
       doc.setFont(undefined, 'bold');
-      doc.text('Emri', 14, yPos);
-      doc.text('Mbiemri', 50, yPos);
-      doc.text('Email', 85, yPos);
-      doc.text('Telefon', 130, yPos);
-      doc.text('Paketa', 160, yPos);
-      doc.text('Statusi', 190, yPos);
+      doc.text(t('candidates.firstName'), 14, yPos);
+      doc.text(t('candidates.lastName'), 50, yPos);
+      doc.text(t('common.email'), 85, yPos);
+      doc.text(t('common.phone'), 130, yPos);
+      doc.text(t('candidates.packageColumn'), 160, yPos);
+      doc.text(t('candidates.statusColumn'), 190, yPos);
       
       yPos += 8;
       doc.setFont(undefined, 'normal');
@@ -272,7 +298,7 @@ export function CandidatesPage() {
         }
         
         const pkg = c.packageId ? getPackageById(c.packageId) : null;
-        const packageName = pkg ? pkg.name.substring(0, 15) : 'Pa caktuar';
+        const packageName = pkg ? getTranslatedPackageName(pkg.name, t).substring(0, 15) : t('candidates.notAssigned');
         const instructor = c.instructorId ? instructors.find(i => i.id === c.instructorId) : null;
         
         doc.text((c.firstName || '').substring(0, 15), 14, yPos);
@@ -280,12 +306,12 @@ export function CandidatesPage() {
         doc.text((c.email || '').substring(0, 20), 85, yPos);
         doc.text((c.phone || '').substring(0, 12), 130, yPos);
         doc.text(packageName, 160, yPos);
-        doc.text(c.status === 'active' ? 'Aktiv' : (c.status || ''), 190, yPos);
+        doc.text(c.status === 'active' ? t('common.active') : (c.status || ''), 190, yPos);
         yPos += 7;
       });
       
-      doc.save(`kandidatet_${timestamp}.pdf`);
-      toast('success', 'Kandidatët u eksportuan në PDF');
+      doc.save(`${t('candidates.csvFilename')}_${timestamp}.pdf`);
+      toast('success', t('candidates.exportedToPDF'));
     }
   };
   const clearFilters = () => {
@@ -296,7 +322,7 @@ export function CandidatesPage() {
   const hasActiveFilters = !!(statusFilter || packageFilter || searchQuery);
   const columns = [{
     key: 'name',
-    label: 'Kandidati',
+    label: t('candidates.candidateColumn'),
     sortable: true,
     render: (_: unknown, candidate: Candidate) => <div className="flex items-center gap-3">
           <Avatar name={`${candidate.firstName} ${candidate.lastName}`} size="sm" className="hidden sm:flex" />
@@ -311,7 +337,7 @@ export function CandidatesPage() {
         </div>
   }, {
     key: 'email',
-    label: 'Kontakti',
+    label: t('candidates.contactColumn'),
     hideOnMobile: true,
     render: (_: unknown, candidate: Candidate) => <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm text-gray-900">
@@ -325,26 +351,26 @@ export function CandidatesPage() {
         </div>
   }, {
     key: 'packageId',
-    label: 'Paketa',
+    label: t('candidates.packageColumn'),
     render: (value: unknown) => {
       const pkg = value ? getPackageById(value as string) : null;
       return pkg ? <Badge variant="info" size="sm">
-            {pkg.name}
-          </Badge> : <span className="text-xs sm:text-sm text-gray-400">Pa caktuar</span>;
+            {getTranslatedPackageName(pkg.name, t)}
+          </Badge> : <span className="text-xs sm:text-sm text-gray-400">{t('candidates.notAssigned')}</span>;
     }
   }, {
     key: 'instructorId',
-    label: 'Instruktori',
+    label: t('candidates.instructorColumn'),
     hideOnMobile: true,
     render: (value: unknown) => {
       const instructor = instructors.find(i => i.id === value);
       return instructor ? <span className="text-sm text-gray-700">
             {instructor.name}
-          </span> : <span className="text-sm text-gray-400">Pa caktuar</span>;
+          </span> : <span className="text-sm text-gray-400">{t('candidates.notAssigned')}</span>;
     }
   }, {
     key: 'status',
-    label: 'Statusi',
+    label: t('candidates.statusColumn'),
     sortable: true,
     render: (value: unknown) => <StatusBadge status={value as 'active' | 'inactive'} />
   }];
@@ -353,10 +379,10 @@ export function CandidatesPage() {
   };
   const actions = (candidate: Candidate) => <div className="flex items-center gap-2">
       <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/candidates/${candidate.id}`)} icon={<EyeIcon className="w-4 h-4" />} className="hidden sm:flex">
-        Shiko
+        {t('common.view')}
       </Button>
       <Button variant="ghost" size="sm" onClick={() => setEditingCandidate(candidate)} icon={<EditIcon className="w-4 h-4" />}>
-        <span className="hidden sm:inline">Ndrysho</span>
+        <span className="hidden sm:inline">{t('common.edit')}</span>
       </Button>
       <Button 
         variant="ghost" 
@@ -365,7 +391,7 @@ export function CandidatesPage() {
         icon={<TrashIcon className="w-4 h-4" />}
         className="text-red-600 hover:text-red-700 hover:bg-red-50"
       >
-        <span className="hidden sm:inline">Fshi</span>
+        <span className="hidden sm:inline">{t('common.delete')}</span>
       </Button>
     </div>;
   return <div className="space-y-4 lg:space-y-6">
@@ -373,10 +399,10 @@ export function CandidatesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Kandidatët
+            {t('candidates.title')}
           </h1>
           <p className="text-sm lg:text-base text-gray-500 mt-1">
-            Menaxhoni kandidatët e shkollës së makinës ({filteredCandidates.length} gjithsej)
+            {t('candidates.subtitleWithCount').replace('{count}', filteredCandidates.length.toString())}
           </p>
         </div>
         <div className="flex gap-2">
@@ -385,52 +411,57 @@ export function CandidatesPage() {
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
               options={[
-                { value: 'csv', label: 'CSV' },
-                { value: 'pdf', label: 'PDF' },
+                { value: 'csv', label: t('reports.csv') },
+                { value: 'pdf', label: t('reports.pdf') },
               ]}
+              placeholder={t('common.selectOption')}
               className="w-24"
             />
             <Button variant="outline" size="sm" onClick={handleExport} icon={<DownloadIcon className="w-4 h-4" />}>
-              Eksporto {exportFormat.toUpperCase()}
+              {exportFormat === 'csv' ? t('candidates.exportCSV') : t('candidates.exportPDF')}
             </Button>
           </div>
           <Button onClick={() => setShowAddModal(true)} icon={<PlusIcon className="w-4 h-4" />} size="sm" className="flex-1 sm:flex-none">
-            Shto kandidat
+            {t('candidates.addCandidate')}
           </Button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Kërko sipas emrit, emailit, telefonit ose ID..." />
+      <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t('candidates.searchPlaceholder')} />
 
       {/* Filters */}
       <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
         <div className="w-full sm:w-48">
-          <Select placeholder="Të gjitha statuset" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} options={[{
+          <Select placeholder={t('candidates.allStatuses')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} options={[{
           value: '',
-          label: 'Të gjitha statuset'
+          label: t('candidates.allStatuses')
         }, {
           value: 'active',
-          label: 'Aktive'
+          label: t('common.active')
         }, {
           value: 'inactive',
-          label: 'Joaktive'
+          label: t('common.inactive')
         }]} />
         </div>
         <div className="w-full sm:w-48">
-          <Select placeholder="Të gjitha paketat" value={packageFilter} onChange={e => setPackageFilter(e.target.value)} options={[{
+          <Select placeholder={t('candidates.allPackages')} value={packageFilter} onChange={e => setPackageFilter(e.target.value)} options={[{
           value: '',
-          label: 'Të gjitha paketat'
-        }, ...packages.map(pkg => ({
-          value: pkg.id,
-          label: pkg.name
-        }))]} />
+          label: t('candidates.allPackages')
+        }, ...packages.map(pkg => {
+          // Translate package name based on the name from backend
+          const translatedName = getTranslatedPackageName(pkg.name, t);
+          return {
+            value: pkg.id,
+            label: translatedName
+          };
+        })]} />
         </div>
       </FilterBar>
 
       {/* Table */}
       <Card padding="none">
-        <DataTable data={filteredCandidates} columns={columns} keyExtractor={candidate => candidate.id} searchable={false} onRowClick={handleRowClick} actions={actions} emptyMessage="Nuk u gjetën kandidatë" />
+        <DataTable data={filteredCandidates} columns={columns} keyExtractor={candidate => candidate.id} searchable={false} onRowClick={handleRowClick} actions={actions} emptyMessage={t('candidates.noCandidatesFound')} />
       </Card>
 
       {/* Add/Edit Modal */}
@@ -452,10 +483,10 @@ export function CandidatesPage() {
         isOpen={!!deletingCandidate}
         onClose={() => setDeletingCandidate(null)}
         onConfirm={handleDelete}
-        title="Fshi kandidatin"
-        message={deletingCandidate ? `Jeni të sigurt që dëshironi të fshini ${deletingCandidate.firstName} ${deletingCandidate.lastName}? Ky veprim nuk mund të kthehet.` : ''}
-        confirmText="Fshi"
-        cancelText="Anulo"
+        title={t('candidates.deleteCandidate')}
+        message={deletingCandidate ? t('candidates.confirmDeleteMessage').replace('{name}', `${deletingCandidate.firstName} ${deletingCandidate.lastName}`) : ''}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         loading={isDeleting}
       />
@@ -479,6 +510,7 @@ function AddCandidateModal({
   packages,
   cars
 }: AddCandidateModalProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -567,56 +599,56 @@ function AddCandidateModal({
     const newErrors: Record<string, string> = {};
     
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Emri është i detyrueshëm';
+      newErrors.firstName = t('candidates.firstNameRequired');
     }
     
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Mbiemri është i detyrueshëm';
+      newErrors.lastName = t('candidates.lastNameRequired');
     }
     
     if (!formData.email.trim()) {
-      newErrors.email = 'Emaili është i detyrueshëm';
+      newErrors.email = t('candidates.emailRequired');
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
-        newErrors.email = 'Vendosni një adresë email të vlefshme';
+        newErrors.email = t('candidates.emailInvalid');
       }
     }
     
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Numri i telefonit është i detyrueshëm';
+      newErrors.phone = t('candidates.phoneRequired');
     } else {
       const phoneRegex = /^[\d\s\-\+\(\)]{6,}$/;
       if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = 'Vendosni një numër telefoni të vlefshëm';
+        newErrors.phone = t('candidates.phoneInvalid');
       }
     }
     
     if (!formData.address.trim()) {
-      newErrors.address = 'Adresa është e detyrueshme';
+      newErrors.address = t('candidates.addressRequired');
     }
     
     if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Data e lindjes është e detyrueshme';
+      newErrors.dateOfBirth = t('candidates.dateOfBirthRequired');
     } else {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
       if (birthDate >= today) {
-        newErrors.dateOfBirth = 'Data e lindjes duhet të jetë në të kaluarën';
+        newErrors.dateOfBirth = t('candidates.dateOfBirthMustBePast');
       }
       const age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
       const dayDiff = today.getDate() - birthDate.getDate();
       const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
       if (actualAge < 16) {
-        newErrors.dateOfBirth = 'Kandidati duhet të jetë të paktën 16 vjeç';
+        newErrors.dateOfBirth = t('common.candidateMustBeAtLeast16');
       }
     }
     
     if (!formData.personalNumber.trim()) {
-      newErrors.personalNumber = 'Numri personal është i detyrueshëm';
+      newErrors.personalNumber = t('common.personalNumberRequired');
     } else if (formData.personalNumber.trim().length < 6) {
-      newErrors.personalNumber = 'Numri personal duhet të ketë të paktën 6 karaktere';
+      newErrors.personalNumber = t('common.personalNumberMinLength');
     }
     
     setErrors(newErrors);
@@ -634,13 +666,13 @@ function AddCandidateModal({
     for (const field of fieldOrder) {
       if (validationErrors[field]) {
         const fieldLabels: Record<string, string> = {
-          firstName: 'Emri',
-          lastName: 'Mbiemri',
-          email: 'Emaili',
-          phone: 'Telefoni',
-          address: 'Adresa',
-          dateOfBirth: 'Data e lindjes',
-          personalNumber: 'Numri personal'
+          firstName: t('candidates.firstName'),
+          lastName: t('candidates.lastName'),
+          email: t('candidates.email'),
+          phone: t('candidates.phone'),
+          address: t('candidates.address'),
+          dateOfBirth: t('candidates.dateOfBirth'),
+          personalNumber: t('candidates.personalNumber')
         };
         const fieldLabel = fieldLabels[field] || field;
         return `${fieldLabel}: ${validationErrors[field]}`;
@@ -649,13 +681,13 @@ function AddCandidateModal({
     
     const firstKey = errorKeys[0];
     const fieldLabels: Record<string, string> = {
-      firstName: 'Emri',
-      lastName: 'Mbiemri',
-      email: 'Emaili',
-      phone: 'Telefoni',
-      address: 'Adresa',
-      dateOfBirth: 'Data e lindjes',
-      personalNumber: 'Numri personal'
+      firstName: t('candidates.firstName'),
+      lastName: t('candidates.lastName'),
+      email: t('candidates.email'),
+      phone: t('candidates.phone'),
+      address: t('candidates.address'),
+      dateOfBirth: t('candidates.dateOfBirth'),
+      personalNumber: t('candidates.personalNumber')
     };
     return `${fieldLabels[firstKey] || firstKey}: ${validationErrors[firstKey]}`;
   };
@@ -706,7 +738,7 @@ function AddCandidateModal({
       if (errorMessage) {
         toast('error', errorMessage);
       } else {
-        toast('error', 'Ju lutemi korrigjoni gabimet në formular');
+        toast('error', t('candidates.pleaseFixFormErrors'));
       }
       return;
     }
@@ -754,12 +786,12 @@ function AddCandidateModal({
       console.log('Sending payload:', payload);
       const resp = candidate ? await api.updateCandidate(candidate.id, payload) : await api.createCandidate(payload);
       if (!resp.ok) {
-        const errorMessage = (resp.data as any)?.message || 'Dështoi ruajtja e kandidatit';
+        const errorMessage = (resp.data as any)?.message || t('candidates.failedToSave');
         console.error('API Error Response:', resp.data);
         toast('error', errorMessage);
         return;
       }
-      toast('success', candidate ? 'Kandidati u përditësua me sukses' : 'Kandidati u shtua me sukses');
+      toast('success', candidate ? t('candidates.candidateUpdated') : t('candidates.candidateAdded'));
       
       // Reset form if creating new candidate (not editing)
       if (!candidate) {
@@ -783,23 +815,23 @@ function AddCandidateModal({
       onSuccess();
     } catch (error) {
       console.error('Error saving candidate:', error);
-      toast('error', 'Ndodhi një gabim. Ju lutemi provoni përsëri.');
+      toast('error', t('common.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
   };
-  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? 'Ndrysho kandidatin' : 'Shto kandidat të ri'} description="Vendosni të dhënat e kandidatit për ta regjistruar në sistem." size="lg"       footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+  return <Modal isOpen={isOpen} onClose={onClose} title={candidate ? t('candidates.editCandidateTitle') : t('candidates.addCandidateTitle')} description={t('candidates.enterCandidateDetails')} size="lg"       footer={<div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading} fullWidth className="sm:w-auto">
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)} loading={loading} fullWidth className="sm:w-auto">
-            {candidate ? 'Ruaj ndryshimet' : 'Krijo kandidatin'}
+            {candidate ? t('common.saveChanges') : t('candidates.createCandidate')}
           </Button>
         </div>}>
       <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input 
-            label="Emri" 
+            label={t('candidates.firstName')} 
             required 
             value={formData.firstName} 
             error={errors.firstName}
@@ -811,7 +843,7 @@ function AddCandidateModal({
             }} 
           />
           <Input 
-            label="Mbiemri" 
+            label={t('candidates.lastName')} 
             required 
             value={formData.lastName} 
             error={errors.lastName}
@@ -826,7 +858,7 @@ function AddCandidateModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input 
-            label="Emaili" 
+            label={t('candidates.email')} 
             type="email" 
             required 
             value={formData.email} 
@@ -839,7 +871,7 @@ function AddCandidateModal({
             }} 
           />
           <Input 
-            label="Telefoni" 
+            label={t('candidates.phone')} 
             type="tel" 
             required 
             value={formData.phone} 
@@ -855,7 +887,7 @@ function AddCandidateModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input 
-            label="Data e lindjes" 
+            label={t('candidates.dateOfBirth')} 
             type="date" 
             required 
             value={formData.dateOfBirth} 
@@ -868,7 +900,7 @@ function AddCandidateModal({
             }} 
           />
           <Input 
-            label="Numri personal" 
+            label={t('candidates.personalNumber')} 
             required 
             value={formData.personalNumber} 
             error={errors.personalNumber}
@@ -882,7 +914,7 @@ function AddCandidateModal({
         </div>
 
         <Input 
-          label="Adresa" 
+          label={t('candidates.address')} 
           required 
           value={formData.address} 
           error={errors.address}
@@ -895,21 +927,24 @@ function AddCandidateModal({
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="Paketa" value={formData.packageId} onChange={e => setFormData({
+          <Select label={t('candidates.package')} value={formData.packageId} onChange={e => setFormData({
           ...formData,
           packageId: e.target.value
-        })} options={packages.filter((p: Package) => p.status === 'active').map((pkg: Package) => ({
-          value: pkg.id,
-          label: `${pkg.name} - €${pkg.price}`
-        }))} />
-          <Select label="Instruktori" value={formData.instructorId} onChange={e => {
+        })} options={packages.filter((p: Package) => p.status === 'active').map((pkg: Package) => {
+          const translatedName = getTranslatedPackageName(pkg.name, t);
+          return {
+            value: pkg.id,
+            label: `${translatedName} - €${pkg.price}`
+          };
+        })} />
+          <Select label={t('candidates.instructor')} value={formData.instructorId} onChange={e => {
           setFormData({
             ...formData,
             instructorId: e.target.value,
             carId: '' // Clear car selection when instructor changes
           });
         }} options={[
-          { value: '', label: 'Pa caktuar' },
+          { value: '', label: t('candidates.notAssigned') },
           ...instructors.map(instructor => ({
             value: instructor.id,
             label: instructor.name
@@ -919,49 +954,49 @@ function AddCandidateModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select 
-            label="Makina" 
+            label={t('candidates.car')} 
             value={formData.carId} 
             onChange={e => setFormData({
               ...formData,
               carId: e.target.value
             })} 
             options={[
-              { value: '', label: formData.instructorId && availableCars.length === 0 ? 'Nuk i janë caktuar makina këtij instruktori' : 'Pa caktuar' },
+              { value: '', label: formData.instructorId && availableCars.length === 0 ? t('candidates.noCarsAssignedToInstructor') : t('candidates.notAssigned') },
               ...availableCars.map(car => ({
                 value: car.id,
                 label: `${car.model} (${car.licensePlate})`
               }))
             ]}
             disabled={formData.instructorId && availableCars.length === 0}
-            hint={formData.instructorId && availableCars.length === 1 ? 'U zgjidh automatikisht: vetëm një makinë i është caktuar këtij instruktori' : undefined}
+            hint={formData.instructorId && availableCars.length === 1 ? t('candidates.carAutoSelected') : undefined}
           />
-          <Select label="Frekuenca e pagesës" value={formData.paymentFrequency} onChange={e => setFormData({
+          <Select label={t('candidates.paymentFrequency')} value={formData.paymentFrequency} onChange={e => setFormData({
           ...formData,
           paymentFrequency: e.target.value
         })} options={[{
           value: 'deposit',
-label: 'Depozitë'
+label: t('candidates.deposit')
           }, {
             value: 'one-time',
-          label: 'Pagesë një herë'
+          label: t('candidates.oneTime')
           }, {
             value: 'installments',
-          label: 'Këste'
+          label: t('candidates.installments')
           }]} />
         </div>
 
         {candidate && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select 
-              label="Statusi" 
+              label={t('candidates.status')} 
               value={formData.status} 
               onChange={e => setFormData({
                 ...formData,
                 status: e.target.value as 'active' | 'inactive'
               })} 
               options={[
-                { value: 'active', label: 'Aktive' },
-                { value: 'inactive', label: 'Joaktive' }
+                { value: 'active', label: t('common.active') },
+                { value: 'inactive', label: t('common.inactive') }
               ]} 
             />
           </div>

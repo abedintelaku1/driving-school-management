@@ -2,7 +2,9 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BellIcon, LogOutIcon, UserIcon, ChevronDownIcon, MenuIcon, CheckIcon, XIcon } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
+import { LanguageSelector } from '../ui/LanguageSelector';
 import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
 import { notificationsApi, type Notification } from '../../utils/api/notifications';
 
 type HeaderProps = {
@@ -18,6 +20,7 @@ export function Header({
     user,
     logout
   } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -39,7 +42,10 @@ export function Header({
         setUnreadCount(result.data.unread);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      // Silently handle errors - server might not be running
+      // Don't log to console as it's expected when backend is down
+      setNotifications([]);
+      setUnreadCount(0);
     }
   }, [user]);
 
@@ -53,7 +59,9 @@ export function Header({
         setUnreadCount(result.data.count);
       }
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      // Silently handle errors - server might not be running
+      // Don't log to console as it's expected when backend is down
+      setUnreadCount(0);
     }
   }, [user]);
 
@@ -115,20 +123,29 @@ export function Header({
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return 'Tani';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m më parë`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h më parë`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d më parë`;
-    return date.toLocaleDateString('sq-AL');
+    if (diffInSeconds < 60) return t('header.now');
+    if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return t('header.minutesAgo', { minutes });
+    }
+    if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return t('header.hoursAgo', { hours });
+    }
+    if (diffInSeconds < 604800) {
+      const days = Math.floor(diffInSeconds / 86400);
+      return t('header.daysAgo', { days });
+    }
+    return date.toLocaleDateString();
   };
 
-  // Get notification type label (Albanian)
+  // Get notification type label
   const getNotificationTypeLabel = (type: string): string => {
     switch (type) {
-      case 'success': return 'Sukses';
-      case 'warning': return 'Paralajmërim';
-      case 'error': return 'Gabim';
-      default: return 'Info';
+      case 'success': return t('header.success');
+      case 'warning': return t('header.warning');
+      case 'error': return t('header.error');
+      default: return t('header.info');
     }
   };
 
@@ -194,10 +211,10 @@ export function Header({
 
   // Convert role number to display string
   const getRoleDisplay = (role: number | string | undefined): string => {
-    if (role === 0 || role === '0' || role === 'admin') return 'Admin';
-    if (role === 1 || role === '1' || role === 'instructor') return 'Instructor';
-    if (role === 2 || role === '2' || role === 'staff') return 'Staff';
-    return 'User';
+    if (role === 0 || role === '0' || role === 'admin') return t('common.roleAdmin');
+    if (role === 1 || role === '1' || role === 'instructor') return t('common.roleInstructor');
+    if (role === 2 || role === '2' || role === 'staff') return t('common.roleStaff');
+    return t('common.roleUser');
   };
 
   return (
@@ -208,7 +225,7 @@ export function Header({
         <button 
           onClick={onMobileMenuToggle} 
           className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors" 
-          aria-label="Hap menunë"
+          aria-label={t('header.openMenu')}
         >
           <MenuIcon className="w-5 h-5 text-gray-600" />
         </button>
@@ -223,11 +240,14 @@ export function Header({
 
       {/* Right side */}
       <div className="flex items-center gap-2 lg:gap-4">
+        {/* Language Selector */}
+        <LanguageSelector variant="button" />
+
         {/* Notifications */}
         <div className="relative" ref={notificationsRef}>
           <button
             className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Njoftimet"
+            aria-label={t('header.notifications')}
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <BellIcon className="w-5 h-5" />
@@ -240,7 +260,7 @@ export function Header({
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
               <div className="px-4 pb-2 border-b border-gray-100 flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-900">Notifikime</p>
+                <p className="text-sm font-semibold text-gray-900">{t('header.notifications')}</p>
                 {unreadCount > 0 && (
                   <button
                     onClick={handleMarkAllAsRead}
@@ -248,13 +268,13 @@ export function Header({
                     className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-50 flex items-center gap-1"
                   >
                     <CheckIcon className="w-3 h-3" />
-                    Shëno të gjitha si të lexuara
+                    {t('header.markAllAsRead')}
                   </button>
                 )}
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <p className="text-sm text-gray-500 px-4 py-3 text-center">Nuk ka notifikime</p>
+                  <p className="text-sm text-gray-500 px-4 py-3 text-center">{t('header.noNotifications')}</p>
                 ) : (
                   notifications.map(item => (
                     <div
@@ -283,7 +303,7 @@ export function Header({
                             <button
                               onClick={(e) => handleMarkAsRead(item._id, e)}
                               className="p-1 hover:bg-gray-200 rounded transition-colors"
-                              aria-label="Mark as read"
+                              aria-label={t('header.markAsRead')}
                             >
                               <CheckIcon className="w-4 h-4 text-gray-400" />
                             </button>
@@ -291,7 +311,7 @@ export function Header({
                           <button
                             onClick={(e) => handleDeleteNotification(item._id, e)}
                             className="p-1 hover:bg-red-100 rounded transition-colors"
-                            aria-label="Delete notification"
+                            aria-label={t('header.deleteNotification')}
                           >
                             <XIcon className="w-4 h-4 text-gray-400 hover:text-red-600" />
                           </button>
@@ -311,7 +331,7 @@ export function Header({
             onClick={() => setShowDropdown(!showDropdown)} 
             className="flex items-center gap-2 lg:gap-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <Avatar name={user ? `${user.firstName} ${user.lastName}` : 'Përdorues'} size="sm" />
+            <Avatar name={user ? `${user.firstName} ${user.lastName}` : t('common.roleUser')} size="sm" />
             <div className="text-left hidden md:block">
               <p className="text-sm font-medium text-gray-900">
                 {user?.firstName} {user?.lastName}
@@ -339,7 +359,7 @@ export function Header({
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <UserIcon className="w-4 h-4" />
-                  Profili
+                  {t('header.profile')}
                 </button>
               </div>
               <div className="border-t border-gray-100 py-1">
@@ -348,7 +368,7 @@ export function Header({
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                 >
                   <LogOutIcon className="w-4 h-4" />
-                  Dilni
+                  {t('header.logout')}
                 </button>
               </div>
             </div>

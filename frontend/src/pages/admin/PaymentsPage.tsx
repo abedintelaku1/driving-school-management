@@ -10,11 +10,31 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { TextArea } from "../../components/ui/TextArea";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { useLanguage } from "../../hooks/useLanguage";
 import type { Payment, Candidate, Package } from "../../types";
 import { toast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../utils/api";
 import jsPDF from "jspdf";
+
+// Helper function to translate package names
+const getTranslatedPackageName = (packageName: string, t: (key: string) => string): string => {
+  const nameLower = packageName.toLowerCase();
+  
+  // Map common package names to translation keys
+  if (nameLower.includes('premium')) {
+    return t('packages.premium');
+  }
+  if (nameLower.includes('standard')) {
+    return t('packages.standard');
+  }
+  if (nameLower.includes('basic')) {
+    return t('packages.basic');
+  }
+  
+  // If no match found, return original name
+  return packageName;
+};
 
 type PaymentRow = {
   id: string;
@@ -41,6 +61,7 @@ type PaymentRow = {
 };
 
 export function PaymentsPage() {
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 0;
@@ -115,7 +136,7 @@ export function PaymentsPage() {
           });
           setPayments(mapped);
         } else {
-          toast("error", "Dështoi ngarkimi i pagesave");
+          toast("error", t('payments.failedToLoad'));
         }
 
         if (candidatesRes.ok && candidatesRes.data) {
@@ -162,7 +183,7 @@ export function PaymentsPage() {
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast("error", "Dështoi ngarkimi i të dhënave");
+        toast("error", t('common.failedToLoadData'));
       } finally {
         setLoading(false);
       }
@@ -236,7 +257,7 @@ export function PaymentsPage() {
             ? (candidate.uniqueClientNumber || "").toLowerCase()
             : "";
         const pkg = getPackageInfo(payment.packageId);
-        const packageName = pkg ? pkg.name.toLowerCase() : "";
+        const packageName = pkg ? getTranslatedPackageName(pkg.name, t).toLowerCase() : "";
         const amount = payment.amount.toString();
         const method = payment.method.toLowerCase();
         const notes = (payment.notes || "").toLowerCase();
@@ -279,16 +300,16 @@ export function PaymentsPage() {
     try {
       const { ok, data } = await api.deletePayment(selectedPayment.id);
       if (ok) {
-        toast("success", "Pagesa u fshi me sukses");
+        toast("success", t('payments.paymentDeleted'));
         setRefreshKey((prev) => prev + 1);
         setShowDeleteModal(false);
         setSelectedPayment(null);
       } else {
-        toast("error", (data as any)?.message || "Dështoi fshirja e pagesës");
+        toast("error", (data as any)?.message || t('payments.failedToDelete'));
       }
     } catch (error) {
       console.error("Error deleting payment:", error);
-      toast("error", "Dështoi fshirja e pagesës");
+      toast("error", t('payments.failedToDelete'));
     }
   };
 
@@ -299,20 +320,20 @@ export function PaymentsPage() {
     if (exportFormat === "csv") {
       // Create CSV content
       const headers = [
-        "Data",
-        "Emri i kandidatit",
-        "Numri i klientit",
-        "Paketa",
-        "Shuma",
-        "Metoda",
-        "Shënime",
+        t('payments.dateColumn'),
+        t('payments.candidateColumn'),
+        t('payments.clientNumberColumn'),
+        t('payments.packageColumn'),
+        t('payments.amountColumn'),
+        t('payments.methodColumn'),
+        t('payments.notesColumn'),
       ];
       const rows = filteredPayments.map((payment) => {
         const candidate = getCandidateInfo(payment.candidateId);
         const candidateName =
           candidate && typeof candidate === "object" && "firstName" in candidate
             ? `${candidate.firstName} ${candidate.lastName}`
-            : "I panjohur";
+            : t('common.unknown');
         const candidateNumber =
           candidate &&
           typeof candidate === "object" &&
@@ -320,7 +341,7 @@ export function PaymentsPage() {
             ? candidate.uniqueClientNumber || ""
             : "";
         const pkg = getPackageInfo(payment.packageId);
-        const packageName = pkg ? pkg.name : "-";
+        const packageName = pkg ? getTranslatedPackageName(pkg.name, t) : "-";
 
         return [
           payment.date,
@@ -328,7 +349,7 @@ export function PaymentsPage() {
           candidateNumber,
           packageName,
           payment.amount.toString(),
-          payment.method.charAt(0).toUpperCase() + payment.method.slice(1),
+          payment.method === 'bank' ? t('payments.bank') : t('payments.cash'),
           (payment.notes || "").replace(/"/g, '""'), // Escape quotes in CSV
         ];
       });
@@ -339,47 +360,51 @@ export function PaymentsPage() {
         ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
       ].join("\n");
 
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      // Add UTF-8 BOM for Excel compatibility
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `pagesat_${timestamp}.csv`);
+      link.setAttribute("download", `${t('payments.csvFilename')}_${timestamp}.csv`);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      toast("success", "Pagesat u eksportuan në CSV");
+      toast("success", t('payments.exportedToCSV'));
     } else {
       // PDF Export
+      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
+      const locale = localeMap[language] || 'sq-AL';
+      
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text("Lista e Pagesave", 14, 20);
+      doc.text(t('payments.title'), 14, 20);
       doc.setFontSize(10);
       doc.text(
-        `Data e eksportit: ${new Date().toLocaleDateString("sq-AL")}`,
+        `${t('reports.exportDate')}: ${new Date().toLocaleDateString(locale)}`,
         14,
         30,
       );
-      doc.text(`Total: ${filteredPayments.length} pagesa`, 14, 37);
+      doc.text(`${t('common.total')}: ${filteredPayments.length} ${t('payments.payments')}`, 14, 37);
 
       // Calculate total amount
       const totalAmount = filteredPayments.reduce(
         (sum, p) => sum + p.amount,
         0,
       );
-      doc.text(`Shuma totale: ${totalAmount.toFixed(2)} EUR`, 14, 44);
+      doc.text(`${t('payments.totalPaid')}: ${totalAmount.toFixed(2)} EUR`, 14, 44);
 
       let yPos = 55;
       doc.setFontSize(9);
       doc.setFont(undefined, "bold");
-      doc.text("Data", 14, yPos);
-      doc.text("Kandidati", 40, yPos);
-      doc.text("Nr. Klientit", 85, yPos);
-      doc.text("Paketa", 120, yPos);
-      doc.text("Shuma", 150, yPos);
-      doc.text("Metoda", 175, yPos);
+      doc.text(t('payments.dateColumn'), 14, yPos);
+      doc.text(t('payments.candidateColumn'), 40, yPos);
+      doc.text(t('payments.clientNumberColumn'), 85, yPos);
+      doc.text(t('payments.packageColumn'), 120, yPos);
+      doc.text(t('payments.amountColumn'), 150, yPos);
+      doc.text(t('payments.methodColumn'), 175, yPos);
 
       yPos += 7;
       doc.setFont(undefined, "normal");
@@ -395,7 +420,7 @@ export function PaymentsPage() {
         const candidateName =
           candidate && typeof candidate === "object" && "firstName" in candidate
             ? `${candidate.firstName} ${candidate.lastName}`
-            : "I panjohur";
+            : t('common.unknown');
         const candidateNumber =
           candidate &&
           typeof candidate === "object" &&
@@ -403,9 +428,8 @@ export function PaymentsPage() {
             ? candidate.uniqueClientNumber || ""
             : "";
         const pkg = getPackageInfo(payment.packageId);
-        const packageName = pkg ? pkg.name.substring(0, 12) : "-";
-        const method =
-          payment.method.charAt(0).toUpperCase() + payment.method.slice(1);
+        const packageName = pkg ? getTranslatedPackageName(pkg.name, t).substring(0, 12) : "-";
+        const method = payment.method === 'bank' ? t('payments.bank') : t('payments.cash');
 
         doc.text(payment.date.substring(0, 10), 14, yPos);
         doc.text(candidateName.substring(0, 20), 40, yPos);
@@ -416,8 +440,8 @@ export function PaymentsPage() {
         yPos += 6;
       });
 
-      doc.save(`pagesat_${timestamp}.pdf`);
-      toast("success", "Pagesat u eksportuan në PDF");
+      doc.save(`${t('payments.pdfFilename')}_${timestamp}.pdf`);
+      toast("success", t('payments.exportedToPDF'));
     }
   };
 
@@ -432,12 +456,12 @@ export function PaymentsPage() {
   const columns = [
     {
       key: "date",
-      label: "Data",
+      label: t('payments.dateColumn'),
       sortable: true,
     },
     {
       key: "candidateId",
-      label: "Kandidati",
+      label: t('payments.candidateColumn'),
       render: (value: unknown) => {
         const candidate = getCandidateInfo(value as any);
         if (
@@ -456,16 +480,16 @@ export function PaymentsPage() {
             </div>
           );
         }
-        return <span className="text-gray-400">I panjohur</span>;
+        return <span className="text-gray-400">{t('payments.unknown')}</span>;
       },
     },
     {
       key: "packageId",
-      label: "Paketa",
+      label: t('payments.packageColumn'),
       render: (value: unknown) => {
         const pkg = getPackageInfo(value as any);
         return pkg ? (
-          <Badge variant="info">{pkg.name}</Badge>
+          <Badge variant="info">{getTranslatedPackageName(pkg.name, t)}</Badge>
         ) : (
           <span className="text-gray-400">-</span>
         );
@@ -473,7 +497,7 @@ export function PaymentsPage() {
     },
     {
       key: "amount",
-      label: "Shuma",
+      label: t('payments.amountColumn'),
       sortable: true,
       render: (value: unknown) => (
         <span className="font-semibold text-gray-900">
@@ -483,17 +507,20 @@ export function PaymentsPage() {
     },
     {
       key: "method",
-      label: "Metoda",
-      render: (value: unknown) => (
-        <Badge variant={value === "bank" ? "info" : "default"}>
-          {(value as string).charAt(0).toUpperCase() +
-            (value as string).slice(1)}
-        </Badge>
-      ),
+      label: t('payments.methodColumn'),
+      render: (value: unknown) => {
+        const method = value as string;
+        const translated = method === 'bank' ? t('payments.bank') : t('payments.cash');
+        return (
+          <Badge variant={value === "bank" ? "info" : "default"}>
+            {translated}
+          </Badge>
+        );
+      },
     },
     {
       key: "addedBy",
-      label: "Shtuar nga",
+      label: t('payments.addedByColumn'),
       render: (value: unknown) => {
         // Check if value is a valid user object with at least one property
         if (!value || typeof value !== "object" || value === null) {
@@ -507,68 +534,19 @@ export function PaymentsPage() {
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return (
           <span className="text-gray-700 font-medium">
-            {name || user.email || "E panjohur"}
+            {name || user.email || t('payments.unknown')}
           </span>
         );
       },
     },
     {
       key: "notes",
-      label: "Shënime",
+      label: t('payments.notesColumn'),
       render: (value: unknown) => (
         <span className="text-gray-500 truncate max-w-[200px] block">
           {(value as string) || "-"}
         </span>
       ),
-    },
-    {
-      key: "actions",
-      label: "Veprime",
-      render: (_: unknown, payment: PaymentRow) => {
-        const candidate = getCandidateInfo(payment.candidateId);
-        const candidateId = payment.candidateId;
-        
-        return (
-          <div className="flex items-center gap-2">
-            {canEditPayment && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<EditIcon className="w-4 h-4" />}
-                onClick={() => handleEdit(payment)}
-                title="Ndrysho"
-                className="text-blue-600 hover:text-blue-700"
-              >
-                Ndrysho
-              </Button>
-            )}
-            {canDeletePayment && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<TrashIcon className="w-4 h-4" />}
-                onClick={() => handleDelete(payment)}
-                title="Fshi"
-                className="text-red-600 hover:text-red-700"
-              >
-                Fshi
-              </Button>
-            )}
-            {(isAdmin || isStaff) && candidateId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<FileTextIcon className="w-4 h-4" />}
-                onClick={() => navigate(`/admin/candidates/${candidateId}?tab=documents`)}
-                title="Dokumentet"
-                className="text-green-600 hover:text-green-700"
-              >
-                Dokumentet
-              </Button>
-            )}
-          </div>
-        );
-      },
     },
   ];
 
@@ -585,9 +563,9 @@ export function PaymentsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pagesat</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('payments.title')}</h1>
           <p className="text-gray-500 mt-1">
-            Ndiqni dhe menaxhoni të gjitha transaksionet e pagesave.
+            {t('payments.subtitle')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -596,9 +574,10 @@ export function PaymentsPage() {
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as "csv" | "pdf")}
               options={[
-                { value: "csv", label: "CSV" },
-                { value: "pdf", label: "PDF" },
+                { value: "csv", label: t('reports.csv') },
+                { value: "pdf", label: t('reports.pdf') },
               ]}
+              placeholder={t('common.selectOption')}
               className="w-24"
             />
             <Button
@@ -607,7 +586,7 @@ export function PaymentsPage() {
               onClick={handleExport}
               disabled={filteredPayments.length === 0}
             >
-              Eksporto {exportFormat.toUpperCase()}
+              {exportFormat === 'csv' ? t('payments.exportCSV') : t('payments.exportPDF')}
             </Button>
           </div>
           {canAddPayment && (
@@ -615,7 +594,7 @@ export function PaymentsPage() {
               onClick={() => setShowAddModal(true)}
               icon={<PlusIcon className="w-4 h-4" />}
             >
-              Regjistro pagesë
+              {t('payments.addPayment')}
             </Button>
           )}
         </div>
@@ -625,13 +604,13 @@ export function PaymentsPage() {
       <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-blue-100">Totali i mbledhur (të filtruara)</p>
+            <p className="text-blue-100">{t('payments.totalCollectedFiltered')}</p>
             <p className="text-4xl font-bold mt-1">
               €{totalAmount.toLocaleString()}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-blue-100">Transaksionet</p>
+            <p className="text-blue-100">{t('payments.transactions')}</p>
             <p className="text-4xl font-bold mt-1">{filteredPayments.length}</p>
           </div>
         </div>
@@ -643,28 +622,28 @@ export function PaymentsPage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <Input
-                label="Kërko"
-                placeholder="Kërko sipas kandidatit, paketës, shumës, metodës..."
+                label={t('common.search')}
+                placeholder={t('payments.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="w-48">
               <Select
-                label="Metoda e pagesës"
-                placeholder="Të gjitha metodat"
+                label={t('payments.paymentMethod')}
+                placeholder={t('payments.allMethods')}
                 value={methodFilter}
                 onChange={(e) => setMethodFilter(e.target.value)}
                 options={[
-                  { value: "", label: "Të gjitha metodat" },
-                  { value: "bank", label: "Transfer bankar" },
-                  { value: "cash", label: "Para në dorë" },
+                  { value: "", label: t('payments.allMethods') },
+                  { value: "bank", label: t('payments.bank') },
+                  { value: "cash", label: t('payments.cash') },
                 ]}
               />
             </div>
             <div className="w-40">
               <Input
-                label="Nga data"
+                label={t('payments.fromDate')}
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
@@ -672,7 +651,7 @@ export function PaymentsPage() {
             </div>
             <div className="w-40">
               <Input
-                label="Deri në datë"
+                label={t('payments.toDate')}
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
@@ -680,7 +659,7 @@ export function PaymentsPage() {
             </div>
             {(methodFilter || dateFrom || dateTo || searchQuery) && (
               <Button variant="ghost" size="sm" onClick={clearAllFilters}>
-                Pastro filtrat
+                {t('common.clear')} {t('common.filters')}
               </Button>
             )}
           </div>
@@ -694,40 +673,59 @@ export function PaymentsPage() {
           columns={columns}
           keyExtractor={(payment) => payment.id}
           searchable={false}
-          emptyMessage="Nuk u gjetën pagesa"
+          emptyMessage={t('common.noData')}
           actions={
-            canEditPayment || canDeletePayment
-              ? (payment) => (
-                  <div className="flex items-center justify-end gap-2">
-                    {canEditPayment && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(payment);
-                        }}
-                        icon={<EditIcon className="w-4 h-4" />}
-                      >
-                        <span className="hidden sm:inline">Ndrysho</span>
-                      </Button>
-                    )}
-                    {canDeletePayment && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(payment);
-                        }}
-                        icon={<TrashIcon className="w-4 h-4" />}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <span className="hidden sm:inline">Fshi</span>
-                      </Button>
-                    )}
-                  </div>
-                )
+            canEditPayment || canDeletePayment || isStaff
+              ? (payment) => {
+                  const candidate = getCandidateInfo(payment.candidateId);
+                  const candidateId = payment.candidateId;
+                  
+                  return (
+                    <div className="flex items-center justify-end gap-2">
+                      {canEditPayment && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(payment);
+                          }}
+                          icon={<EditIcon className="w-4 h-4" />}
+                        >
+                          <span className="hidden sm:inline">{t('common.edit')}</span>
+                        </Button>
+                      )}
+                      {canDeletePayment && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(payment);
+                          }}
+                          icon={<TrashIcon className="w-4 h-4" />}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <span className="hidden sm:inline">{t('common.delete')}</span>
+                        </Button>
+                      )}
+                      {isStaff && candidateId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/admin/candidates/${candidateId}?tab=documents`);
+                          }}
+                          icon={<FileTextIcon className="w-4 h-4" />}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <span className="hidden sm:inline">{t('payments.documents')}</span>
+                        </Button>
+                      )}
+                    </div>
+                  );
+                }
               : undefined
           }
         />
@@ -739,7 +737,7 @@ export function PaymentsPage() {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast("success", "Pagesa u regjistrua me sukses");
+          toast("success", t('payments.paymentAdded'));
           setShowAddModal(false);
         }}
         candidates={candidates}
@@ -755,7 +753,7 @@ export function PaymentsPage() {
         }}
         onSuccess={() => {
           setRefreshKey((prev) => prev + 1);
-          toast("success", "Pagesa u përditësua me sukses");
+          toast("success", t('payments.paymentUpdated'));
           setShowEditModal(false);
           setSelectedPayment(null);
         }}
@@ -793,6 +791,7 @@ function AddPaymentModal({
   candidates,
   packages,
 }: AddPaymentModalProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     candidateId: "",
     amount: "",
@@ -826,19 +825,19 @@ function AddPaymentModal({
 
     // Validation
     if (!formData.candidateId) {
-      toast("error", "Ju lutemi zgjidhni një kandidat");
+      toast("error", t('payments.pleaseSelectCandidate'));
       return;
     }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      toast("error", "Ju lutemi vendosni një shumë të vlefshme");
+      toast("error", t('payments.pleaseEnterValidAmount'));
       return;
     }
     if (!formData.method) {
-      toast("error", "Ju lutemi zgjidhni një metodë pagese");
+      toast("error", t('payments.pleaseSelectPaymentMethod'));
       return;
     }
     if (!formData.date) {
-      toast("error", "Ju lutemi zgjidhni një datë");
+      toast("error", t('payments.pleaseSelectDate'));
       return;
     }
 
@@ -871,7 +870,7 @@ function AddPaymentModal({
       console.error("Error creating payment:", error);
       toast(
         "error",
-        "Dështoi regjistrimi i pagesës. Ju lutemi kontrolloni lidhjen.",
+        t('payments.failedToRegister'),
       );
     } finally {
       setLoading(false);
@@ -882,23 +881,23 @@ function AddPaymentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Regjistro pagesë"
-      description="Vendosni detajet e pagesës për të regjistruar një transaksion të ri."
+      title={t('payments.addPaymentTitle')}
+      description={t('payments.enterPaymentDetails')}
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            Regjistro pagesën
+            {t('payments.registerPayment')}
           </Button>
         </div>
       }
     >
       <form className="space-y-6" onSubmit={handleSubmit}>
         <Select
-          label="Kandidati"
+          label={t('payments.candidate')}
           required
           value={formData.candidateId}
           onChange={(e) => {
@@ -909,6 +908,7 @@ function AddPaymentModal({
               packageId: candidate?.packageId || "", // Auto-set package from candidate
             });
           }}
+          placeholder={t('common.selectOption')}
           options={candidates.map((candidate) => ({
             value: candidate.id,
             label: `${candidate.firstName} ${candidate.lastName} ${
@@ -930,13 +930,13 @@ function AddPaymentModal({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-blue-900">
-                      Paketa e kandidatit
+                      {t('payments.candidatePackage')}
                     </p>
                     <p className="text-lg font-semibold text-blue-900 mt-1">
-                      {packageInfo.name}
+                      {getTranslatedPackageName(packageInfo.name, t)}
                     </p>
                     <p className="text-sm text-blue-700 mt-1">
-                      {packageInfo.numberOfHours} orë • €
+                      {packageInfo.numberOfHours} {t('payments.hours')} • €
                       {packageInfo.price.toLocaleString()}
                     </p>
                   </div>
@@ -946,8 +946,7 @@ function AddPaymentModal({
             ) : selectedCandidate.packageId ? (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  ID e paketës: {selectedCandidate.packageId} (nuk u gjet në
-                  sistem)
+                  {t('payments.packageIdNotFound', { packageId: selectedCandidate.packageId })}
                 </p>
               </div>
             ) : null;
@@ -955,7 +954,7 @@ function AddPaymentModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Shuma"
+            label={t('payments.amount')}
             type="number"
             required
             step="0.01"
@@ -967,10 +966,10 @@ function AddPaymentModal({
                 amount: e.target.value,
               })
             }
-            placeholder="0.00"
+            placeholder={t('payments.amountPlaceholder')}
           />
           <Input
-            label="Data"
+            label={t('payments.date')}
             type="date"
             required
             value={formData.date}
@@ -984,7 +983,7 @@ function AddPaymentModal({
         </div>
 
         <Select
-          label="Metoda e pagesës"
+          label={t('payments.method')}
           required
           value={formData.method}
           onChange={(e) =>
@@ -993,14 +992,15 @@ function AddPaymentModal({
               method: e.target.value,
             })
           }
+          placeholder={t('common.selectOption')}
           options={[
-            { value: "bank", label: "Transfer bankar" },
-            { value: "cash", label: "Para në dorë" },
+            { value: "bank", label: t('payments.bankTransfer') },
+            { value: "cash", label: t('payments.cashInHand') },
           ]}
         />
 
         <TextArea
-          label="Shënime"
+          label={t('payments.notes')}
           value={formData.notes}
           onChange={(e) =>
             setFormData({
@@ -1008,7 +1008,7 @@ function AddPaymentModal({
               notes: e.target.value,
             })
           }
-          placeholder="Shënime opsionale për këtë pagesë..."
+          placeholder={t('payments.notesPlaceholder')}
           rows={3}
         />
       </form>
@@ -1033,6 +1033,7 @@ function EditPaymentModal({
   packages,
   payment,
 }: EditPaymentModalProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     candidateId: "",
     amount: "",
@@ -1091,12 +1092,12 @@ function EditPaymentModal({
       } else {
         toast(
           "error",
-          (data as any)?.message || "Dështoi përditësimi i pagesës",
+          (data as any)?.message || t('payments.failedToUpdate'),
         );
       }
     } catch (error) {
       console.error("Error updating payment:", error);
-      toast("error", "Dështoi përditësimi i pagesës");
+      toast("error", t('payments.failedToUpdate'));
     } finally {
       setLoading(false);
     }
@@ -1108,16 +1109,16 @@ function EditPaymentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Ndrysho pagesën"
-      description="Përditësoni detajet e pagesës."
+      title={t('payments.editPaymentTitle')}
+      description={t('payments.updatePaymentDetails')}
       size="md"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} loading={loading}>
-            Përditëso pagesën
+            {t('payments.updatePayment')}
           </Button>
         </div>
       }
@@ -1125,11 +1126,11 @@ function EditPaymentModal({
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="p-4 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-500">
-            Kandidati:{" "}
+            {t('payments.candidateLabel')}{" "}
             <span className="font-medium text-gray-900">
               {selectedCandidate
                 ? `${selectedCandidate.firstName} ${selectedCandidate.lastName}`
-                : "I panjohur"}
+                : t('payments.unknown')}
             </span>
           </p>
         </div>
@@ -1145,13 +1146,13 @@ function EditPaymentModal({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-blue-900">
-                      Paketa e kandidatit
+                      {t('payments.candidatePackage')}
                     </p>
                     <p className="text-lg font-semibold text-blue-900 mt-1">
-                      {packageInfo.name}
+                      {getTranslatedPackageName(packageInfo.name, t)}
                     </p>
                     <p className="text-sm text-blue-700 mt-1">
-                      {packageInfo.numberOfHours} orë • €
+                      {packageInfo.numberOfHours} {t('payments.hours')} • €
                       {packageInfo.price.toLocaleString()}
                     </p>
                   </div>
@@ -1161,8 +1162,7 @@ function EditPaymentModal({
             ) : selectedCandidate.packageId ? (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  ID e paketës: {selectedCandidate.packageId} (nuk u gjet në
-                  sistem)
+                  {t('payments.packageIdNotFound', { packageId: selectedCandidate.packageId })}
                 </p>
               </div>
             ) : null;
@@ -1170,7 +1170,7 @@ function EditPaymentModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Shuma"
+            label={t('payments.amount')}
             type="number"
             required
             step="0.01"
@@ -1182,10 +1182,10 @@ function EditPaymentModal({
                 amount: e.target.value,
               })
             }
-            placeholder="0.00"
+            placeholder={t('payments.amountPlaceholder')}
           />
           <Input
-            label="Data"
+            label={t('payments.date')}
             type="date"
             required
             value={formData.date}
@@ -1199,7 +1199,7 @@ function EditPaymentModal({
         </div>
 
         <Select
-          label="Metoda e pagesës"
+          label={t('payments.method')}
           required
           value={formData.method}
           onChange={(e) =>
@@ -1208,14 +1208,15 @@ function EditPaymentModal({
               method: e.target.value,
             })
           }
+          placeholder={t('common.selectOption')}
           options={[
-            { value: "bank", label: "Transfer bankar" },
-            { value: "cash", label: "Para në dorë" },
+            { value: "bank", label: t('payments.bankTransfer') },
+            { value: "cash", label: t('payments.cashInHand') },
           ]}
         />
 
         <TextArea
-          label="Shënime"
+          label={t('payments.notes')}
           value={formData.notes}
           onChange={(e) =>
             setFormData({
@@ -1223,7 +1224,7 @@ function EditPaymentModal({
               notes: e.target.value,
             })
           }
-          placeholder="Shënime opsionale për këtë pagesë..."
+          placeholder={t('payments.notesPlaceholder')}
           rows={3}
         />
       </form>
@@ -1244,6 +1245,7 @@ function DeleteConfirmationModal({
   onConfirm,
   payment,
 }: DeleteConfirmationModalProps) {
+  const { t } = useLanguage();
   const getCandidateInfo = (
     candidateId:
       | string
@@ -1266,22 +1268,22 @@ function DeleteConfirmationModal({
   const candidateName =
     candidate && "firstName" in candidate
       ? `${candidate.firstName} ${candidate.lastName}`
-      : "I panjohur";
+      : t('payments.unknown');
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Fshi pagesën"
-      description="Jeni të sigurt që dëshironi të fshini këtë pagesë? Ky veprim nuk mund të kthehet."
+      title={t('payments.deletePaymentTitle')}
+      description={t('payments.deletePaymentDescription')}
       size="sm"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button variant="danger" onClick={onConfirm}>
-            Fshi
+            {t('common.delete')}
           </Button>
         </div>
       }
@@ -1289,24 +1291,24 @@ function DeleteConfirmationModal({
       <div className="space-y-4">
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm font-medium text-red-800">
-            Paralajmërim: Ky veprim nuk mund të kthehet.
+            {t('payments.warning')}
           </p>
         </div>
         <div className="space-y-2">
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Kandidati:</span> {candidateName}
+            <span className="font-medium">{t('payments.candidateLabel')}</span> {candidateName}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Shuma:</span> €
+            <span className="font-medium">{t('payments.amountLabel')}</span> €
             {payment.amount.toLocaleString()}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Data:</span>{" "}
+            <span className="font-medium">{t('payments.dateLabel')}</span>{" "}
             {new Date(payment.date).toLocaleDateString()}
           </p>
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Metoda:</span>{" "}
-            {payment.method === "bank" ? "Transfer bankar" : "Para në dorë"}
+            <span className="font-medium">{t('payments.methodLabel')}</span>{" "}
+            {payment.method === "bank" ? t('payments.bankTransfer') : t('payments.cashInHand')}
           </p>
         </div>
       </div>

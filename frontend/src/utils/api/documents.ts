@@ -86,12 +86,44 @@ export const documentsApi = {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const res = await fetch(getApiUrl(`/api/documents/candidate/${candidateId}/${documentId}/download`), {
-        headers
-      });
+      const url = getApiUrl(`/api/documents/candidate/${candidateId}/${documentId}/download`);
+      
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers
+        });
+      } catch (fetchError) {
+        // Handle network errors (server not running, CORS, etc.)
+        console.error('Network error during download:', fetchError);
+        throw new Error('Network error: Unable to connect to server. Please check if the backend server is running.');
+      }
       
       if (!res.ok) {
-        throw new Error('Failed to download document');
+        const errorText = await res.text().catch(() => '');
+        let errorMessage = `Failed to download document (Status: ${res.status})`;
+        
+        // Only try to parse JSON if there's actual content
+        if (errorText && errorText.trim()) {
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.message && errorData.message !== 'OK') {
+              errorMessage = errorData.message;
+            }
+          } catch {
+            // If response is not JSON, check if it's a meaningful error message
+            if (errorText !== 'OK' && errorText.length > 0) {
+              errorMessage = errorText;
+            }
+          }
+        }
+        
+        // Don't use statusText if it's just "OK" - use a more descriptive message
+        if (res.statusText && res.statusText !== 'OK') {
+          errorMessage = `${errorMessage} - ${res.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       // Get content type and filename from headers
@@ -114,13 +146,25 @@ export const documentsApi = {
       }
       
       // Create blob with proper type
-      const blob = await res.blob();
+      let blob: Blob;
+      try {
+        blob = await res.blob();
+      } catch (blobError) {
+        console.error('Error reading response as blob:', blobError);
+        throw new Error('Failed to read document data. The file may be corrupted or the server response is invalid.');
+      }
+      
+      // Check if blob is empty
+      if (blob.size === 0) {
+        throw new Error('The document file is empty. Please try uploading the document again.');
+      }
+      
       const blobWithType = new Blob([blob], { type: contentType });
       
       // Create download link
-      const url = window.URL.createObjectURL(blobWithType);
+      const downloadUrl = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = downloadUrl;
       a.download = filename;
       a.style.display = 'none';
       
@@ -129,12 +173,16 @@ export const documentsApi = {
       
       // Cleanup
       setTimeout(() => {
-        window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
       }, 100);
     } catch (error) {
       console.error('Error downloading document:', error);
-      throw error;
+      // Re-throw with more context if it's not already an Error
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unexpected error occurred while downloading the document');
     }
   },
 

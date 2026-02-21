@@ -2,6 +2,7 @@ import React, { useEffect, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
 import { useToast, setGlobalToastHandler } from './hooks/useToast';
+import { LanguageProvider, useLanguage } from './hooks/useLanguage';
 import { ToastContainer } from './components/ui/Toast';
 // Layouts
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -44,9 +45,10 @@ function ProtectedRoute({
   
   // Wait for auth check to complete before redirecting
   if (loading) {
+    const { t } = useLanguage();
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500">Duke u ngarkuar...</p>
+        <p className="text-gray-500">{t('common.loading')}</p>
       </div>
     );
   }
@@ -67,18 +69,20 @@ function ProtectedRoute({
 function AppContent() {
   const auth = useAuthProvider();
   const toast = useToast();
+  const { t } = useLanguage();
   // Set global toast handler
   useEffect(() => {
     setGlobalToastHandler(toast);
   }, [toast]);
-  return <AuthContext.Provider value={auth}>
+  return (
+      <AuthContext.Provider value={auth}>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
           {/* Admin Routes (Admin + Staff; Staff has limited permissions e.g. payments add-only) */}
           <Route path="/admin" element={<ProtectedRoute allowedRoles={[0, 2]}>
-                <AdminLayout title="Admin Panel" />
+                <AdminLayout title={t('app.adminPanel')} />
               </ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
             <Route path="profile" element={<AdminProfilePage />} />
@@ -93,7 +97,7 @@ function AppContent() {
 
           {/* Instructor Routes */}
           <Route path="/instructor" element={<ProtectedRoute allowedRole={1}>
-                <InstructorLayout title="Paneli i instruktorit" />
+                <InstructorLayout title={t('app.instructorPanel')} />
               </ProtectedRoute>}>
             <Route index element={<InstructorDashboard />} />
             <Route path="profile" element={<InstructorProfilePage />} />
@@ -109,8 +113,14 @@ function AppContent() {
         </Routes>
       </BrowserRouter>
       <ToastContainer toasts={toast.toasts} onDismiss={toast.removeToast} />
-    </AuthContext.Provider>;
+      </AuthContext.Provider>
+  );
 }
+
 export function App() {
-  return <AppContent />;
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
 }

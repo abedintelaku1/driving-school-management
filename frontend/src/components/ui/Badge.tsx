@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../../hooks/useLanguage';
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'outline';
 type BadgeSize = 'sm' | 'md';
 type BadgeProps = {
@@ -51,8 +52,9 @@ export function StatusBadge({
 }: {
   status: 'active' | 'inactive';
 }) {
+  const { t } = useLanguage();
   return <Badge variant={status === 'active' ? 'success' : 'danger'} dot>
-      {status === 'active' ? 'Aktive' : 'Joaktive'}
+      {status === 'active' ? t('common.active') : t('common.inactive')}
     </Badge>;
 }
 export function PaymentStatusBadge({
@@ -60,33 +62,40 @@ export function PaymentStatusBadge({
 }: {
   status: 'paid' | 'pending' | 'overdue';
 }) {
+  const { t } = useLanguage();
   const variants: Record<string, BadgeVariant> = {
     paid: 'success',
     pending: 'warning',
     overdue: 'danger'
   };
+  const labels: Record<string, string> = {
+    paid: t('common.paid'),
+    pending: t('common.pending'),
+    overdue: t('common.overdue')
+  };
   return <Badge variant={variants[status]} dot>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {labels[status] ?? status}
     </Badge>;
 }
-const documentLabels: Record<string, string> = {
-  pending: 'Në pritje',
-  submitted: 'Dorëzuar',
-  approved: 'Aprovuar',
-  rejected: 'Refuzuar'
-};
 export function DocumentStatusBadge({
   status
 }: {
   status: 'pending' | 'submitted' | 'approved' | 'rejected';
 }) {
+  const { t } = useLanguage();
   const variants: Record<string, BadgeVariant> = {
     pending: 'default',
     submitted: 'info',
     approved: 'success',
     rejected: 'danger'
   };
+  const labels: Record<string, string> = {
+    pending: t('common.pending'),
+    submitted: t('common.submitted'),
+    approved: t('common.approved'),
+    rejected: t('common.rejected')
+  };
   return <Badge variant={variants[status]} size="sm">
-      {documentLabels[status] ?? status}
+      {labels[status] ?? status}
     </Badge>;
 }

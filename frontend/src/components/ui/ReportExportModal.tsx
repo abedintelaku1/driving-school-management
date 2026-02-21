@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { Button } from './Button';
 import { Select } from './Select';
 import { toast } from '../../hooks/useToast';
+import { useLanguage } from '../../hooks/useLanguage';
 import { api, exportApi } from '../../utils/api';
 
 interface ReportExportModalProps {
@@ -21,6 +22,7 @@ export function ReportExportModal({
   candidates = [],
   instructors = []
 }: ReportExportModalProps) {
+  const { t } = useLanguage();
   const [format, setFormat] = useState<'excel' | 'csv' | 'pdf'>('excel');
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>('');
   const [selectedInstructorId, setSelectedInstructorId] = useState<string>('');
@@ -31,7 +33,7 @@ export function ReportExportModal({
     try {
       if (type === 'candidate') {
         if (!selectedCandidateId) {
-          toast('error', 'Ju lutem zgjidhni një kandidat');
+          toast('error', t('reports.selectCandidateRequired'));
           setIsExporting(false);
           return;
         }
@@ -46,7 +48,7 @@ export function ReportExportModal({
         await exportFn(selectedCandidateId, format);
       } else if (type === 'instructor') {
         if (!selectedInstructorId) {
-          toast('error', 'Ju lutem zgjidhni një instruktor');
+          toast('error', t('reports.selectInstructorRequired'));
           setIsExporting(false);
           return;
         }
@@ -61,11 +63,11 @@ export function ReportExportModal({
         await exportFn(selectedInstructorId, format);
       }
       
-      toast('success', 'Eksportimi u krye me sukses');
+      toast('success', t('reports.exportSuccess'));
       onClose();
     } catch (error) {
       console.error('Export error:', error);
-      toast('error', 'Dështoi eksportimi');
+      toast('error', t('reports.exportFailed'));
     } finally {
       setIsExporting(false);
     }
@@ -73,9 +75,9 @@ export function ReportExportModal({
 
   const getTitle = () => {
     if (type === 'candidate') {
-      return 'Eksporto Raport për Kandidat';
+      return t('reports.exportReportForCandidate');
     }
-    return 'Eksporto Raport për Instruktor';
+    return t('reports.exportReportForInstructor');
   };
 
   return (
@@ -84,15 +86,16 @@ export function ReportExportModal({
         {/* Format Selection */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Format eksporti
+            {t('reports.exportFormat')}
           </label>
           <Select
             value={format}
             onChange={(e) => setFormat(e.target.value as 'excel' | 'csv' | 'pdf')}
+            placeholder={t('common.selectOption')}
             options={[
-              { value: 'excel', label: 'Excel' },
-              { value: 'csv', label: 'CSV' },
-              { value: 'pdf', label: 'PDF' }
+              { value: 'excel', label: t('reports.excel') },
+              { value: 'csv', label: t('reports.csv') },
+              { value: 'pdf', label: t('reports.pdf') }
             ]}
           />
         </div>
@@ -101,18 +104,16 @@ export function ReportExportModal({
         {type === 'candidate' && candidates.length > 0 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Zgjidhni kandidatin
+              {t('reports.selectCandidate')}
             </label>
             <Select
-              value={selectedCandidateId}
+              value={selectedCandidateId || ""}
               onChange={(e) => setSelectedCandidateId(e.target.value)}
-              options={[
-                { value: '', label: 'Zgjidhni kandidatin...' },
-                ...candidates.map(candidate => ({
-                  value: candidate.id,
-                  label: `${candidate.uniqueClientNumber ? candidate.uniqueClientNumber + ' - ' : ''}${candidate.firstName} ${candidate.lastName}`
-                }))
-              ]}
+              placeholder={t('common.selectOption')}
+              options={candidates.map(candidate => ({
+                value: candidate.id,
+                label: `${candidate.uniqueClientNumber ? candidate.uniqueClientNumber + ' - ' : ''}${candidate.firstName} ${candidate.lastName}`
+              }))}
             />
           </div>
         )}
@@ -121,18 +122,16 @@ export function ReportExportModal({
         {type === 'instructor' && instructors.length > 0 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Zgjidhni instruktorin
+              {t('reports.selectInstructor')}
             </label>
             <Select
-              value={selectedInstructorId}
+              value={selectedInstructorId || ""}
               onChange={(e) => setSelectedInstructorId(e.target.value)}
-              options={[
-                { value: '', label: 'Zgjidhni instruktorin...' },
-                ...instructors.map(inst => ({
-                  value: inst.id,
-                  label: `${inst.firstName || inst.user?.firstName || ''} ${inst.lastName || inst.user?.lastName || ''}`.trim() || 'Instruktor'
-                }))
-              ]}
+              placeholder={t('common.selectOption')}
+              options={instructors.map(inst => ({
+                value: inst.id,
+                label: `${inst.firstName || inst.user?.firstName || ''} ${inst.lastName || inst.user?.lastName || ''}`.trim() || t('instructors.instructor')
+              }))}
             />
           </div>
         )}
@@ -144,14 +143,14 @@ export function ReportExportModal({
             onClick={onClose}
             disabled={isExporting}
           >
-            Anulo
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleExport}
             disabled={isExporting || (type === 'candidate' && !selectedCandidateId) || (type === 'instructor' && !selectedInstructorId)}
             icon={<DownloadIcon className="w-4 h-4" />}
           >
-            {isExporting ? 'Duke eksportuar...' : 'Eksporto'}
+            {isExporting ? t('reports.exporting') : t('reports.export')}
           </Button>
         </div>
       </div>
