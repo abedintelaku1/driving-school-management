@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../hooks/useLanguage';
-import { translations } from '../../i18n/translations';
+import { translations } from '../../i18n';
 import { api } from '../../utils/api';
 import type { Appointment } from '../../types';
 import { formatDateWithWeekday } from '../../utils/dateUtils';

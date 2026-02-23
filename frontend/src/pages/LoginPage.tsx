@@ -52,7 +52,8 @@ export function LoginPage() {
           navigate('/instructor', { replace: true });
         }
       } else {
-        const errorMessage = result.message || t('login.invalidCredentials');
+        const isNetworkError = result.message === 'Network error or server unavailable' || (result as any).data?.message === 'Network error or server unavailable';
+        const errorMessage = isNetworkError ? t('common.networkError') : (result.message || t('login.invalidCredentials'));
         setError(errorMessage);
         console.error('Login failed:', result);
       }

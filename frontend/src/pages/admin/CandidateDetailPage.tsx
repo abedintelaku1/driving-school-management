@@ -915,7 +915,8 @@ function DocumentsTab({
         // Reload documents
         loadDocuments();
       } else {
-        const errorMessage = (res.data as any)?.message || t('documents.failedToUpload');
+        const msg = (res.data as any)?.message;
+        const errorMessage = msg === 'Network error or server unavailable' ? t('common.networkError') : (msg || t('documents.failedToUpload'));
         alert(errorMessage);
       }
     } catch (err) {
@@ -974,7 +975,7 @@ function DocumentsTab({
         setEditDocumentName("");
         loadDocuments();
       } else {
-        const errorMessage = (res.data as any)?.message || t('documents.failedToUpdateDocumentMessage');
+        const errorMessage = (res.data as any)?.message || t('documents.failedToUpdateDocument');
         alert(errorMessage);
       }
     } catch (err) {

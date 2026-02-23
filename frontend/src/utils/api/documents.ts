@@ -50,7 +50,7 @@ export const documentsApi = {
       return { 
         ok: false, 
         status: 500,
-        data: { message: 'Gabim në rrjet. Ju lutem kontrolloni lidhjen tuaj.' }
+        data: { message: 'Network error or server unavailable' }
       };
     }
   },

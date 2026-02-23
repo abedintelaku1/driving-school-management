@@ -1,0 +1,58 @@
+import type { Language } from '../types';
+
+export const myReports: Record<Language, Record<string, string>> = {
+  sq: {
+    title: 'Raportet e mia',
+    subtitle: 'Shikoni statistikat dhe performancën tuaj të mësimdhënies.',
+    export: 'Eksporto',
+    clear: 'Pastro',
+    loading: 'Duke ngarkuar raportet...',
+    failedToLoadAppointments: 'Dështoi ngarkimi i takimeve',
+    failedToLoadCandidates: 'Dështoi ngarkimi i kandidatëve',
+    failedToLoadData: 'Dështoi ngarkimi i të dhënave të raporteve',
+    failedToExport: 'Dështoi eksportimi i raportit',
+    totalLessons: 'Mësime gjithsej',
+    hoursTaught: 'Orë të mësuara',
+    students: 'Nxënës',
+    completionRate: 'Shkalla e përfundimit',
+    studentPerformance: 'Performanca e nxënësve',
+    lessonHistory: 'Historiku i mësimeve',
+    studentName: 'Emri i nxënësit'
+  },
+  en: {
+    title: 'My Reports',
+    subtitle: 'View your teaching statistics and performance.',
+    export: 'Export',
+    clear: 'Clear',
+    loading: 'Loading reports...',
+    failedToLoadAppointments: 'Failed to load appointments',
+    failedToLoadCandidates: 'Failed to load candidates',
+    failedToLoadData: 'Failed to load report data',
+    failedToExport: 'Failed to export report',
+    totalLessons: 'Total Lessons',
+    hoursTaught: 'Hours Taught',
+    students: 'Students',
+    completionRate: 'Completion Rate',
+    studentPerformance: 'Student Performance',
+    lessonHistory: 'Lesson History',
+    studentName: 'Student Name'
+  },
+  sr: {
+    title: 'Moji izveštaji',
+    subtitle: 'Pogledajte statistiku i performanse vašeg podučavanja.',
+    export: 'Izvezi',
+    clear: 'Obriši',
+    loading: 'Učitavanje izveštaja...',
+    failedToLoadAppointments: 'Neuspešno učitavanje termina',
+    failedToLoadCandidates: 'Neuspešno učitavanje kandidata',
+    failedToLoadData: 'Neuspešno učitavanje podataka izveštaja',
+    failedToExport: 'Neuspešno izvoz izveštaja',
+    totalLessons: 'Ukupno časova',
+    hoursTaught: 'Sati predavanja',
+    students: 'Učenici',
+    completionRate: 'Stopa završetka',
+    studentPerformance: 'Performanse učenika',
+    lessonHistory: 'Istorija časova',
+    studentName: 'Ime učenika'
+  },
+};
