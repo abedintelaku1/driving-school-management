@@ -35,44 +35,26 @@ export type Candidate = {
   createdAt: string;
   updatedAt: string;
 };
-<<<<<<< Updated upstream
 export type DocumentType = "PDF" | "JPG" | "PNG" | "DOCX";
 
-=======
->>>>>>> Stashed changes
 export type DocumentUploadedBy = {
   _id: string;
   firstName?: string;
   lastName?: string;
-<<<<<<< Updated upstream
-  role?: number; // 0 = Admin, 1 = Instructor, 2 = Staff
-  // email is not returned by the API for security
-};
-
-export type Document = {
-  _id?: string;
-  id?: string;
-  name: string;
-  type: DocumentType;
-  uploadDate: string;
-  updatedDate?: string;
-  uploadedBy: DocumentUploadedBy | string;
-  // Sensitive fields removed from API responses (only used internally on backend)
-  // filePath, fileSize, originalName are not returned by the API
-  // Legacy fields (for backward compatibility)
-=======
   email?: string;
+  role?: number; // 0 = Admin, 1 = Instructor, 2 = Staff
 };
 
 export type Document = {
   id?: string;
   _id?: string;
   name: string;
-  type?: "PDF" | "JPG" | "PNG" | "DOCX";
+  type?: DocumentType;
+  uploadDate?: string;
   uploadedAt?: string;
-  uploadedBy?: DocumentUploadedBy | null;
+  updatedDate?: string;
+  uploadedBy?: DocumentUploadedBy | string | null;
   filePath?: string;
->>>>>>> Stashed changes
   status?: DocumentStatus;
   submittedAt?: string;
   approvedAt?: string;

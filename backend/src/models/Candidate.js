@@ -68,7 +68,6 @@ const CandidateSchema = new mongoose.Schema({
     },
     documents: {
         type: [{
-<<<<<<< Updated upstream
             name: {
                 type: String,
                 required: true,
@@ -104,18 +103,6 @@ const CandidateSchema = new mongoose.Schema({
                 type: String,
                 required: true
             }
-=======
-            _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
-            name: { type: String, default: '' },
-            type: { type: String, enum: ['PDF', 'JPG', 'PNG', 'DOCX'], default: null },
-            uploadedAt: { type: Date, default: Date.now },
-            uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-            filePath: { type: String, default: null },
-            status: { type: String, enum: ['pending', 'submitted', 'approved', 'rejected'], default: 'pending' },
-            submittedAt: Date,
-            approvedAt: Date,
-            notes: String
->>>>>>> Stashed changes
         }],
         default: []
     },

@@ -11,17 +11,9 @@ import {
   ClockIcon,
   UserIcon,
   PackageIcon,
-<<<<<<< Updated upstream
-  FileTextIcon,
-  UploadIcon,
-  DownloadIcon,
-  TrashIcon,
-  XIcon,
-=======
   PlusIcon,
   TrashIcon,
   DownloadIcon,
->>>>>>> Stashed changes
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -36,11 +28,8 @@ import { toast } from "../../hooks/useToast";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Modal } from "../../components/ui/Modal";
-import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../hooks/useLanguage";
-import { toast } from "../../hooks/useToast";
-import type { Appointment, Document } from "../../types";
-import { formatDateTime } from "../../utils/dateUtils";
+import type { Appointment } from "../../types";
 
 type Candidate = {
   _id?: string;
@@ -85,8 +74,6 @@ export function CandidateDetailPage() {
   >([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [packageInfo, setPackageInfo] = useState<any>(null);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -346,17 +333,10 @@ export function CandidateDetailPage() {
       {/* Tabs */}
       <Tabs defaultTab={defaultTab}>
         <TabList>
-<<<<<<< Updated upstream
           <Tab value="appointments">{t('candidates.appointments')}</Tab>
           <Tab value="payments">{t('candidates.payments')}</Tab>
           <Tab value="documents">{t('candidates.documents')}</Tab>
           <Tab value="package">{t('candidates.packages')}</Tab>
-=======
-          <Tab value="appointments">Takimet</Tab>
-          <Tab value="payments">Pagesat</Tab>
-          <Tab value="documents">Dokumentet</Tab>
-          <Tab value="package">Paketa</Tab>
->>>>>>> Stashed changes
         </TabList>
 
         <TabPanel value="appointments">
@@ -375,16 +355,8 @@ export function CandidateDetailPage() {
         <TabPanel value="documents">
           <DocumentsTab
             candidateId={candidate.id || candidate._id || ""}
-<<<<<<< Updated upstream
-            documents={documents}
-            documentsLoading={documentsLoading}
-            onDocumentsChange={setDocuments}
-            onDocumentsLoadingChange={setDocumentsLoading}
-            userRole={user?.role}
-=======
-            documents={candidate.documents || []}
+            documents={candidate?.documents || []}
             onRefresh={loadData}
->>>>>>> Stashed changes
           />
         </TabPanel>
 
@@ -691,7 +663,7 @@ function PaymentsTab({
       label: t('payments.date'),
       sortable: true,
       render: (value: unknown) => (
-        <span>{formatDate(value as string, language === 'sq' ? 'sq-AL' : language === 'en' ? 'en-US' : 'sr-RS')}</span>
+        <span>{value ? new Date(value as string).toLocaleDateString("sq-AL") : "—"}</span>
       ),
     },
     {
@@ -1075,11 +1047,12 @@ function DocumentsTab({
       >
         <form onSubmit={handleAdd}>
           <div className="space-y-4">
-            <Input
+            <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
               required
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             <Input
               label="Emër (opsional)"
@@ -1163,560 +1136,3 @@ function PackageTab() {
   );
 }
 
-type DocumentsTabProps = {
-  candidateId: string;
-  documents: Document[];
-  documentsLoading: boolean;
-  onDocumentsChange: (documents: Document[]) => void;
-  onDocumentsLoadingChange: (loading: boolean) => void;
-  userRole?: number;
-};
-
-function DocumentsTab({
-  candidateId,
-  documents,
-  documentsLoading,
-  onDocumentsChange,
-  onDocumentsLoadingChange,
-  userRole,
-}: DocumentsTabProps) {
-  const { t, language } = useLanguage();
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentName, setDocumentName] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
-  const [editDocumentName, setEditDocumentName] = useState("");
-  const [updating, setUpdating] = useState(false);
-
-  const isAdmin = userRole === 0;
-  const canView = userRole === 0 || userRole === 2; // Admin or Staff can view documents
-  const canUpload = userRole === 0 || userRole === 2; // Admin or Staff can upload documents
-  const canDelete = isAdmin; // Only admin can delete
-  const canEdit = isAdmin; // Only admin can edit
-
-  const loadDocuments = useCallback(async () => {
-    if (!candidateId || !canView) return; // Admin and Staff can view documents
-    onDocumentsLoadingChange(true);
-    try {
-      const res = await api.listDocuments(candidateId);
-      if (res.ok && res.data) {
-        onDocumentsChange(res.data);
-      }
-    } catch (err) {
-      // Silently handle errors
-    } finally {
-      onDocumentsLoadingChange(false);
-    }
-  }, [candidateId, canView, onDocumentsChange, onDocumentsLoadingChange]);
-
-  useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const ext = file.name.split(".").pop()?.toUpperCase();
-      if (!["PDF", "JPG", "JPEG", "PNG", "DOCX"].includes(ext || "")) {
-        alert(t('documents.fileTypeNotAllowed'));
-        return;
-      }
-      // Validate file size (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert(t('documents.fileTooLarge'));
-        return;
-      }
-      setSelectedFile(file);
-      if (!documentName) {
-        setDocumentName(file.name.replace(/\.[^/.]+$/, ""));
-      }
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !candidateId) return;
-
-    setUploading(true);
-    try {
-      const res = await api.uploadDocument(
-        candidateId,
-        selectedFile,
-        documentName || undefined
-      );
-      if (res.ok) {
-        setUploadOpen(false);
-        setSelectedFile(null);
-        setDocumentName("");
-        // Reload documents
-        loadDocuments();
-      } else {
-        const msg = (res.data as any)?.message;
-        const errorMessage = msg === 'Network error or server unavailable' ? t('common.networkError') : (msg || t('documents.failedToUpload'));
-        alert(errorMessage);
-      }
-    } catch (err) {
-      alert(t('documents.failedToUpload'));
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDelete = async (documentId: string) => {
-    if (!confirm(t('documents.confirmDelete'))) {
-      return;
-    }
-
-    setDeletingId(documentId);
-    try {
-      const res = await api.deleteDocument(candidateId, documentId);
-      if (res.ok) {
-        loadDocuments();
-      } else {
-        alert(
-          (res.data as any)?.message || t('documents.failedToDelete')
-        );
-      }
-    } catch (err) {
-      alert(t('documents.failedToDelete'));
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleEdit = (doc: Document) => {
-    setEditingDocument(doc);
-    setEditDocumentName(doc.name);
-    setEditOpen(true);
-  };
-
-  const handleUpdate = async () => {
-    if (!editingDocument || !editDocumentName.trim()) {
-      alert(t('documents.documentNameRequired'));
-      return;
-    }
-
-    const docId = editingDocument._id || editingDocument.id || "";
-    if (!docId) {
-      alert(t('documents.invalidDocumentId'));
-      return;
-    }
-
-    setUpdating(true);
-    try {
-      const res = await api.updateDocument(candidateId, docId, editDocumentName.trim());
-      if (res.ok) {
-        setEditOpen(false);
-        setEditingDocument(null);
-        setEditDocumentName("");
-        loadDocuments();
-      } else {
-        const errorMessage = (res.data as any)?.message || t('documents.failedToUpdateDocument');
-        alert(errorMessage);
-      }
-    } catch (err) {
-      alert(t('documents.failedToUpdateDocument'));
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleDownload = async (documentId: string) => {
-    try {
-      await api.downloadDocument(candidateId, documentId);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('documents.downloadError');
-      toast('error', errorMessage);
-    }
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return "-";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '';
-    
-    // Direct formatting with Kosovo timezone
-    try {
-      // Parse the date string - it should be in ISO format (UTC)
-      const date = new Date(dateString);
-      
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return dateString;
-      }
-      
-      const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
-      const locale = localeMap[language] || 'sq-AL';
-      
-      // Use Intl.DateTimeFormat for more reliable timezone conversion
-      const dateFormatter = new Intl.DateTimeFormat(locale, {
-        timeZone: 'Europe/Pristina',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
-      // Format time with Kosovo timezone using Intl.DateTimeFormat
-      const timeFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Europe/Pristina',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      
-      const formattedDate = dateFormatter.format(date);
-      const formattedTime = timeFormatter.format(date);
-      
-      // For Albanian, use "në" between date and time
-      if (locale.startsWith('sq')) {
-        return `${formattedDate} në ${formattedTime}`;
-      }
-      return `${formattedDate} ${formattedTime}`;
-    } catch (err) {
-      // If formatting fails, try basic formatting
-      try {
-        const date = new Date(dateString);
-        if (!isNaN(date.getTime())) {
-          const localeMap: Record<string, string> = { sq: 'sq-AL', en: 'en-US', sr: 'sr-RS' };
-          const locale = localeMap[language] || 'sq-AL';
-          const formatter = new Intl.DateTimeFormat(locale, { 
-            timeZone: 'Europe/Pristina',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          });
-          return formatter.format(date);
-        }
-      } catch (e) {
-        // Silently handle error
-      }
-      return dateString;
-    }
-  };
-
-  const getUploadedByName = (uploadedBy: Document["uploadedBy"]) => {
-    if (typeof uploadedBy === "object" && uploadedBy !== null) {
-      const name = [uploadedBy.firstName, uploadedBy.lastName]
-        .filter(Boolean)
-        .join(" ");
-      return name || t('common.unknown');
-    }
-    return t('common.unknown');
-  };
-
-  const getUploaderRole = (uploadedBy: Document["uploadedBy"]) => {
-    if (typeof uploadedBy === "object" && uploadedBy !== null && uploadedBy.role !== undefined) {
-      if (uploadedBy.role === 0) return t('common.roleAdmin');
-      if (uploadedBy.role === 2) return t('common.roleStaff');
-      if (uploadedBy.role === 1) return t('common.roleInstructor');
-    }
-    return null;
-  };
-
-  const getUploaderRoleNumber = (uploadedBy: Document["uploadedBy"]): number | null => {
-    if (typeof uploadedBy === "object" && uploadedBy !== null && uploadedBy.role !== undefined) {
-      return uploadedBy.role as number;
-    }
-    return null;
-  };
-
-  const documentColumns = [
-    {
-      key: "name",
-      label: t('documents.documentName'),
-      sortable: true,
-    },
-    {
-      key: "type",
-      label: t('documents.documentType'),
-      render: (value: unknown) => (
-        <Badge variant="outline">{value as string}</Badge>
-      ),
-    },
-    {
-      key: "uploadDate",
-      label: t('documents.uploadDate') + '/' + t('documents.modifiedDate'),
-      sortable: true,
-      render: (_: unknown, doc: Document) => {
-        const dateToShow = doc.updatedDate || doc.uploadDate;
-        const isModified = !!doc.updatedDate;
-        if (!dateToShow) {
-          return <span className="text-gray-400">—</span>;
-        }
-        
-        // Ensure dateToShow is a string
-        const dateString = typeof dateToShow === 'string' ? dateToShow : String(dateToShow);
-        const formatted = formatDate(dateString);
-        
-        return (
-          <div className="flex flex-col">
-            <span className="text-gray-600">{formatted}</span>
-            <span className="text-xs text-gray-400 mt-1">
-              {isModified ? `(${t('documents.modified')})` : `(${t('documents.uploaded')})`}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      key: "uploadedBy",
-      label: t('documents.uploadedBy'),
-      render: (value: unknown) => {
-        const uploadedBy = value as Document["uploadedBy"];
-        const name = getUploadedByName(uploadedBy);
-        const role = getUploaderRole(uploadedBy);
-        const roleNumber = getUploaderRoleNumber(uploadedBy);
-        return (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-700">{name}</span>
-            {role && (
-              <Badge 
-                variant={roleNumber === 0 ? "info" : roleNumber === 2 ? "warning" : "outline"}
-                className="text-xs"
-              >
-                {role}
-              </Badge>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      key: "actions",
-      label: t('common.actions'),
-      render: (_: unknown, doc: Document) => {
-        const docId = doc._id || doc.id || "";
-        return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<DownloadIcon className="w-4 h-4" />}
-              onClick={() => handleDownload(docId)}
-              title={t('documents.download')}
-            >
-              {t('documents.download')}
-            </Button>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<EditIcon className="w-4 h-4" />}
-                onClick={() => handleEdit(doc)}
-                title={t('common.edit')}
-                className="text-blue-600 hover:text-blue-700"
-              >
-                {t('common.edit')}
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<TrashIcon className="w-4 h-4" />}
-                onClick={() => handleDelete(docId)}
-                disabled={deletingId === docId}
-                title={t('common.delete')}
-                className="text-red-600 hover:text-red-700"
-              >
-                {t('common.delete')}
-              </Button>
-            )}
-          </div>
-        );
-      },
-    },
-  ];
-
-  return (
-    <div className="space-y-6">
-      {/* Header with Upload Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('documents.title')}</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            {isAdmin
-              ? t('documents.allCandidateDocuments')
-              : t('documents.instructorDocumentsNote')}
-          </p>
-        </div>
-        {canUpload && (
-          <Button
-            icon={<UploadIcon className="w-4 h-4" />}
-            onClick={() => setUploadOpen(true)}
-          >
-            {t('documents.uploadDocument')}
-          </Button>
-        )}
-      </div>
-
-      {/* Documents Table */}
-      {documentsLoading ? (
-        <Card>
-          <div className="p-8 text-center text-gray-500">
-            {t('documents.loadingDocuments')}
-          </div>
-        </Card>
-      ) : documents.length === 0 ? (
-        <Card>
-          <EmptyState
-            title={t('documents.noDocuments')}
-            description={
-              canUpload
-                ? t('documents.noDocumentsDescription')
-                : t('documents.noDocumentsForCandidate')
-            }
-          />
-        </Card>
-      ) : (
-        <Card padding="none">
-          <DataTable
-            data={documents}
-            columns={documentColumns}
-            keyExtractor={(doc) => doc._id || doc.id || ""}
-            searchable={false}
-            emptyMessage={t('documents.noDocuments')}
-          />
-        </Card>
-      )}
-
-      {/* Upload Modal */}
-      <Modal
-        isOpen={uploadOpen}
-        onClose={() => {
-          setUploadOpen(false);
-          setSelectedFile(null);
-          setDocumentName("");
-        }}
-        title={t('documents.uploadDocument')}
-        description={t('documents.uploadDocumentDescription')}
-        size="lg"
-        footer={
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setUploadOpen(false);
-                setSelectedFile(null);
-                setDocumentName("");
-              }}
-              disabled={uploading}
-              fullWidth
-              className="sm:w-auto"
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={handleUpload}
-              loading={uploading}
-              disabled={!selectedFile}
-              fullWidth
-              className="sm:w-auto"
-              icon={<UploadIcon className="w-4 h-4" />}
-            >
-              {t('documents.upload')}
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('documents.file')}
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.docx"
-                onChange={handleFileSelect}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
-            {selectedFile && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-                <FileTextIcon className="w-4 h-4" />
-                <span>{selectedFile.name}</span>
-                <span className="text-gray-400">
-                  ({formatFileSize(selectedFile.size)})
-                </span>
-              </div>
-            )}
-          </div>
-          <Input
-            label={t('documents.documentNameOptional')}
-            value={documentName}
-            onChange={(e) => setDocumentName(e.target.value)}
-            placeholder={selectedFile?.name.replace(/\.[^/.]+$/, "") || t('documents.documentNamePlaceholder')}
-          />
-          </div>
-        </Modal>
-
-        {/* Edit Document Modal */}
-        <Modal
-          isOpen={editOpen}
-          onClose={() => {
-            setEditOpen(false);
-            setEditingDocument(null);
-            setEditDocumentName("");
-          }}
-          title={t('documents.editDocumentName')}
-          description={t('documents.editDocumentDescription')}
-          size="lg"
-          footer={
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setEditOpen(false);
-                  setEditingDocument(null);
-                  setEditDocumentName("");
-                }}
-                disabled={updating}
-                fullWidth
-                className="sm:w-auto"
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                onClick={handleUpdate}
-                loading={updating}
-                disabled={!editDocumentName.trim()}
-                fullWidth
-                className="sm:w-auto"
-                icon={<EditIcon className="w-4 h-4" />}
-              >
-                {t('common.saveChanges')}
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            <Input
-              label={t('documents.documentName')}
-              required
-              value={editDocumentName}
-              onChange={(e) => setEditDocumentName(e.target.value)}
-              placeholder={t('documents.documentNamePlaceholder')}
-            />
-            {editingDocument && (
-              <div className="text-sm text-gray-500">
-                <p><strong>{t('documents.documentType')}:</strong> {editingDocument.type}</p>
-                <p><strong>{t('documents.uploaded')}:</strong> {formatDate(editingDocument.uploadDate)}</p>
-              </div>
-            )}
-          </div>
-        </Modal>
-      </div>
-    );
-  }

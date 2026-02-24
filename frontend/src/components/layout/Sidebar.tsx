@@ -9,7 +9,6 @@ type NavItem = {
   icon: React.ReactNode;
 };
 
-<<<<<<< Updated upstream
 function useNavItems(role: UserRole): NavItem[] {
   const { t } = useLanguage();
   
@@ -43,17 +42,21 @@ function useNavItems(role: UserRole): NavItem[] {
     icon: <FileTextIcon className="w-5 h-5" />
   }];
 
-  // Staff (role 2): only Dashboard and Payments – can add payments, cannot edit/delete
+  // Staff (role 2): Dashboard, Kandidatët (for documents), Payments – can add, cannot edit/delete
   const staffNavItems: NavItem[] = [{
     label: t('sidebar.dashboard'),
     path: '/admin',
     icon: <LayoutDashboardIcon className="w-5 h-5" />
   }, {
+    label: t('sidebar.candidates'),
+    path: '/admin/candidates',
+    icon: <UsersIcon className="w-5 h-5" />
+  }, {
     label: t('sidebar.payments'),
     path: '/admin/payments',
     icon: <CreditCardIcon className="w-5 h-5" />
   }];
-  
+
   const instructorNavItems: NavItem[] = [{
     label: t('sidebar.dashboard'),
     path: '/instructor',
@@ -78,43 +81,7 @@ function useNavItems(role: UserRole): NavItem[] {
 
   return role === 0 ? adminNavItems : role === 2 ? staffNavItems : instructorNavItems;
 }
-=======
-// Staff (role 2): Dashboard, Kandidatët (for documents), Payments – can add, cannot edit/delete
-const staffNavItems: NavItem[] = [{
-  label: 'Paneli',
-  path: '/admin',
-  icon: <LayoutDashboardIcon className="w-5 h-5" />
-}, {
-  label: 'Kandidatët',
-  path: '/admin/candidates',
-  icon: <UsersIcon className="w-5 h-5" />
-}, {
-  label: 'Pagesat',
-  path: '/admin/payments',
-  icon: <CreditCardIcon className="w-5 h-5" />
-}];
-const instructorNavItems: NavItem[] = [{
-  label: 'Paneli',
-  path: '/instructor',
-  icon: <LayoutDashboardIcon className="w-5 h-5" />
-}, {
-  label: 'Takimet',
-  path: '/instructor/appointments',
-  icon: <ClipboardListIcon className="w-5 h-5" />
-}, {
-  label: 'Kalendari',
-  path: '/instructor/calendar',
-  icon: <CalendarIcon className="w-5 h-5" />
-}, {
-  label: 'Kandidatët e mi',
-  path: '/instructor/candidates',
-  icon: <UsersIcon className="w-5 h-5" />
-}, {
-  label: 'Raportet',
-  path: '/instructor/reports',
-  icon: <FileTextIcon className="w-5 h-5" />
-}];
->>>>>>> Stashed changes
+
 type SidebarProps = {
   role: UserRole;
   collapsed: boolean;

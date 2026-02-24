@@ -7,56 +7,34 @@ const notFoundHandler = (req, res, _next) => {
 
 // Centralized error handler
 const errorHandler = (err, req, res, _next) => {
-<<<<<<< Updated upstream
-    // Don't log sensitive error details in production
-    
-    // Handle Multer errors specifically
     if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({
-            message: 'Skedari është shumë i madh. Maksimumi është 10MB'
+            message: 'Skedari është shumë i madh. Maksimumi është 15MB'
         });
     }
-    
     if (err.code === 'LIMIT_UNEXPECTED_FILE') {
         return res.status(400).json({
             message: 'Skedari i papritur. Ju lutem përdorni fushën "file"'
         });
     }
-    
-    // Handle Multer file filter errors
-    if (err.message && err.message.includes('File type not allowed')) {
+    if (err.message && (err.message.includes('File type not allowed') || err.message.includes('Lloji i skedarit'))) {
         return res.status(400).json({
             message: 'Tipi i skedarit nuk lejohet. Tipet e lejuara: PDF, JPG, PNG, DOCX'
         });
     }
-    
-    // Handle validation errors without exposing internal details
     if (err.name === 'ValidationError') {
         return res.status(400).json({
             message: 'Të dhënat e dërguara nuk janë të vlefshme'
         });
     }
-    
-    // Handle cast errors (invalid ObjectId, etc.)
     if (err.name === 'CastError') {
         return res.status(400).json({
             message: 'ID e dërguar nuk është e vlefshme'
         });
     }
-    
     const status = err.status || err.statusCode || 500;
-    
-    // Don't expose internal error details in production
-    // Always use generic messages to avoid exposing sensitive information
-=======
-    console.error('Error:', err);
-    let status = err.status || 500;
-    if (err.message && (err.message.includes('Lloji i skedarit') || err.message.includes('File type'))) {
-        status = 400;
-    }
->>>>>>> Stashed changes
     res.status(status).json({
-        message: 'Diçka shkoi keq. Ju lutem provoni përsëri.'
+        message: err.message || 'Diçka shkoi keq. Ju lutem provoni përsëri.'
     });
 };
 

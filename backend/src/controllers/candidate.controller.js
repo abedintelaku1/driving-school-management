@@ -365,9 +365,11 @@ const addDocument = async (req, res, next) => {
         candidate.documents.push({
             name,
             type: docType,
-            uploadedAt: new Date(),
+            uploadDate: new Date(),
             uploadedBy: req.user._id,
             filePath: req.file.filename,
+            fileSize: req.file.size || 0,
+            originalName: req.file.originalname || req.file.filename,
         });
         await candidate.save();
         const populated = await Candidate.findById(candidateId)
