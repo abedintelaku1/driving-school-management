@@ -183,6 +183,84 @@ export const api = {
     }
   },
 
+  async uploadCandidateDocument(
+    candidateId: string,
+    formData: FormData
+  ): Promise<ApiResponse<any>> {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(
+        `${API_URL}/api/candidates/${candidateId}/documents`,
+        { method: "POST", headers, body: formData }
+      );
+      const data = await res.json().catch(() => undefined);
+      if (!res.ok) return { ok: false, data, status: res.status };
+      return { ok: true, data, status: res.status };
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async updateCandidateDocument(
+    candidateId: string,
+    docId: string,
+    body: { name?: string; notes?: string }
+  ): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/candidates/${candidateId}/documents/${docId}`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(body),
+        }
+      );
+      return handle(res);
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  async deleteCandidateDocument(
+    candidateId: string,
+    docId: string
+  ): Promise<ApiResponse<any>> {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/candidates/${candidateId}/documents/${docId}`,
+        { method: "DELETE", headers: getAuthHeaders() }
+      );
+      const data = await res.json().catch(() => undefined);
+      if (!res.ok) return { ok: false, data, status: res.status };
+      return { ok: true, data, status: res.status };
+    } catch {
+      return { ok: false, status: 500 };
+    }
+  },
+  getCandidateDocumentFileUrl(candidateId: string, docId: string): string {
+    const token = localStorage.getItem("auth_token");
+    const url = `${API_URL}/api/candidates/${candidateId}/documents/${docId}/file`;
+    return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+  },
+  async downloadCandidateDocument(
+    candidateId: string,
+    docId: string,
+    fileName: string
+  ): Promise<void> {
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(
+      `${API_URL}/api/candidates/${candidateId}/documents/${docId}/file`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName || "document";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+
   async listCars(): Promise<ApiResponse<any[]>> {
     try {
       const res = await fetch(`${API_URL}/api/cars`, {

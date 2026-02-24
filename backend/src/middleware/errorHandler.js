@@ -7,6 +7,7 @@ const notFoundHandler = (req, res, _next) => {
 
 // Centralized error handler
 const errorHandler = (err, req, res, _next) => {
+<<<<<<< Updated upstream
     // Don't log sensitive error details in production
     
     // Handle Multer errors specifically
@@ -47,6 +48,13 @@ const errorHandler = (err, req, res, _next) => {
     
     // Don't expose internal error details in production
     // Always use generic messages to avoid exposing sensitive information
+=======
+    console.error('Error:', err);
+    let status = err.status || 500;
+    if (err.message && (err.message.includes('Lloji i skedarit') || err.message.includes('File type'))) {
+        status = 400;
+    }
+>>>>>>> Stashed changes
     res.status(status).json({
         message: 'Diçka shkoi keq. Ju lutem provoni përsëri.'
     });

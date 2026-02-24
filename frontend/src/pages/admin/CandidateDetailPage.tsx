@@ -11,11 +11,17 @@ import {
   ClockIcon,
   UserIcon,
   PackageIcon,
+<<<<<<< Updated upstream
   FileTextIcon,
   UploadIcon,
   DownloadIcon,
   TrashIcon,
   XIcon,
+=======
+  PlusIcon,
+  TrashIcon,
+  DownloadIcon,
+>>>>>>> Stashed changes
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -25,6 +31,8 @@ import { Tabs, TabList, Tab, TabPanel } from "../../components/ui/Tabs";
 import { DataTable } from "../../components/ui/DataTable";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { api } from "../../utils/api";
+import { useAuth } from "../../hooks/useAuth";
+import { toast } from "../../hooks/useToast";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Modal } from "../../components/ui/Modal";
@@ -50,6 +58,7 @@ type Candidate = {
   carId?: string;
   packageId?: string;
   personalNumber?: string;
+  documents?: any[];
 };
 
 type AppointmentEx = Appointment & {
@@ -337,10 +346,17 @@ export function CandidateDetailPage() {
       {/* Tabs */}
       <Tabs defaultTab={defaultTab}>
         <TabList>
+<<<<<<< Updated upstream
           <Tab value="appointments">{t('candidates.appointments')}</Tab>
           <Tab value="payments">{t('candidates.payments')}</Tab>
           <Tab value="documents">{t('candidates.documents')}</Tab>
           <Tab value="package">{t('candidates.packages')}</Tab>
+=======
+          <Tab value="appointments">Takimet</Tab>
+          <Tab value="payments">Pagesat</Tab>
+          <Tab value="documents">Dokumentet</Tab>
+          <Tab value="package">Paketa</Tab>
+>>>>>>> Stashed changes
         </TabList>
 
         <TabPanel value="appointments">
@@ -359,11 +375,16 @@ export function CandidateDetailPage() {
         <TabPanel value="documents">
           <DocumentsTab
             candidateId={candidate.id || candidate._id || ""}
+<<<<<<< Updated upstream
             documents={documents}
             documentsLoading={documentsLoading}
             onDocumentsChange={setDocuments}
             onDocumentsLoadingChange={setDocumentsLoading}
             userRole={user?.role}
+=======
+            documents={candidate.documents || []}
+            onRefresh={loadData}
+>>>>>>> Stashed changes
           />
         </TabPanel>
 
@@ -811,6 +832,324 @@ function PaymentsTab({
           />
         )}
       </Card>
+    </div>
+  );
+}
+
+function DocumentsTab({
+  candidateId,
+  documents: documentsProp,
+  onRefresh,
+}: {
+  candidateId: string;
+  documents: any[];
+  onRefresh: () => void;
+}) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 0;
+  const isStaff = user?.role === 2;
+  const canAdd = isAdmin || isStaff;
+  const canEdit = isAdmin;
+  const canDelete = isAdmin;
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<any>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const documents = Array.isArray(documentsProp) ? documentsProp : [];
+
+  const docColumns = [
+    { key: "name", label: "Emër" },
+    {
+      key: "type",
+      label: "Tip",
+      render: (v: unknown) => (v ? <Badge variant="info">{String(v)}</Badge> : <span className="text-gray-400">—</span>),
+    },
+    {
+      key: "uploadedAt",
+      label: "Datë ngarkimi",
+      render: (v: unknown) =>
+        v ? (
+          <span>{new Date(v as string).toLocaleDateString("sq-AL")}</span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        ),
+    },
+    {
+      key: "uploadedBy",
+      label: "Ngarkuar nga",
+      render: (value: unknown) => {
+        const user = value as { firstName?: string; lastName?: string; email?: string } | null | undefined;
+        if (!user || typeof user !== "object") return <span className="text-gray-400">—</span>;
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        return (
+          <span className="text-gray-700" title={name || user.email || ""}>
+            {name || user.email || "—"}
+          </span>
+        );
+      },
+    },
+  ];
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      toast("error", "Zgjidhni një skedar");
+      return;
+    }
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      if (uploadName.trim()) formData.append("name", uploadName.trim());
+      const { ok, data } = await api.uploadCandidateDocument(candidateId, formData);
+      if (ok) {
+        toast("success", "Dokumenti u shtua");
+        setShowAddModal(false);
+        setUploadFile(null);
+        setUploadName("");
+        onRefresh();
+      } else {
+        toast("error", (data as any)?.message || "Dështoi shtimi i dokumentit");
+      }
+    } catch {
+      toast("error", "Dështoi shtimi i dokumentit");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDoc) return;
+    setLoading(true);
+    try {
+      const docId = selectedDoc._id || selectedDoc.id;
+      const { ok, data } = await api.updateCandidateDocument(candidateId, docId, {
+        name: editName.trim(),
+        notes: editNotes,
+      });
+      if (ok) {
+        toast("success", "Dokumenti u përditësua");
+        setShowEditModal(false);
+        setSelectedDoc(null);
+        onRefresh();
+      } else {
+        toast("error", (data as any)?.message || "Dështoi përditësimi");
+      }
+    } catch {
+      toast("error", "Dështoi përditësimi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedDoc) return;
+    setLoading(true);
+    try {
+      const docId = selectedDoc._id || selectedDoc.id;
+      const { ok, data } = await api.deleteCandidateDocument(candidateId, docId);
+      if (ok) {
+        toast("success", "Dokumenti u fshi");
+        setShowDeleteModal(false);
+        setSelectedDoc(null);
+        onRefresh();
+      } else {
+        toast("error", (data as any)?.message || "Dështoi fshirja");
+      }
+    } catch {
+      toast("error", "Dështoi fshirja");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = (doc: any) => {
+    const docId = doc._id || doc.id;
+    const name = doc.name || "document";
+    api.downloadCandidateDocument(candidateId, docId, name);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card padding="none">
+        <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-gray-900">Dokumentet e kandidatit</h3>
+          {canAdd && (
+            <Button
+              icon={<PlusIcon className="w-4 h-4" />}
+              onClick={() => setShowAddModal(true)}
+            >
+              Shto dokument
+            </Button>
+          )}
+        </div>
+        {documents.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            <p>Nuk ka dokumente të ngarkuara.</p>
+            {canAdd && (
+              <Button
+                className="mt-3"
+                variant="outline"
+                icon={<PlusIcon className="w-4 h-4" />}
+                onClick={() => setShowAddModal(true)}
+              >
+                Shto dokumentin e parë
+              </Button>
+            )}
+          </div>
+        ) : (
+          <DataTable
+            data={documents}
+            columns={docColumns}
+            keyExtractor={(d) => d._id || d.id || String(documents.indexOf(d))}
+            searchable={false}
+            emptyMessage="Nuk ka dokumente"
+            actions={
+              canEdit || canDelete || documents.some((d) => d.filePath)
+                ? (doc) => (
+                    <div className="flex items-center gap-2">
+                      {doc.filePath && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<DownloadIcon className="w-4 h-4" />}
+                          onClick={() => handleDownload(doc)}
+                        >
+                          Shkarko
+                        </Button>
+                      )}
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<EditIcon className="w-4 h-4" />}
+                          onClick={() => {
+                            setSelectedDoc(doc);
+                            setEditName(doc.name || "");
+                            setEditNotes(doc.notes || "");
+                            setShowEditModal(true);
+                          }}
+                        >
+                          Ndrysho
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<TrashIcon className="w-4 h-4" />}
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => {
+                            setSelectedDoc(doc);
+                            setShowDeleteModal(true);
+                          }}
+                        >
+                          Fshi
+                        </Button>
+                      )}
+                    </div>
+                  )
+                : undefined
+            }
+          />
+        )}
+      </Card>
+
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setUploadFile(null);
+          setUploadName("");
+        }}
+        title="Shto dokument"
+        description="Zgjidhni një skedar (PDF, JPG, PNG, DOCX)."
+      >
+        <form onSubmit={handleAdd}>
+          <div className="space-y-4">
+            <Input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              required
+            />
+            <Input
+              label="Emër (opsional)"
+              value={uploadName}
+              onChange={(e) => setUploadName(e.target.value)}
+              placeholder="Emri i dokumentit"
+            />
+          </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+              Anulo
+            </Button>
+            <Button type="submit" disabled={loading || !uploadFile}>
+              {loading ? "Duke ngarkuar..." : "Ngarko"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedDoc(null);
+        }}
+        title="Ndrysho dokumentin"
+        description="Përditësoni emrin ose shënimet."
+      >
+        <form onSubmit={handleEdit}>
+          <div className="space-y-4">
+            <Input
+              label="Emër"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+            />
+            <Input
+              label="Shënime"
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Opsionale"
+            />
+          </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
+              Anulo
+            </Button>
+            <Button type="submit" disabled={loading}>{loading ? "Duke ruajtur..." : "Ruaj"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedDoc(null);
+        }}
+        title="Fshi dokumentin"
+        description="Jeni të sigurt që dëshironi të fshini këtë dokument? Ky veprim nuk mund të kthehet."
+      >
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+            Anulo
+          </Button>
+          <Button variant="danger" onClick={handleDelete} disabled={loading}>
+            {loading ? "Duke fshirë..." : "Fshi"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

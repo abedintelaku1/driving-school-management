@@ -4,8 +4,8 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuth } from '../../hooks/useAuth';
 
-// Staff (role 2) may only access these admin paths; others redirect to /admin
-const STAFF_ALLOWED_PATHS = ['/admin', '/admin/profile', '/admin/payments'];
+// Staff (role 2) may only access these admin paths; candidates for documents
+const STAFF_ALLOWED_PATHS = ['/admin', '/admin/profile', '/admin/payments', '/admin/candidates'];
 
 type AdminLayoutProps = {
   title?: string;
@@ -17,12 +17,17 @@ export function AdminLayout({
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Admin area: role 0 (Admin) or 2 (Staff – limited menu and payment permissions)
   const role = user?.role === 2 ? 2 : 0;
   const isStaff = user?.role === 2;
+<<<<<<< Updated upstream
   // Check if path is in allowed list or if it's a candidate detail page (for documents access)
   const isCandidateDetailPage = location.pathname.startsWith('/admin/candidates/');
   const pathAllowed = STAFF_ALLOWED_PATHS.includes(location.pathname) || (isStaff && isCandidateDetailPage);
+=======
+  const pathAllowed =
+    STAFF_ALLOWED_PATHS.includes(location.pathname) ||
+    location.pathname.startsWith('/admin/candidates/');
+>>>>>>> Stashed changes
   if (isStaff && !pathAllowed) {
     return <Navigate to="/admin" replace />;
   }

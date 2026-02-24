@@ -1,6 +1,9 @@
+const path = require('path');
+const fs = require('fs');
 const Candidate = require('../models/Candidate');
 const emailService = require('../services/email.service');
 const notificationService = require('../services/notification.service');
+const { ALLOWED_MIMES, uploadsDir } = require('../middleware/upload');
 
 const list = async (req, res, next) => {
     try {
@@ -39,7 +42,8 @@ const list = async (req, res, next) => {
 const getById = async (req, res, next) => {
     try {
         const candidate = await Candidate.findById(req.params.id)
-            .populate('instructorId', 'phone address dateOfBirth personalNumber');
+            .populate('instructorId', 'phone address dateOfBirth personalNumber')
+            .populate({ path: 'documents.uploadedBy', select: 'firstName lastName email' });
         if (!candidate) {
             return res.status(404).json({ message: 'Candidate not found' });
         }
@@ -344,10 +348,128 @@ const remove = async (req, res, next) => {
     }
 };
 
+// --- Candidate documents (Admin: add/view/edit/delete; Staff: add/view only) ---
+
+const addDocument = async (req, res, next) => {
+    try {
+        const candidateId = req.params.id;
+        if (!req.file || !req.file.filename) {
+            return res.status(400).json({ message: 'Skedari nuk u ngarkua. Zgjidhni një skedar PDF, JPG, PNG ose DOCX.' });
+        }
+        const candidate = await Candidate.findById(candidateId);
+        if (!candidate) {
+            return res.status(404).json({ message: 'Candidate not found' });
+        }
+        const docType = ALLOWED_MIMES[req.file.mimetype] || 'PDF';
+        const name = (req.body && req.body.name && req.body.name.trim()) ? req.body.name.trim() : req.file.originalname || req.file.filename;
+        candidate.documents.push({
+            name,
+            type: docType,
+            uploadedAt: new Date(),
+            uploadedBy: req.user._id,
+            filePath: req.file.filename,
+        });
+        await candidate.save();
+        const populated = await Candidate.findById(candidateId)
+            .populate('instructorId', 'phone address dateOfBirth personalNumber')
+            .populate({ path: 'documents.uploadedBy', select: 'firstName lastName email' });
+        const added = populated.documents[populated.documents.length - 1];
+        res.status(201).json(added);
+    } catch (err) {
+        console.error('Error adding document:', err);
+        next(err);
+    }
+};
+
+const updateDocument = async (req, res, next) => {
+    try {
+        const { id: candidateId, docId } = req.params;
+        const { name, notes } = req.body || {};
+        const candidate = await Candidate.findById(candidateId);
+        if (!candidate) {
+            return res.status(404).json({ message: 'Candidate not found' });
+        }
+        const doc = candidate.documents.id(docId);
+        if (!doc) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+        if (name !== undefined && String(name).trim()) doc.name = String(name).trim();
+        if (notes !== undefined) doc.notes = String(notes || '').trim();
+        await candidate.save();
+        const populated = await Candidate.findById(candidateId)
+            .populate({ path: 'documents.uploadedBy', select: 'firstName lastName email' });
+        const updated = populated.documents.id(docId);
+        res.json(updated);
+    } catch (err) {
+        console.error('Error updating document:', err);
+        if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid ID' });
+        next(err);
+    }
+};
+
+const deleteDocument = async (req, res, next) => {
+    try {
+        const { id: candidateId, docId } = req.params;
+        const candidate = await Candidate.findById(candidateId);
+        if (!candidate) {
+            return res.status(404).json({ message: 'Candidate not found' });
+        }
+        const doc = candidate.documents.id(docId);
+        if (!doc) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+        const filePath = doc.filePath;
+        candidate.documents.pull(docId);
+        await candidate.save();
+        if (filePath) {
+            const fullPath = path.join(uploadsDir, String(candidateId), filePath);
+            try {
+                if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+            } catch (e) {
+                console.warn('Could not delete file:', fullPath, e.message);
+            }
+        }
+        res.json({ message: 'Document deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting document:', err);
+        if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid ID' });
+        next(err);
+    }
+};
+
+const getDocumentFile = async (req, res, next) => {
+    try {
+        const { id: candidateId, docId } = req.params;
+        const candidate = await Candidate.findById(candidateId);
+        if (!candidate) {
+            return res.status(404).json({ message: 'Candidate not found' });
+        }
+        const doc = candidate.documents.id(docId);
+        if (!doc || !doc.filePath) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+        const fullPath = path.join(uploadsDir, String(candidateId), doc.filePath);
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ message: 'File not found on server' });
+        }
+        const disposition = `attachment; filename="${encodeURIComponent(doc.name || doc.filePath)}"`;
+        res.setHeader('Content-Disposition', disposition);
+        res.sendFile(path.resolve(fullPath));
+    } catch (err) {
+        console.error('Error serving document:', err);
+        if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid ID' });
+        next(err);
+    }
+};
+
 module.exports = {
     list,
     getById,
     create,
     update,
-    remove
+    remove,
+    addDocument,
+    updateDocument,
+    deleteDocument,
+    getDocumentFile,
 };
